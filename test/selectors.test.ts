@@ -59,6 +59,22 @@ describe('setHidden', () => {
   });
 });
 
+describe('tablePairs — 표만 든 블록', () => {
+  const table = '<table><thead><tr><th>a</th></tr></thead><tbody><tr><td>1</td></tr></tbody></table>';
+  it('표를 품은 목록은 쌍으로 받지 않는다 — 목록 글이 숨겨지면 안 된다', () => {
+    document.body.innerHTML = `<div class="markdown-body"><del><ul><li>글</li><li>${table}</li></ul></del><ins><ul><li>글2</li><li>${table}</li></ul></ins></div>`;
+    expect(tablePairs(document.querySelector('.markdown-body')!)).toHaveLength(0);
+  });
+  it('표 옆에 글이 있으면 받지 않는다', () => {
+    document.body.innerHTML = `<div class="markdown-body"><del>설명 ${table}</del><ins>설명 ${table}</ins></div>`;
+    expect(tablePairs(document.querySelector('.markdown-body')!)).toHaveLength(0);
+  });
+  it('감싼 요소 하나 + 공백뿐이면 받는다', () => {
+    document.body.innerHTML = `<div class="markdown-body"><del> <x-t>${table}</x-t> </del><ins><x-t>${table}</x-t></ins></div>`;
+    expect(tablePairs(document.querySelector('.markdown-body')!)).toHaveLength(1);
+  });
+});
+
 describe('렌더링 본문', () => {
   it('고정 자료: 변경 없는 묶음 3개, 표 쌍 1개', () => {
     const body = loadFixture('handmade-prose.html');

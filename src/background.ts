@@ -22,9 +22,20 @@ async function paintGlobal(): Promise<void> {
 chrome.runtime.onInstalled.addListener(() => void paintGlobal());
 chrome.runtime.onStartup.addListener(() => void paintGlobal());
 
+/**
+ * 켜고 끌 때 전역 배지와 모든 탭의 배지를 새 상태로 칠한 뒤 저장한다.
+ * 탭별 배지는 탭이 다른 사이트로 가도 남으므로 함께 칠해야 하고, 저장을 나중에 해야
+ * 저장 알림을 받은 GitHub 탭이 다시 보낸 ! 를 덮어쓰지 않는다.
+ */
+async function setEnabled(next: boolean): Promise<void> {
+  await paint(next, []);
+  const tabs = await chrome.tabs.query({});
+  await Promise.allSettled(tabs.map((tab) => (tab.id === undefined ? undefined : paint(next, [], tab.id))));
+  await chrome.storage.local.set({ enabled: next });
+}
+
 chrome.action.onClicked.addListener(async () => {
-  await chrome.storage.local.set({ enabled: !(await isEnabled()) });
-  await paintGlobal();
+  await setEnabled(!(await isEnabled()));
 });
 
 // content script가 보내는 탭별 상태 { type: 'status', problems: string[] }

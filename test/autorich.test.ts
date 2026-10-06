@@ -41,10 +41,51 @@ describe('ensureRich', () => {
     expect(clicks()).toBe(2);
   });
 
-  it('버튼이 없으면 no-button', () => {
+  it('버튼이 아직 없으면 pending, 5초 넘게 없으면 no-button', () => {
     const file = fakeFile();
     file.querySelectorAll('button').forEach((b) => b.remove());
-    expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('no-button');
+    const state = createAutoRichState();
+    expect(ensureRich(file, 'k', state, 0)).toBe('pending');
+    expect(ensureRich(file, 'k', state, 3000)).toBe('pending');
+    expect(ensureRich(file, 'k', state, 5001)).toBe('no-button');
+  });
+
+  it('버튼이 나중에 그려지면 문제없이 누른다', () => {
+    const state = createAutoRichState();
+    const early = fakeFile();
+    early.querySelectorAll('button').forEach((b) => b.remove());
+    expect(ensureRich(early, 'k', state, 0)).toBe('pending');
+    const file = fakeFile(); // 다시 그려짐
+    expect(ensureRich(file, 'k', state, 6000)).toBe('clicked');
+  });
+
+  it('접힌 파일(Viewed·접기)은 건드리지 않는다', () => {
+    const file = fakeFile();
+    const header = file.querySelector('[class*="DiffFileHeader-module__diff-file-header"]')!;
+    header.insertAdjacentHTML('afterbegin', '<button type="button" aria-labelledby="l-exp"></button><span id="l-exp">Expand file</span>');
+    const clicks = countClicks(viewButton(file, 'rich')!);
+    expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('idle');
+    expect(clicks()).toBe(0);
+  });
+
+  it('렌더링 버튼이 이미 눌려 있으면(본문만 내려간 상태) 누르지 않는다', () => {
+    const file = fakeFile();
+    const rich = viewButton(file, 'rich')!;
+    rich.setAttribute('aria-pressed', 'true');
+    const clicks = countClicks(rich);
+    expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('idle');
+    expect(clicks()).toBe(0);
+  });
+
+  it('줄 코멘트 스레드가 있는 파일은 원문 그대로 둔다 — 렌더링 보기는 스레드를 보여 주지 않는다', () => {
+    const file = fakeFile();
+    file.querySelector('.diff-body')!.insertAdjacentHTML(
+      'beforeend',
+      '<div class="InlineReviewThread-module__ReviewThreadContainer__iFcNZ">코멘트</div>',
+    );
+    const clicks = countClicks(viewButton(file, 'rich')!);
+    expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('has-threads');
+    expect(clicks()).toBe(0);
   });
 
   it('툴팁 라벨이 없어도 아이콘으로 찾아 누른다', () => {

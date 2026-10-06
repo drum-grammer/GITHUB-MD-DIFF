@@ -9,7 +9,9 @@ GitHub PR의 마크다운 파일을 **렌더링된 모양으로, 바뀐 부분�
 - Switches `.md` / `.markdown` / `.mdx` files on the PR "Files changed" page to the rich diff automatically
 - Folds unchanged sections into one-line bars — click a bar to expand it, or use **Expand all** at the top of each file
 - Tables: when one row changes, GitHub shows the whole old table and the whole new table. The extension merges them into one table that shows only changed, added and removed rows, with old/new values in changed cells. **All rows** and **Original tables** buttons sit above each merged table
-- If you click `<>` (source) on a file to leave a comment, the extension will not switch that file back
+- If you click `<>` (source) on a file to leave a comment, the extension will not switch that file back until you click the rich diff button again or reload
+- Files that already have inline review comments stay in the source diff, because the rich diff does not show comment threads
+- Collapsed files (collapsed or marked **Viewed**) are left collapsed
 - Toolbar icon turns everything on or off. Badge: `ON`, empty when off, `!` when the page could not be read (hover for the reason)
 
 ## Privacy
@@ -25,7 +27,7 @@ No network requests, no tokens, no data collection. Permissions: `storage` (on/o
 
 1. `pnpm install && pnpm build`
 2. Chrome → `chrome://extensions` → turn on **Developer mode** → **Load unpacked** → choose `dist/`
-3. To update: `git pull && pnpm build`, then click ↻ on the extension card
+3. To update: `git pull && pnpm build`, click ↻ on the extension card, then reload open GitHub tabs
 
 ## Develop
 

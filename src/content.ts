@@ -1,10 +1,13 @@
 import { applyBody, undoAll } from './apply';
-import { createAutoRichState, ensureRich, watchUserViewClicks } from './autorich';
+import { createAutoRichState, ensureRich, watchUserViewClicks, type RichStatus } from './autorich';
 import { t } from './i18n';
 import { fileKey, isPrChangesPage } from './page';
+import { problemsFor, type FileResult } from './problems';
 import { fileElements, filePath, isMarkdownPath, proseBody } from './selectors';
 
 const LOG = '[github-md-diff]';
+/** 이 상태의 파일이 있으면 화면 변화가 없어도 1초 뒤 다시 본다(시간 판정) */
+const RETRY: ReadonlySet<RichStatus> = new Set<RichStatus>(['clicked', 'waiting', 'pending']);
 const state = createAutoRichState();
 const problems = new Map<string, string>(); // 파일 키 → 문제 문구
 const warned = new Set<string>();
@@ -30,23 +33,18 @@ function report(force = false): void {
   chrome.runtime.sendMessage({ type: 'status', problems: list }).catch(() => {});
 }
 
-/** 파일 하나 처리. 렌더링을 기다리는 중이면 true */
-function processFile(file: HTMLElement): boolean {
+/** md 파일 하나 처리 — 렌더링 보기로 맞추고, 렌더링이 있으면 접기·표 합치기를 적용한다. md가 아니면 null */
+function processFile(file: HTMLElement): FileResult | null {
   const path = filePath(file);
-  if (!path || !isMarkdownPath(path)) return false;
+  if (!path || !isMarkdownPath(path)) return null;
   const key = keyOf(file);
   const status = ensureRich(file, key, state, Date.now());
-  if (status === 'no-button') problems.set(key, t('problemNoRichButton'));
-  else if (status === 'timeout') problems.set(key, t('problemNoProseDiff'));
-  else problems.delete(key);
-  if (status === 'no-button' || status === 'timeout') warnOnce(`${key}:${status}`, path, problems.get(key));
-  if (status === 'clicked' || status === 'waiting') return true;
   const body = status === 'rich' ? proseBody(file) : null;
   if (body) {
     const r = applyBody(body);
     if (r.errors.length) warnOnce(key, path, r.errors);
   }
-  return false;
+  return { key, status };
 }
 
 function scan(): void {
@@ -58,20 +56,24 @@ function scan(): void {
     }
     return;
   }
-  const files = fileElements(document);
-  const live = new Set(files.map(keyOf));
-  for (const key of [...problems.keys()]) if (!live.has(key)) problems.delete(key); // 다른 PR로 옮겨 간 경우
-  let waiting = false;
-  for (const file of files) {
+  const results: FileResult[] = [];
+  for (const file of fileElements(document)) {
     try {
-      waiting = processFile(file) || waiting;
+      const r = processFile(file);
+      if (r) results.push(r);
     } catch (e) {
       warnOnce(keyOf(file), e);
     }
   }
+  // 지금 화면의 파일로만 다시 만든다 — 다른 PR로 옮겨 가면 지난 문제는 사라진다
+  problems.clear();
+  for (const [key, problem] of problemsFor(results)) {
+    problems.set(key, t(problem));
+    warnOnce(`${key}:${problem}`, problem);
+  }
   report();
   clearTimeout(retryTimer);
-  if (waiting) retryTimer = setTimeout(schedule, 1000); // 화면 변화가 없어도 timeout을 판정하러 다시 본다
+  if (results.some((r) => RETRY.has(r.status))) retryTimer = setTimeout(schedule, 1000);
 }
 
 function schedule(): void {
