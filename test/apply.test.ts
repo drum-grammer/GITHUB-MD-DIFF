@@ -68,3 +68,17 @@ describe('파일 버튼', () => {
     expect(body.querySelector('[data-mdf]')).toBeNull();
   });
 });
+
+describe('applyBody / undoAll — 묶음 없는 화면', () => {
+  it('접기 3개·표 1개, 두 번 적용해도 같고, 걷어내면 처음과 같다', () => {
+    const body = loadFixture('handmade-flat.html');
+    const original = body.innerHTML;
+    expect(applyBody(body)).toEqual({ folds: 3, tables: 1, errors: [] });
+    const once = body.innerHTML;
+    applyBody(body);
+    expect(body.innerHTML).toBe(once);
+    body.querySelector<HTMLElement>('[data-mdf="file-toolbar"] button')!.click();
+    undoAll(document);
+    expect(body.innerHTML).toBe(original);
+  });
+});

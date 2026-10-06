@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  fileElements, fileOf, filePath, isMarkdownPath, proseBody, setHidden, tablePairs, unchangedRuns, viewButton,
+  fileElements, fileOf, filePath, isFoldable, isMarkdownPath, proseBody, setHidden, tablePairs, viewButton,
 } from '../src/selectors';
 import { addProse, fakeFile, loadFixture } from './helpers';
 
@@ -78,7 +78,7 @@ describe('tablePairs — 표만 든 블록', () => {
 describe('렌더링 본문', () => {
   it('고정 자료: 변경 없는 묶음 3개, 표 쌍 1개', () => {
     const body = loadFixture('handmade-prose.html');
-    expect(unchangedRuns(body)).toHaveLength(3);
+    expect([...body.children].filter(isFoldable)).toHaveLength(3);
     const pairs = tablePairs(body);
     expect(pairs).toHaveLength(1);
     expect(pairs[0].oldTable.tBodies[0].rows).toHaveLength(4);
