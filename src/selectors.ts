@@ -32,7 +32,7 @@ export function fileOf(el: Element): HTMLElement | null {
 
 export function filePath(file: Element): string | null {
   const text = file.querySelector(FILE_NAME)?.textContent;
-  const path = text?.replace(/[‎‏]/g, '').trim();
+  const path = text?.replace(/[\u200e\u200f]/g, '').trim();
   return path || null;
 }
 

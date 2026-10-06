@@ -15,7 +15,7 @@ export function fakeFile(path = 'docs/a.md', withLabels = true): HTMLElement {
   document.body.innerHTML = `
 <div id="diff-abc" class="Diff-module__diffTargetable__x Diff-module__diff__y">
   <div class="DiffFileHeader-module__diff-file-header__z">
-    <h3 class="DiffFileHeader-module__file-name__q"><a href="#diff-abc"><code>‎${path}‎</code></a></h3>
+    <h3 class="DiffFileHeader-module__file-name__q"><a href="#diff-abc"><code>\u200e${path}\u200e</code></a></h3>
     <button type="button" aria-pressed="true" ${lab('l-src')}><svg class="octicon octicon-code"></svg></button>
     <button type="button" aria-pressed="false" ${lab('l-rich')}><svg class="octicon octicon-file"></svg></button>
     <span id="l-src">Display the source diff</span><span id="l-rich">Display the rich diff</span>
