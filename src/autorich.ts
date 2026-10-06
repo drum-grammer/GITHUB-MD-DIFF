@@ -1,10 +1,19 @@
 import { fileOf, hasReviewThreads, isCollapsed, proseBody, viewButton } from './selectors';
 
 export const RICH_TIMEOUT_MS = 5000;
+/** 눌렀는데 눌림이 반영되지 않으면(GitHub가 아직 클릭을 받을 준비 전) 다시 누르는 간격과 최대 횟수 */
+export const RECLICK_MS = 1000;
+export const MAX_CLICKS = 3;
+
+interface ClickRecord {
+  first: number;
+  last: number;
+  count: number;
+}
 
 export interface AutoRichState {
-  /** 파일 키 → 확장이 렌더링 버튼을 누른 시각 */
-  clickedAt: Map<string, number>;
+  /** 파일 키 → 확장이 렌더링 버튼을 누른 기록 */
+  clicks: Map<string, ClickRecord>;
   /** 사람이 원문 보기를 고른 파일 키 */
   userSource: Set<string>;
   /** 파일 키 → 렌더링 버튼을 처음 못 찾은 시각(그리는 중일 수 있어 바로 실패로 치지 않는다) */
@@ -12,12 +21,12 @@ export interface AutoRichState {
 }
 
 export function createAutoRichState(): AutoRichState {
-  return { clickedAt: new Map(), userSource: new Set(), missingSince: new Map() };
+  return { clicks: new Map(), userSource: new Set(), missingSince: new Map() };
 }
 
 export type RichStatus =
   | 'rich' // 렌더링 본문이 있다
-  | 'clicked' // 방금 렌더링 버튼을 눌렀다
+  | 'clicked' // 방금 렌더링 버튼을 눌렀다(다시 누른 경우 포함)
   | 'waiting' // 누른 뒤 렌더링을 기다린다
   | 'timeout' // 눌렀는데 시간 안에 렌더링이 안 나왔다
   | 'pending' // 버튼이 아직 안 그려졌다
@@ -27,23 +36,34 @@ export type RichStatus =
   | 'has-threads'; // 줄 코멘트가 있어 원문 그대로 둔다
 
 /**
- * md 파일을 렌더링 보기로 맞춘다. 누른 뒤 렌더링이 나타날 때까지는 다시 누르지 않는다.
+ * md 파일을 렌더링 보기로 맞춘다. 누른 뒤 렌더링이 나타날 때까지는 다시 누르지 않는다 —
+ * 단 눌림이 반영되지 않았으면 1초 간격으로 최대 3번까지 다시 누른다.
  * 사람이 원문을 고른 파일, 접힌 파일, 줄 코멘트가 있는 파일은 건드리지 않는다.
  */
 export function ensureRich(file: HTMLElement, key: string, state: AutoRichState, now: number): RichStatus {
   if (proseBody(file)) {
-    state.clickedAt.delete(key); // 나중에 GitHub가 원문으로 다시 그리면 한 번 더 누를 수 있게
+    state.clicks.delete(key); // 나중에 GitHub가 원문으로 다시 그리면 한 번 더 누를 수 있게
     state.missingSince.delete(key);
     return 'rich';
   }
   if (state.userSource.has(key)) return 'user-source';
   if (isCollapsed(file)) {
-    state.clickedAt.delete(key);
+    state.clicks.delete(key);
     return 'idle';
   }
-  const clicked = state.clickedAt.get(key);
-  if (clicked !== undefined) return now - clicked > RICH_TIMEOUT_MS ? 'timeout' : 'waiting';
   const button = viewButton(file, 'rich');
+  const rec = state.clicks.get(key);
+  if (rec) {
+    if (now - rec.first > RICH_TIMEOUT_MS) return 'timeout';
+    const lost = button && button.getAttribute('aria-pressed') !== 'true';
+    if (lost && rec.count < MAX_CLICKS && now - rec.last >= RECLICK_MS) {
+      button.click();
+      rec.last = now;
+      rec.count++;
+      return 'clicked';
+    }
+    return 'waiting';
+  }
   if (!button) {
     const since = state.missingSince.get(key) ?? now;
     state.missingSince.set(key, since);
@@ -53,7 +73,7 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
   if (button.getAttribute('aria-pressed') === 'true') return 'idle';
   if (hasReviewThreads(file)) return 'has-threads';
   button.click();
-  state.clickedAt.set(key, now);
+  state.clicks.set(key, { first: now, last: now, count: 1 });
   return 'clicked';
 }
 

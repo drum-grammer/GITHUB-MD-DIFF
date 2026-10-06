@@ -9,16 +9,35 @@ function countClicks(btn: HTMLElement): () => number {
   return () => n;
 }
 
+/** GitHub처럼 누르면 눌림 상태가 되게 한다 */
+function pressOnClick(btn: HTMLElement): void {
+  btn.addEventListener('click', () => btn.setAttribute('aria-pressed', 'true'));
+}
+
 describe('ensureRich', () => {
-  it('렌더링 버튼을 한 번만 누르고, 5초가 지나면 timeout', () => {
+  it('렌더링 버튼을 한 번만 누르고(눌림이 반영되면), 5초가 지나면 timeout', () => {
     const file = fakeFile();
     const state = createAutoRichState();
+    pressOnClick(viewButton(file, 'rich')!);
     const clicks = countClicks(viewButton(file, 'rich')!);
     expect(ensureRich(file, 'k', state, 0)).toBe('clicked');
     expect(ensureRich(file, 'k', state, 1000)).toBe('waiting');
     expect(ensureRich(file, 'k', state, 5001)).toBe('timeout');
     expect(ensureRich(file, 'k', state, 9000)).toBe('timeout');
     expect(clicks()).toBe(1);
+  });
+
+  it('눌렀는데 눌림이 반영되지 않으면(페이지가 아직 준비 전) 1초 간격으로 최대 3번 누른다', () => {
+    const file = fakeFile();
+    const state = createAutoRichState();
+    const clicks = countClicks(viewButton(file, 'rich')!);
+    expect(ensureRich(file, 'k', state, 0)).toBe('clicked');
+    expect(ensureRich(file, 'k', state, 500)).toBe('waiting');
+    expect(ensureRich(file, 'k', state, 1001)).toBe('clicked');
+    expect(ensureRich(file, 'k', state, 2002)).toBe('clicked');
+    expect(ensureRich(file, 'k', state, 3003)).toBe('waiting');
+    expect(ensureRich(file, 'k', state, 5001)).toBe('timeout');
+    expect(clicks()).toBe(3);
   });
 
   it('렌더링이 이미 있으면 누르지 않는다', () => {
