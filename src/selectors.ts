@@ -74,11 +74,20 @@ export function proseBody(file: ParentNode): HTMLElement | null {
   return file.querySelector<HTMLElement>(PROSE_BODY);
 }
 
-/** 렌더링 본문 바로 아래의 변경 없는 묶음 */
-export function unchangedRuns(body: Element): HTMLElement[] {
-  return ([...body.children] as HTMLElement[]).filter(
-    (c) => c.classList.contains('expandable') && c.classList.contains('unchanged'),
-  );
+const CHANGE_CLASSES = ['vicinity', 'changed', 'added', 'removed', 'moved'];
+const CHANGE_INSIDE = 'ins, del, .vicinity, .changed, .added, .removed, .moved';
+
+/**
+ * 렌더링 본문 바로 아래 블록 중 접어도 되는 것. GitHub는 변경 없는 블록을 묶음(`div.expandable.unchanged`)으로
+ * 내기도 하고, 묶지 않고 블록마다 `unchanged`를 붙여 내기도 한다(2026-10-07 확인). 표·도표를 감싼 요소는 표시가 없고
+ * 안쪽에만 `unchanged`가 있다. 앵커는 제목에 딸린 빈 요소다. 표시를 알 수 없으면 접지 않는다.
+ */
+export function isFoldable(el: Element): boolean {
+  if (el.hasAttribute(MDF_ATTR)) return false;
+  if (el.tagName === 'INS' || el.tagName === 'DEL') return false;
+  if (CHANGE_CLASSES.some((c) => el.classList.contains(c))) return false;
+  if (el.classList.contains('unchanged') || isAnchor(el)) return true;
+  return el.querySelector('.unchanged') !== null && el.querySelector(CHANGE_INSIDE) === null;
 }
 
 /** 블록 안에 표 하나만 있으면(감싼 요소 하나까지, 나머지는 공백) 그 표. 표를 품은 목록·인용문은 null — 합치면 표 아닌 글이 숨는다 */
