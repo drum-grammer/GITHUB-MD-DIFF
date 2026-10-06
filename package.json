@@ -1,0 +1,22 @@
+{
+  "name": "github-md-diff",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "e2e": "node build.mjs && playwright test",
+    "e2e:login": "node e2e/login.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/chrome": "^0.3.4",
+    "@types/node": "^26.6.4",
+    "esbuild": "^0.28.2",
+    "jsdom": "^30.1.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}
