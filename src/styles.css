@@ -1,0 +1,27 @@
+.mdf-hidden { display: none !important; }
+
+.mdf-fold {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  margin: 8px 0; padding: 4px 8px;
+  border: 1px dashed var(--borderColor-default, #d0d7de); border-radius: 6px;
+  background: var(--bgColor-muted, #f6f8fa); color: var(--fgColor-muted, #59636e);
+  font-size: 12px; text-align: left; cursor: pointer;
+}
+.mdf-fold:hover { color: var(--fgColor-accent, #0969da); }
+.mdf-arrow { width: 1em; }
+
+.mdf-toolbar { display: flex; justify-content: flex-end; gap: 6px; margin: 0 0 8px; }
+.mdf-btn {
+  padding: 2px 8px; font-size: 12px; cursor: pointer;
+  border: 1px solid var(--borderColor-default, #d0d7de); border-radius: 6px;
+  background: var(--bgColor-default, #ffffff); color: var(--fgColor-default, #1f2328);
+}
+.mdf-btn[aria-pressed="true"] { background: var(--bgColor-accent-muted, #ddf4ff); }
+
+.mdf-table { margin: 0 0 16px; }
+.mdf-fold-row > td { padding: 0 !important; }
+.mdf-fold-row .mdf-fold { margin: 0; border: 0; border-radius: 0; }
+.mdf-row-added > td { background: var(--bgColor-success-muted, #dafbe1); }
+.mdf-row-removed > td { background: var(--bgColor-danger-muted, #ffebe9); text-decoration: line-through; }
+.mdf-cell-old { background: var(--bgColor-danger-muted, #ffebe9); text-decoration: line-through; }
+.mdf-cell-new { background: var(--bgColor-success-muted, #dafbe1); }
