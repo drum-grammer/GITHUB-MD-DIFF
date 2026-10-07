@@ -1,4 +1,6 @@
-import { fileOf, hasReviewThreads, hasUnknownRendering, isCollapsed, isPressed, proseBody, viewButton } from './selectors';
+import {
+  fileOf, hasReviewThreads, hasUnknownRendering, isCollapsed, isLoadingPlaceholder, isPressed, proseBody, showsDiffNotice, viewButton,
+} from './selectors';
 
 export const RICH_TIMEOUT_MS = 5000;
 /**
@@ -6,6 +8,8 @@ export const RICH_TIMEOUT_MS = 5000;
  * 원문 보기로 되돌린다 — 그대로 두면 빈 상자만 남아 원문도 못 읽는다. GitHub의 시간 초과(504)는 10초 안팎이다
  */
 export const FALLBACK_MS = 15000;
+/** 렌더링을 기다리는 파일은 이만큼까지만 — md 파일이 수백 개인 PR에서 GitHub에 렌더링 요청을 한꺼번에 보내지 않는다 */
+export const MAX_IN_FLIGHT = 6;
 /** 눌렀는데 눌림이 반영되지 않으면(GitHub가 아직 클릭을 받을 준비 전) 다시 누르는 간격과 최대 횟수 */
 export const RECLICK_MS = 1000;
 export const MAX_CLICKS = 3;
@@ -35,6 +39,13 @@ export function createAutoRichState(): AutoRichState {
   return { clicks: new Map(), userSource: new Set(), missingSince: new Map(), hadThreads: new Set(), fellBack: new Set(), selfClick: false };
 }
 
+/** 누르고 렌더링을 기다리는 파일 수(되돌릴 때가 지난 것은 세지 않는다) */
+function inFlight(state: AutoRichState, now: number): number {
+  let n = 0;
+  for (const rec of state.clicks.values()) if (now - rec.first <= FALLBACK_MS) n++;
+  return n;
+}
+
 /** 확장이 누르는 클릭 */
 function press(state: AutoRichState, button: HTMLElement): void {
   state.selfClick = true;
@@ -49,9 +60,12 @@ export type RichStatus =
   | 'rich' // 렌더링 본문이 있다
   | 'clicked' // 방금 렌더링 버튼을 눌렀다(다시 누른 경우 포함)
   | 'waiting' // 누른 뒤 렌더링을 기다린다
+  | 'queued' // 렌더링을 기다리는 파일이 많아 차례를 기다린다
   | 'timeout' // 눌렀는데 렌더링이 확장이 모르는 모양으로 나왔다(GitHub 화면 변경)
   | 'fallback' // GitHub가 렌더링을 못 만들어(빈 상자) 원문 보기로 되돌렸다
   | 'pending' // 버튼이 아직 안 그려졌다
+  | 'lazy' // GitHub가 파일 내용을 아직 안 채웠다(뼈대) — 스크롤해 오면 채운다
+  | 'notice' // 원문 보기가 줄 대신 안내 글이다(이름만 바뀜·큰 diff의 Load Diff) — 렌더링할 것이 없다
   | 'no-button' // 시간이 지나도 버튼이 없다
   | 'idle' // 할 일 없음: 접힌 파일, 또는 렌더링 보기가 이미 골라져 본문만 내려간 상태
   | 'user-source' // 사람이 원문 보기를 골랐다
@@ -96,6 +110,10 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
     }
     return 'waiting';
   }
+  if (!button && isLoadingPlaceholder(file)) {
+    state.missingSince.delete(key);
+    return 'lazy';
+  }
   if (!button) {
     const since = state.missingSince.get(key) ?? now;
     state.missingSince.set(key, since);
@@ -103,10 +121,11 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
   }
   state.missingSince.delete(key);
   if (isPressed(button)) return 'idle';
-  if (hasReviewThreads(file)) {
-    if (!threadsInRich) return 'has-threads';
-    state.hadThreads.add(key);
-  }
+  if (showsDiffNotice(file)) return 'notice';
+  const threads = hasReviewThreads(file);
+  if (threads && !threadsInRich) return 'has-threads';
+  if (inFlight(state, now) >= MAX_IN_FLIGHT) return 'queued';
+  if (threads) state.hadThreads.add(key);
   press(state, button);
   state.clicks.set(key, { first: now, last: now, count: 1 });
   return 'clicked';

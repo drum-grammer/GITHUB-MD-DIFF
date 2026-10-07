@@ -113,6 +113,52 @@ describe('ensureRich', () => {
     expect(ensureRich(file, 'k', state, 5001)).toBe('no-button');
   });
 
+  it('파일 내용이 아직 뼈대면(큰 PR의 아래쪽 파일) 버튼이 없어도 no-button으로 세지 않는다', () => {
+    const file = fakeFile();
+    file.querySelectorAll('button').forEach((b) => b.remove());
+    file.querySelector('.diff-body')!.innerHTML = '<div class="LoadingSkeleton-module__skeleton__euqGn"></div>';
+    const state = createAutoRichState();
+    expect(ensureRich(file, 'k', state, 0)).toBe('lazy');
+    expect(ensureRich(file, 'k', state, 60_000)).toBe('lazy');
+  });
+
+  it('원문 보기가 줄 대신 안내 글이면(이름만 바뀜·Load Diff) 렌더링을 누르지 않는다', () => {
+    const file = fakeFile();
+    file.querySelector('.diff-body')!.innerHTML = '<div class="fgColor-muted p-2" data-diff-anchor="diff-abc">File renamed without changes.</div>';
+    const clicks = countClicks(viewButton(file, 'rich')!);
+    expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('notice');
+    expect(clicks()).toBe(0);
+  });
+
+  it('원문 diff 표(data-diff-anchor가 table)는 평소처럼 누른다', () => {
+    const file = fakeFile();
+    file.querySelector('.diff-body')!.innerHTML = '<table data-diff-anchor="diff-abc"><tr><td>+ 줄</td></tr></table>';
+    expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('clicked');
+  });
+
+  it('렌더링을 기다리는 파일이 6개면 7번째는 차례를 기다리고, 하나가 렌더링되면 누른다', () => {
+    const state = createAutoRichState();
+    for (let i = 0; i < 6; i++) {
+      fakeFile();
+      expect(ensureRich(document.querySelector<HTMLElement>('#diff-abc')!, `k${i}`, state, 0)).toBe('clicked');
+    }
+    const file = fakeFile();
+    const clicks = countClicks(viewButton(file, 'rich')!);
+    expect(ensureRich(file, 'k6', state, 100)).toBe('queued');
+    expect(clicks()).toBe(0);
+    const done = fakeFile();
+    addProse(done);
+    expect(ensureRich(done, 'k0', state, 200)).toBe('rich');
+    const again = fakeFile();
+    expect(ensureRich(again, 'k6', state, 300)).toBe('clicked');
+  });
+
+  it('되돌릴 때가 지난 기록은 차례를 막지 않는다', () => {
+    const state = createAutoRichState();
+    for (let i = 0; i < 6; i++) ensureRich(fakeFile(), `k${i}`, state, 0);
+    expect(ensureRich(fakeFile(), 'k6', state, 16_000)).toBe('clicked');
+  });
+
   it('버튼이 나중에 그려지면 문제없이 누른다', () => {
     const state = createAutoRichState();
     const early = fakeFile();

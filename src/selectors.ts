@@ -35,8 +35,15 @@ export function fileOf(el: Element): HTMLElement | null {
   return el.closest<HTMLElement>(FILE);
 }
 
+/** 이름이 바뀐 파일의 화면 낭독기용 글 — "옛 경로 renamed to 새 경로"(보이는 쪽은 새 경로를 "…"로 줄인다, 2026-10-08 확인) */
+const RENAMED_TO = ' renamed to ';
+
 export function filePath(file: Element): string | null {
-  const text = file.querySelector(FILE_NAME)?.textContent ?? file.querySelector(CLASSIC_PATH)?.getAttribute('data-path');
+  const code = file.querySelector(FILE_NAME);
+  const spoken = code?.querySelector('.sr-only')?.textContent ?? '';
+  const text = spoken.includes(RENAMED_TO)
+    ? spoken.split(RENAMED_TO).pop()
+    : (code?.textContent ?? file.querySelector(CLASSIC_PATH)?.getAttribute('data-path'));
   const path = text?.replace(/[\u200e\u200f]/g, '').trim();
   return path || null;
 }
@@ -86,6 +93,24 @@ export function hasReviewThreads(file: Element): boolean {
 
 export function proseBody(file: ParentNode): HTMLElement | null {
   return file.querySelector<HTMLElement>(PROSE_BODY);
+}
+
+/** 파일 내용이 아직 안 왔다 — 큰 PR은 화면에 가까운 파일만 채우고 나머지는 뼈대로 둔다(2026-10-08 확인) */
+const LOADING_SKELETON = '[class*="LoadingSkeleton-module__skeleton"]';
+/** 원문 diff의 본문 — 줄이 있으면 <table>, 줄 대신 안내 글이면 <div>(2026-10-08 확인) */
+const DIFF_ANCHOR = '[data-diff-anchor]';
+
+export function isLoadingPlaceholder(file: Element): boolean {
+  return file.querySelector(LOADING_SKELETON) !== null;
+}
+
+/**
+ * 원문 보기가 줄 대신 안내 글을 보여 주는가 — "File renamed without changes.", 큰 diff의 "Load Diff" 등.
+ * 렌더링할 바뀐 내용이 없거나 GitHub가 일부러 그리지 않은 파일이라 렌더링 보기로 바꾸지 않는다(바꾸면 빈 상자·504).
+ */
+export function showsDiffNotice(file: Element): boolean {
+  const anchor = file.querySelector(DIFF_ANCHOR);
+  return anchor !== null && anchor.tagName !== 'TABLE' && !anchor.closest('.prose-diff');
 }
 
 /** 렌더링된 마크다운에만 있는 요소 — 원문 diff 표·불러오기 표시(스피너)·빈 상자에는 없다 */

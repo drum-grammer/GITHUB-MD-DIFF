@@ -1,5 +1,7 @@
+import { noticeBox } from './comment-ui';
 import { addFileToolbar } from './controls';
 import { foldUnchanged } from './fold';
+import { t } from './i18n';
 import { HIDDEN_CLASS, MDF_ATTR, PIN_ATTR, UNCOLLAPSED_ATTR, setHidden, tablePairs } from './selectors';
 import { mergeTablePair } from './table-render';
 
@@ -30,6 +32,28 @@ export function applyBody(body: HTMLElement): ApplyResult {
     result.errors.push(e);
   }
   return result;
+}
+
+const NO_CHANGE = 'no-change';
+/** GitHub 렌더링 diff의 바뀐 곳 표시 */
+const CHANGE_MARK = 'ins, del, .changed, .added, .removed, .moved, .vicinity';
+
+/**
+ * 렌더링 결과에 바뀐 곳 표시가 하나도 없으면(문법·링크 주소처럼 화면에 드러나지 않는 변경) 맨 위에 안내와 원문 보기 버튼을 둔다.
+ * 그대로 두면 전부 "변경 없음"으로 접혀 무엇이 바뀌었는지 알 수 없다. 표시가 생기면 걷는다
+ */
+export function noteNoVisibleChange(body: HTMLElement, showSource: () => void): boolean {
+  const old = body.querySelector(`:scope > [${MDF_ATTR}="${NO_CHANGE}"]`);
+  const marked = [...body.querySelectorAll(CHANGE_MARK)].some((el) => !el.closest(`[${MDF_ATTR}]`));
+  if (marked) {
+    old?.remove();
+    return false;
+  }
+  if (old) return true;
+  const box = noticeBox(body.ownerDocument, t('noVisibleChange'), t('showSource'), showSource);
+  box.setAttribute(MDF_ATTR, NO_CHANGE);
+  body.prepend(box);
+  return true;
 }
 
 /** 확장이 만든 것을 모두 걷어내 원래 화면으로 돌린다(렌더링/원문 선택은 그대로) */

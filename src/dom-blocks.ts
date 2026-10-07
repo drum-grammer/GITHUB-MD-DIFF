@@ -65,6 +65,7 @@ export function domBlocks(body: HTMLElement): DomBlock[] {
   const out: DomBlock[] = [];
   for (const el of body.querySelectorAll<HTMLElement>(COMMENT_BLOCK)) {
     if (el.closest(`[${MDF_ATTR}]`)) continue; // 확장이 만든 것(합친 표 등)
+    if (el.closest('.sr-only')) continue; // 화면에 안 보이는 글(각주 목록의 "Footnotes" 제목 등)
     const kind = kindOf(el);
     if (!kind) continue;
     const removed = el.closest(REMOVED_BLOCK);

@@ -65,3 +65,36 @@ describe('spanOf', () => {
     expect(spanOf([{ side: 'right', start: 1, end: 1 }, { side: 'left', start: 1, end: 1 }])).toBeNull();
   });
 });
+
+describe('mapBlocks — 알림·각주·HTML 표(크롤에서 빠지던 것)', () => {
+  it('알림 제목·각주 항목·HTML 표 행이 원문 줄에 붙고, 숨은 "Footnotes" 제목은 블록이 아니다', () => {
+    const src = [
+      '> [!NOTE]', // 1
+      '> 꼭 읽어 주세요.', // 2
+      '', // 3
+      '본문[^1].', // 4
+      '', // 5
+      '<table>', // 6
+      '<tr><td>Host Namespaces</td><td><ul><li><code>spec.hostPID</code></li></ul></td></tr>', // 7
+      '</table>', // 8
+      '', // 9
+      '[^1]: 고마운 분들', // 10
+    ].join('\n');
+    const b = body(
+      '<div class="markdown-alert markdown-alert-note"><p class="markdown-alert-title"><svg></svg>Note</p><p>꼭 읽어 주세요.</p></div>' +
+        '<p>본문<sup><a href="#fn-1">1</a></sup>.</p>' +
+        '<table><tbody><tr><td>Host Namespaces</td><td><ul><li><code>spec.hostPID</code></li></ul></td></tr></tbody></table>' +
+        '<section class="footnotes" data-footnotes><h2 id="footnote-label" class="sr-only">Footnotes</h2><ol><li id="fn-1"><p>고마운 분들 <a href="#fnref-1" class="data-footnote-backref">↩</a></p></li></ol></section>',
+    );
+    const blocks = domBlocks(b);
+    expect(blocks.some((d) => d.kind === 'heading')).toBe(false);
+    const map = mapBlocks(blocks, sourceBlocks(src), null);
+    const lineOf = (sel: string) => map.get(b.querySelector<HTMLElement>(sel)!)?.start;
+    expect(lineOf('.markdown-alert-title')).toBe(1);
+    expect(lineOf('.markdown-alert p:not(.markdown-alert-title)')).toBe(2);
+    expect(lineOf('table tr')).toBe(7);
+    expect(lineOf('table li')).toBe(7);
+    expect(lineOf('#fn-1')).toBe(10);
+    expect(map.size).toBe(blocks.length);
+  });
+});

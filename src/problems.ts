@@ -9,7 +9,7 @@ export interface FileResult {
 
 /** 렌더링 버튼을 찾았다는 뜻의 상태 */
 const FOUND_BUTTON: ReadonlySet<RichStatus> = new Set<RichStatus>([
-  'rich', 'clicked', 'waiting', 'timeout', 'fallback', 'idle', 'user-source', 'has-threads',
+  'rich', 'clicked', 'waiting', 'queued', 'timeout', 'fallback', 'notice', 'idle', 'user-source', 'has-threads',
 ]);
 
 /**

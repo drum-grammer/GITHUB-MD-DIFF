@@ -1,4 +1,4 @@
-import { applyBody, undoAll } from './apply';
+import { applyBody, noteNoVisibleChange, undoAll } from './apply';
 import { createAutoRichState, ensureRich, watchUserViewClicks, type RichStatus } from './autorich';
 import {
   attachComments,
@@ -13,11 +13,11 @@ import { t } from './i18n';
 import { fileKey, isPrChangesPage } from './page';
 import { problemsFor, type FileResult } from './problems';
 import { browserOf, showProblemToast } from './report';
-import { fileElements, filePath, isMarkdownPath, isSignedIn, pageVariant, proseBody } from './selectors';
+import { fileElements, filePath, isMarkdownPath, isSignedIn, pageVariant, proseBody, viewButton } from './selectors';
 
 const LOG = '[github-md-diff]';
 /** 이 상태의 파일이 있으면 화면 변화가 없어도 1초 뒤 다시 본다(시간 판정) */
-const RETRY: ReadonlySet<RichStatus> = new Set<RichStatus>(['clicked', 'waiting', 'pending']);
+const RETRY: ReadonlySet<RichStatus> = new Set<RichStatus>(['clicked', 'waiting', 'pending', 'queued']);
 const state = createAutoRichState();
 const problems = new Map<string, string>(); // 파일 키 → 문제 문구
 const problemDetails = new Set<string>(); // 문제 보고용 진단(영어)
@@ -57,6 +57,11 @@ function processFile(file: HTMLElement, comments: boolean): FileResult | null {
   if (body) {
     const r = applyBody(body);
     if (r.errors.length) warnOnce(key, path, r.errors);
+    try {
+      noteNoVisibleChange(body, () => viewButton(file, 'source')?.click());
+    } catch (e) {
+      warnOnce(`${key}:no-change`, path, e);
+    }
     if (comments) {
       try {
         attachComments(file, body, path, state.hadThreads.has(key));
@@ -66,6 +71,19 @@ function processFile(file: HTMLElement, comments: boolean): FileResult | null {
     }
   }
   return { key, status };
+}
+
+/** 화면에 보이는 파일부터, 그다음 아래, 위 — 렌더링 요청을 나눠 보내므로 보고 있는 곳이 먼저 바뀌게 */
+function byViewport(files: HTMLElement[]): HTMLElement[] {
+  const h = innerHeight;
+  const rank = (f: HTMLElement): number => {
+    const r = f.getBoundingClientRect();
+    return r.bottom > 0 && r.top < h ? 0 : r.top >= h ? 1 : 2;
+  };
+  return files
+    .map((f, i) => ({ f, i, k: rank(f) }))
+    .sort((a, b) => a.k - b.k || a.i - b.i)
+    .map((x) => x.f);
 }
 
 function scan(): void {
@@ -89,7 +107,7 @@ function scan(): void {
     warnOnce('comments', e); // 코멘트 준비가 실패해도 접기·표 합치기는 그대로
   }
   const results: FileResult[] = [];
-  for (const file of fileElements(document)) {
+  for (const file of byViewport(fileElements(document))) {
     try {
       const r = processFile(file, comments);
       if (r) results.push(r);

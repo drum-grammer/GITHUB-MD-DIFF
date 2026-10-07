@@ -41,6 +41,7 @@
   "replyTo": {"message": "Reply"},
   "threadsUnplaced": {"message": "Comments on lines this view does not show"},
   "threadsUnavailable": {"message": "This file has review comments that could not be shown here."},
+  "noVisibleChange": {"message": "The rendered view shows no changes. The edit may be in something that does not render, like Markdown syntax or a link URL."},
   "showSource": {"message": "Show source diff"},
   "errorLineNotResolved": {"message": "GitHub did not accept a comment on this line. Comment on a changed line nearby, or use the source diff."},
   "errorPost": {"message": "Could not post: $WHAT$", "placeholders": {"what": {"content": "$1"}}},

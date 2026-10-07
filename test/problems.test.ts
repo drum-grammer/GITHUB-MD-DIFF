@@ -24,6 +24,11 @@ describe('problemsFor', () => {
     expect(problemsFor([{ key: 'a', status: 'no-button' }, { key: 'b', status: 'idle' }]).size).toBe(0);
   });
 
+  it('뼈대(lazy)·안내 글(notice) 파일은 문제 아님 — 뼈대만 있는 PR도', () => {
+    expect(problemsFor([{ key: 'a', status: 'lazy' }]).size).toBe(0);
+    expect(problemsFor([{ key: 'a', status: 'notice' }, { key: 'b', status: 'no-button' }]).size).toBe(0);
+  });
+
   it('기다리는 중이면 문제 아님', () => {
     expect(problemsFor([{ key: 'a', status: 'pending' }, { key: 'b', status: 'waiting' }]).size).toBe(0);
   });

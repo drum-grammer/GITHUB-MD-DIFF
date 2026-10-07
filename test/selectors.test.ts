@@ -146,3 +146,19 @@ describe('hasUnknownRendering', () => {
     expect(hasUnknownRendering(file)).toBe(false);
   });
 });
+
+describe('filePath — 이름이 바뀐 파일', () => {
+  it('화면 낭독기용 "옛 경로 renamed to 새 경로"에서 새 경로를 쓴다(보이는 쪽은 줄여 쓴다)', () => {
+    const file = fakeFile();
+    file.querySelector('h3 code')!.innerHTML =
+      '<span aria-hidden="true">\u200electure/2nd/docker-cli-example.md\u200e <svg class="octicon octicon-arrow-right"></svg> \u200e…e/2nd/test_example/docker-cli-example.md\u200e</span>' +
+      '<span class="sr-only">lecture/2nd/docker-cli-example.md renamed to lecture/2nd/test_example/docker-cli-example.md</span>';
+    expect(filePath(file)).toBe('lecture/2nd/test_example/docker-cli-example.md');
+  });
+
+  it('공백이 든 경로는 그대로', () => {
+    const file = fakeFile('docs/api 기능 정의서 초안.md');
+    expect(filePath(file)).toBe('docs/api 기능 정의서 초안.md');
+    expect(isMarkdownPath(filePath(file)!)).toBe(true);
+  });
+});
