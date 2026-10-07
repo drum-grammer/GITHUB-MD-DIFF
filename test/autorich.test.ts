@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createAutoRichState, ensureRich, watchUserViewClicks } from '../src/autorich';
 import { viewButton } from '../src/selectors';
-import { addProse, fakeFile } from './helpers';
+import { addProse, fakeClassicFile, fakeFile } from './helpers';
 
 function countClicks(btn: HTMLElement): () => number {
   let n = 0;
@@ -131,5 +131,32 @@ describe('watchUserViewClicks', () => {
     watchUserViewClicks(document, state, () => 'k')();
     viewButton(file, 'source')!.click();
     expect(state.userSource.size).toBe(0);
+  });
+});
+
+describe('ensureRich — 옛 화면', () => {
+  it('렌더링 버튼을 눌러 selected가 되면 다시 누르지 않는다', () => {
+    const file = fakeClassicFile();
+    const rich = viewButton(file, 'rich')!;
+    rich.addEventListener('click', () => rich.classList.add('selected'));
+    const clicks = countClicks(rich);
+    const state = createAutoRichState();
+    expect(ensureRich(file, 'k', state, 0)).toBe('clicked');
+    expect(ensureRich(file, 'k', state, 1500)).toBe('waiting');
+    expect(clicks()).toBe(1);
+  });
+
+  it('렌더링 보기가 이미 골라져 있으면(selected) 누르지 않는다', () => {
+    const file = fakeClassicFile();
+    viewButton(file, 'rich')!.classList.add('selected');
+    const clicks = countClicks(viewButton(file, 'rich')!);
+    expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('idle');
+    expect(clicks()).toBe(0);
+  });
+
+  it('렌더링 본문이 나타나면 rich', () => {
+    const file = fakeClassicFile();
+    addProse(file);
+    expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('rich');
   });
 });

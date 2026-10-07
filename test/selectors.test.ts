@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  fileElements, fileOf, filePath, isFoldable, isMarkdownPath, proseBody, setHidden, tablePairs, viewButton,
+  fileElements, fileOf, filePath, hasReviewThreads, isCollapsed, isFoldable, isMarkdownPath, isPressed, proseBody, setHidden, tablePairs, viewButton,
 } from '../src/selectors';
-import { addProse, fakeFile, loadFixture } from './helpers';
+import { addProse, fakeClassicFile, fakeFile, loadFixture } from './helpers';
 
 describe('파일 묶음', () => {
   it('파일 묶음을 찾고 경로에서 방향 표시 문자를 뗀다', () => {
@@ -83,5 +83,41 @@ describe('렌더링 본문', () => {
     expect(pairs).toHaveLength(1);
     expect(pairs[0].oldTable.tBodies[0].rows).toHaveLength(4);
     expect(pairs[0].newTable.tBodies[0].rows).toHaveLength(5);
+  });
+});
+
+describe('옛 화면(로그아웃)', () => {
+  it('파일 묶음을 찾고 경로는 data-path에서 읽는다', () => {
+    fakeClassicFile('docs/설계.md');
+    const [file] = fileElements(document);
+    expect(file?.id).toBe('diff-abc');
+    expect(filePath(file)).toBe('docs/설계.md');
+  });
+
+  it('렌더링·원문 버튼을 aria-label로 찾고, 눌린 상태는 selected 클래스로 본다', () => {
+    const file = fakeClassicFile();
+    expect(viewButton(file, 'rich')?.classList.contains('js-rendered')).toBe(true);
+    expect(isPressed(viewButton(file, 'source')!)).toBe(true);
+    expect(isPressed(viewButton(file, 'rich')!)).toBe(false);
+  });
+
+  it('접힌 파일: 접기 버튼이 aria-expanded=false', () => {
+    const file = fakeClassicFile();
+    expect(isCollapsed(file)).toBe(false);
+    file.querySelector('button[aria-label="Toggle diff contents"]')!.setAttribute('aria-expanded', 'false');
+    expect(isCollapsed(file)).toBe(true);
+  });
+
+  it('줄 코멘트 스레드: tr.inline-comments', () => {
+    const file = fakeClassicFile();
+    expect(hasReviewThreads(file)).toBe(false);
+    file.querySelector('.diff-body')!.insertAdjacentHTML('beforeend', '<table><tr class="inline-comments"><td>코멘트</td></tr></table>');
+    expect(hasReviewThreads(file)).toBe(true);
+  });
+
+  it('새 화면 버튼은 aria-pressed로 눌린 상태를 본다', () => {
+    const file = fakeFile();
+    expect(isPressed(viewButton(file, 'source')!)).toBe(true);
+    expect(isPressed(viewButton(file, 'rich')!)).toBe(false);
   });
 });

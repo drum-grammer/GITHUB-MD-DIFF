@@ -1,19 +1,22 @@
 /**
- * GitHub 화면에 대한 가정은 전부 여기에 둔다 — 로그인한 사용자의 새 "Files changed" 화면, 2026-10-07 확인.
- * GitHub가 바뀌면 이 파일만 고친다.
+ * GitHub 화면에 대한 가정은 전부 여기에 둔다 — 로그인한 사용자의 새 "Files changed" 화면과
+ * 로그아웃 사용자에게 보이는 옛 화면(/files), 2026-10-07 확인. GitHub가 바뀌면 이 파일만 고친다.
  */
 export const MDF_ATTR = 'data-mdf';
 export const HIDDEN_CLASS = 'mdf-hidden';
 
-const FILE = 'div[id^="diff-"][class*="Diff-module__diff__"]';
-const HEADER = '[class*="DiffFileHeader-module__diff-file-header"]';
+// 새 화면 · 옛 화면
+const FILE = 'div[id^="diff-"][class*="Diff-module__diff__"], div.file.js-file';
+const HEADER = '[class*="DiffFileHeader-module__diff-file-header"], .file-header';
 const FILE_NAME = 'h3[class*="DiffFileHeader-module__file-name"] code';
+const CLASSIC_PATH = '.file-header[data-path]';
 const PROSE_BODY = '.prose-diff .markdown-body';
 const MD_PATH = /\.(md|markdown|mdx)$/i;
 const VIEW_LABEL = { rich: 'Display the rich diff', source: 'Display the source diff' } as const;
 const VIEW_ICON = { rich: 'octicon-file', source: 'octicon-code' } as const;
 const COLLAPSED_LABEL = 'Expand file';
-const REVIEW_THREAD = '[class*="InlineReviewThread-module__ReviewThreadContainer"]';
+const CLASSIC_TOGGLE_LABEL = 'Toggle diff contents';
+const REVIEW_THREAD = '[class*="InlineReviewThread-module__ReviewThreadContainer"], tr.inline-comments';
 
 export type ViewKind = keyof typeof VIEW_LABEL;
 
@@ -33,7 +36,7 @@ export function fileOf(el: Element): HTMLElement | null {
 }
 
 export function filePath(file: Element): string | null {
-  const text = file.querySelector(FILE_NAME)?.textContent;
+  const text = file.querySelector(FILE_NAME)?.textContent ?? file.querySelector(CLASSIC_PATH)?.getAttribute('data-path');
   const path = text?.replace(/[\u200e\u200f]/g, '').trim();
   return path || null;
 }
@@ -50,19 +53,30 @@ function hasLabel(button: Element, label: string): boolean {
   return ids.some((id) => button.ownerDocument.getElementById(id)?.textContent?.trim() === label);
 }
 
-/** 파일 머리의 원문/렌더링 버튼 — 툴팁 라벨로 찾고, 없으면 아이콘으로 */
+/** 파일 머리의 원문/렌더링 버튼 — 라벨(aria-label·툴팁)로 찾고, 없으면 새 화면 토글의 아이콘으로 */
 export function viewButton(file: Element, kind: ViewKind): HTMLButtonElement | null {
   const header = file.querySelector(HEADER);
   if (!header) return null;
-  const buttons = [...header.querySelectorAll<HTMLButtonElement>('button[aria-pressed]')];
-  const byLabel = buttons.find((b) => hasLabel(b, VIEW_LABEL[kind]));
-  return byLabel ?? buttons.find((b) => b.querySelector(`svg.${VIEW_ICON[kind]}`)) ?? null;
+  const byLabel = [...header.querySelectorAll<HTMLButtonElement>('button')].find((b) => hasLabel(b, VIEW_LABEL[kind]));
+  const toggles = [...header.querySelectorAll<HTMLButtonElement>('button[aria-pressed]')];
+  return byLabel ?? toggles.find((b) => b.querySelector(`svg.${VIEW_ICON[kind]}`)) ?? null;
 }
 
-/** 접힌 파일(접기 버튼·Viewed 표시) — 머리에 "Expand file" 버튼이 있고 본문은 DOM에서 내려가 있다 */
+/** 원문/렌더링 버튼이 눌린(골라진) 상태인가 — 새 화면은 aria-pressed, 옛 화면은 selected 클래스 */
+export function isPressed(button: Element): boolean {
+  return button.getAttribute('aria-pressed') === 'true' || button.classList.contains('selected');
+}
+
+/**
+ * 접힌 파일(접기 버튼·Viewed 표시). 새 화면은 머리에 "Expand file" 버튼이 생기고 본문이 DOM에서 내려간다.
+ * 옛 화면은 "Toggle diff contents" 버튼이 aria-expanded=false가 되고 본문은 숨긴 채 남는다.
+ */
 export function isCollapsed(file: Element): boolean {
   const header = file.querySelector(HEADER);
-  return !!header && [...header.querySelectorAll('button')].some((b) => hasLabel(b, COLLAPSED_LABEL));
+  if (!header) return false;
+  return [...header.querySelectorAll('button')].some(
+    (b) => hasLabel(b, COLLAPSED_LABEL) || (hasLabel(b, CLASSIC_TOGGLE_LABEL) && b.getAttribute('aria-expanded') === 'false'),
+  );
 }
 
 /** 원문 보기에 줄 코멘트 스레드가 있는가 — 렌더링 보기는 스레드를 보여 주지 않는다 */
