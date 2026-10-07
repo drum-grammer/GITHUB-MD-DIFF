@@ -1,9 +1,10 @@
 import { applyBody, undoAll } from './apply';
 import { createAutoRichState, ensureRich, watchUserViewClicks, type RichStatus } from './autorich';
+import { attachComments, detachAllComments } from './comments';
 import { t } from './i18n';
 import { fileKey, isPrChangesPage } from './page';
 import { problemsFor, type FileResult } from './problems';
-import { fileElements, filePath, isMarkdownPath, proseBody } from './selectors';
+import { fileElements, filePath, isMarkdownPath, isSignedIn, proseBody } from './selectors';
 
 const LOG = '[github-md-diff]';
 /** 이 상태의 파일이 있으면 화면 변화가 없어도 1초 뒤 다시 본다(시간 판정) */
@@ -38,11 +39,19 @@ function processFile(file: HTMLElement): FileResult | null {
   const path = filePath(file);
   if (!path || !isMarkdownPath(path)) return null;
   const key = keyOf(file);
-  const status = ensureRich(file, key, state, Date.now());
+  const signedIn = isSignedIn(document);
+  const status = ensureRich(file, key, state, Date.now(), signedIn);
   const body = status === 'rich' ? proseBody(file) : null;
   if (body) {
     const r = applyBody(body);
     if (r.errors.length) warnOnce(key, path, r.errors);
+    if (signedIn) {
+      try {
+        attachComments(file, body, path, state.hadThreads.has(key));
+      } catch (e) {
+        warnOnce(`${key}:comments`, path, e);
+      }
+    }
   }
   return { key, status };
 }
@@ -91,6 +100,7 @@ async function start(): Promise<void> {
     if (area !== 'local' || !('enabled' in changes)) return;
     enabled = changes.enabled.newValue !== false;
     if (!enabled) {
+      detachAllComments();
       undoAll(document);
       problems.clear();
     }

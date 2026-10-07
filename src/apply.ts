@@ -1,6 +1,6 @@
 import { addFileToolbar } from './controls';
 import { foldUnchanged } from './fold';
-import { HIDDEN_CLASS, MDF_ATTR, UNCOLLAPSED_ATTR, setHidden, tablePairs } from './selectors';
+import { HIDDEN_CLASS, MDF_ATTR, PIN_ATTR, UNCOLLAPSED_ATTR, setHidden, tablePairs } from './selectors';
 import { mergeTablePair } from './table-render';
 
 export interface ApplyResult {
@@ -40,4 +40,6 @@ export function undoAll(root: ParentNode): void {
     el.classList.add('collapsed');
     el.removeAttribute(UNCOLLAPSED_ATTR);
   }
+  for (const el of root.querySelectorAll(`[${PIN_ATTR}]`)) el.removeAttribute(PIN_ATTR);
+  for (const el of root.querySelectorAll('.mdf-selected')) el.classList.remove('mdf-selected');
 }
