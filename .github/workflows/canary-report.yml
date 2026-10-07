@@ -1,0 +1,59 @@
+name: canary-report
+
+# 맥 미니의 주간 점검(`pnpm canary`)이 깨지거나 회복되면 workflow_dispatch로 부른다.
+# 봇(github-actions)이 `canary` 이슈를 만들거나 이어 쓰고, 회복되면 닫는다 — 봇이 쓰므로 저장소 주인에게 알림이 간다.
+# 입력은 셸에 직접 넣지 않고 환경 변수로만 넘긴다(명령 주입 방지).
+on:
+  workflow_dispatch:
+    inputs:
+      state:
+        description: failed(깨짐) 또는 recovered(회복)
+        required: true
+        type: choice
+        options: [failed, recovered]
+      summary:
+        description: 깨진 점검 요약
+        required: false
+        type: string
+      version:
+        description: 확장 버전
+        required: false
+        type: string
+
+permissions:
+  issues: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 이슈 만들기·이어 쓰기·닫기
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          STATE: ${{ inputs.state }}
+          SUMMARY: ${{ inputs.summary }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          gh label create canary --color d93f0b --description "맥 미니 확장 점검(pnpm canary)" --force >/dev/null
+          open="$(gh issue list --label canary --state open --json number --jq '.[0].number // empty')"
+          now="$(date -u '+%F %T') UTC"
+          if [ "$STATE" = recovered ]; then
+            if [ -n "$open" ]; then
+              gh issue comment "$open" --body "점검이 다시 정상이에요 ($now, 확장 ${VERSION:-?}). 이슈를 닫아요."
+              gh issue close "$open"
+            fi
+            exit 0
+          fi
+          summary="${SUMMARY:-요약 없음}"
+          body="$(printf '%s\n\n- 깨진 점검: %s\n- 확장 버전: %s\n- 시각: %s\n\n%s' \
+            '맥 미니의 주간 점검(`pnpm canary`)이 깨졌어요. GitHub가 화면이나 내부 요청을 바꿨을 수 있어요.' \
+            "$summary" "${VERSION:-?}" "$now" \
+            '맥 미니 로그는 `~/Library/Logs/mdf-canary.log`. 점검이 정상으로 돌아오면 이 이슈는 자동으로 닫혀요.')"
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "$body"
+          else
+            gh issue create --label canary --title "확장 점검 깨짐: ${summary:0:80}" --body "$body"
+          fi
