@@ -140,6 +140,13 @@ export function isDecoration(el: Element): boolean {
 /** 코멘트·스레드가 붙은 블록의 맨 위 묶음 — 접지 않는다 */
 export const PIN_ATTR = 'data-mdf-pin';
 
+/** 어느 "Files changed" 화면인가 — 문제 보고에 적는다 */
+export function pageVariant(doc: Document): 'new' | 'classic' | 'unknown' {
+  if (doc.querySelector('div[id^="diff-"][class*="Diff-module__diff__"]')) return 'new';
+  if (doc.querySelector('div.file.js-file')) return 'classic';
+  return 'unknown';
+}
+
 /** 로그인했는가 — 코멘트는 로그인한 사람만 단다 */
 export function isSignedIn(doc: Document): boolean {
   return Boolean(doc.querySelector('meta[name="user-login"]')?.getAttribute('content'));

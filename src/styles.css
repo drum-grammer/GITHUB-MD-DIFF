@@ -80,3 +80,14 @@ li > .mdf-comment-form, li > .mdf-thread { margin: 8px 0; }
 .mdf-comment-body > :last-child { margin-bottom: 0; }
 .mdf-plain { white-space: pre-wrap; }
 .mdf-notice { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* 문제 안내 — 페이지 오른쪽 아래 */
+.mdf-toast {
+  position: fixed; right: 16px; bottom: 16px; z-index: 1000; max-width: 420px;
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border: 1px solid var(--borderColor-danger-emphasis, #cf222e); border-radius: 8px;
+  background: var(--bgColor-default, #ffffff); color: var(--fgColor-default, #1f2328);
+  box-shadow: var(--shadow-floating-large, 0 8px 24px rgba(140, 149, 159, 0.2)); font-size: 13px;
+}
+.mdf-toast a { white-space: nowrap; font-weight: 600; }
+.mdf-toast-close { padding: 0 4px; border: 0; background: none; color: inherit; font-size: 16px; cursor: pointer; }

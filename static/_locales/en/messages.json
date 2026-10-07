@@ -44,5 +44,9 @@
   "showSource": {"message": "Show source diff"},
   "errorLineNotResolved": {"message": "GitHub did not accept a comment on this line. Comment on a changed line nearby, or use the source diff."},
   "errorPost": {"message": "Could not post: $WHAT$", "placeholders": {"what": {"content": "$1"}}},
-  "errorStale": {"message": "This pull request has new commits. Reload the page and try again."}
+  "errorStale": {"message": "This pull request has new commits. Reload the page and try again."},
+  "problemComments": {"message": "commenting is off — GitHub changed the requests its page uses"},
+  "errorChanged": {"message": "GitHub changed how comments are posted, so this one was not posted. Your text is still here: copy it and comment from the source diff (<>)."},
+  "reportIssue": {"message": "Report on GitHub"},
+  "close": {"message": "Close"}
 }

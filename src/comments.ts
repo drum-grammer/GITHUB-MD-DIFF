@@ -9,6 +9,7 @@ import {
   fetchFileText,
   fetchPrData,
   isCommitRangeView,
+  isGitHubChange,
   postComment,
   prKey,
   prRef,
@@ -32,6 +33,66 @@ const SELECTED = 'mdf-selected';
 const REMOVED_FILE = new Set(['REMOVED', 'DELETED']);
 /** PR 데이터를 다시 쓰는 시간 — 그보다 오래되면 새 파일 묶음이 붙을 때 다시 읽는다 */
 const PR_TTL_MS = 60_000;
+/** 잠깐의 실패(네트워크·5xx) 뒤 다시 시도하는 간격 */
+export const RETRY_MS = 60_000;
+
+/**
+ * 코멘트 기능 상태 — PR마다. GitHub 내부 요청이 바뀐 것으로 보이면 `broken`이 되어 코멘트를 끄고,
+ * 스레드가 있는 파일은 예전처럼 원문 보기로 두며, 툴바 아이콘에 "!"로 알린다(content.ts). 접기·표 합치기는 그대로다.
+ */
+export type CommentHealth = 'loading' | 'ok' | 'broken' | 'unavailable';
+const health = new Map<string, { state: CommentHealth; at: number; detail: string }>();
+let healthListener: () => void = () => {};
+
+export function onCommentHealthChange(fn: () => void): void {
+  healthListener = fn;
+}
+
+/** 문제 보고에 넣을 짧은 설명 — 어느 요청이 어떻게 실패했나. 저장소 이름·주소는 넣지 않는다 */
+function describe(step: string, e: unknown): string {
+  return `${step}: ${e instanceof RequestError ? (e.status ? `HTTP ${e.status} ${e.message}` : e.message) : String(e)}`.slice(0, 200);
+}
+
+function setHealth(key: string, state: CommentHealth, detail = ''): void {
+  const prev = health.get(key)?.state;
+  health.set(key, { state, at: Date.now(), detail });
+  if (state === 'broken') detachAllComments();
+  if (prev !== state) healthListener();
+}
+
+function healthOf(url: string): CommentHealth | null {
+  const pr = prRef(url);
+  if (!pr || isCommitRangeView(url)) return null;
+  return health.get(prKey(pr))?.state ?? null;
+}
+
+/** 이 PR에서 코멘트를 쓸 수 있는지 PR 데이터를 한 번 읽어 본다. 로그인한 PR 화면을 훑을 때마다 불러도 된다 */
+export function prepareComments(url: string): void {
+  const pr = prRef(url);
+  if (!pr || isCommitRangeView(url)) return;
+  const key = prKey(pr);
+  const h = health.get(key);
+  if (h && !(h.state === 'unavailable' && Date.now() - h.at > RETRY_MS)) return;
+  setHealth(key, 'loading');
+  loadPr(pr).then(
+    () => setHealth(key, 'ok'),
+    (e: unknown) => {
+      console.warn(LOG, e);
+      setHealth(key, isGitHubChange(e) ? 'broken' : 'unavailable', describe('GET pull/:n/changes', e));
+    },
+  );
+}
+
+/** 코멘트가 꺼진 까닭(문제 보고용). 없으면 '' */
+export function commentsBrokenDetail(url: string): string {
+  const pr = prRef(url);
+  return (pr && health.get(prKey(pr))?.detail) || '';
+}
+
+/** PR 데이터를 읽었고 모양도 맞다 — 그때만 "+"를 달고, 스레드가 있는 파일도 렌더링으로 연다 */
+export const commentsReady = (url: string): boolean => healthOf(url) === 'ok';
+/** GitHub 내부 요청이 바뀐 것으로 보인다 — 툴바 아이콘에 알린다 */
+export const commentsBroken = (url: string): boolean => healthOf(url) === 'broken';
 
 const prCache = new Map<string, { at: number; data: Promise<PrData> }>();
 const textCache = new Map<string, Promise<string>>();
@@ -57,9 +118,13 @@ function loadText(pr: PrRef, oid: string, path: string): Promise<string> {
   return text;
 }
 
-/** 사람에게 보일 오류 문구로 바꾼다 */
-function userError(e: unknown): Error {
+/** 사람에게 보일 오류 문구로 바꾼다. GitHub 쪽이 바뀐 것이면 이 PR의 코멘트 기능을 끈다 */
+function userError(e: unknown, pr: PrRef, step: string): Error {
   if (e instanceof RequestError && e.lineNotResolved) return new Error(t('errorLineNotResolved'));
+  if (isGitHubChange(e)) {
+    setHealth(prKey(pr), 'broken', describe(step, e));
+    return new Error(t('errorChanged'));
+  }
   return new Error(t('errorPost', [e instanceof Error ? e.message : String(e)]));
 }
 
@@ -122,6 +187,19 @@ class FileComments {
     this.button.addEventListener('mousedown', this.onButtonDown);
     this.button.addEventListener('click', this.onButtonClick);
     void this.start();
+  }
+
+  /** 이벤트 처리 중 예외가 나도 화면은 그대로 두고 "+"만 감춘다 */
+  private guard<A extends unknown[]>(fn: (...args: A) => void): (...args: A) => void {
+    return (...args: A) => {
+      try {
+        fn(...args);
+      } catch (e) {
+        console.warn(LOG, this.path, e);
+        this.drag = null;
+        this.button.hidden = true;
+      }
+    };
   }
 
   /** GitHub가 본문 안을 통째로 다시 그리면 "+"와 연결한 블록이 사라진다 — 그때는 새로 붙인다 */
@@ -207,7 +285,7 @@ class FileComments {
     return null;
   }
 
-  private onMove = (e: MouseEvent): void => {
+  private onMove = this.guard((e: MouseEvent): void => {
     if (!this.mapping) {
       void this.ensureMapping();
       return;
@@ -221,7 +299,7 @@ class FileComments {
       return;
     }
     if (hit) this.showButton(hit.el);
-  };
+  });
 
   private onLeave = (): void => {
     if (!this.drag) this.button.hidden = true;
@@ -236,26 +314,26 @@ class FileComments {
     this.button.hidden = false;
   }
 
-  private onButtonDown = (e: MouseEvent): void => {
+  private onButtonDown = this.guard((e: MouseEvent): void => {
     const target = this.hovered && this.targetOf(this.hovered);
     if (e.button !== 0 || !this.hovered || !target) return;
     e.preventDefault(); // 글자 선택이 생기지 않게
     this.drag = { side: target.side, from: this.hovered, to: this.hovered };
     this.paintSelection();
     this.body.ownerDocument.addEventListener('mouseup', this.onUp, { once: true });
-  };
+  });
 
-  private onUp = (): void => {
+  private onUp = this.guard((): void => {
     const d = this.drag;
     this.drag = null;
     this.clearSelection();
     if (d) this.openForm(d.from, d.to);
-  };
+  });
 
   /** 키보드로 누른 경우(detail 0) — 그 블록 하나 */
-  private onButtonClick = (e: MouseEvent): void => {
+  private onButtonClick = this.guard((e: MouseEvent): void => {
     if (e.detail === 0 && this.hovered) this.openForm(this.hovered, this.hovered);
-  };
+  });
 
   private selectionSpan(): BlockTarget | null {
     if (!this.drag) return null;
@@ -329,13 +407,13 @@ class FileComments {
     try {
       fresh = await loadPr(this.pr, true);
     } catch (e) {
-      throw userError(e);
+      throw userError(e, this.pr, 'GET pull/:n/changes');
     }
     if (this.headOid && fresh.headOid !== this.headOid) throw new Error(t('errorStale'));
     try {
       await postComment(this.pr, build(fresh));
     } catch (e) {
-      throw userError(e);
+      throw userError(e, this.pr, 'POST page_data/create_review_comment');
     }
     await this.refresh();
   }
@@ -391,7 +469,7 @@ class FileComments {
         try {
           await setThreadResolved(this.pr, th.id, resolved);
         } catch (e) {
-          throw userError(e);
+          throw userError(e, this.pr, 'POST page_data/(un)resolve_thread');
         }
         await this.refresh();
       },

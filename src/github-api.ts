@@ -77,6 +77,15 @@ export class RequestError extends Error {
   }
 }
 
+/**
+ * GitHub 쪽 요청이 바뀌었다는 신호인가 — 없어진 주소(400·404·410)이거나 응답 모양이 다르다(status 0).
+ * 네트워크 끊김·시간 초과·5xx·로그인·권한(401·403)·횟수 제한(429)·줄 문제(422)는 잠깐이거나 그 PR만의 문제로 본다.
+ */
+export function isGitHubChange(e: unknown): boolean {
+  if (!(e instanceof RequestError)) return false;
+  return e.status === 0 || e.status === 400 || e.status === 404 || e.status === 410;
+}
+
 type Json = Record<string, unknown>;
 const rec = (v: unknown): Json | null => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Json) : null);
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);

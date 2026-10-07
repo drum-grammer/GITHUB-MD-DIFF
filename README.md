@@ -56,7 +56,7 @@ No data collected and no remote code. The extension reads the open GitHub page i
 
 - Files that GitHub does not render (very large files behind "Load diff") are left as they are
 - It relies on GitHub's page structure. When GitHub changes it, the icon shows `!` until an update ships. Please [open an issue](https://github.com/drum-grammer/GITHUB-MD-DIFF/issues)
-- Commenting uses the same internal requests as GitHub's own "Files changed" page, which are not a public API. If GitHub changes them, commenting stops working until an update ships; folding and tables keep working. They live only in `src/github-api.ts`
+- Commenting uses the same internal requests as GitHub's own "Files changed" page, which are not a public API. They live only in `src/github-api.ts`. If GitHub changes them, the extension turns commenting off on its own: no **+**, files with review threads stay in the source view as before, and folding and tables keep working. The toolbar icon shows `!`, and a note in the corner of the page has a **Report on GitHub** link that opens a prefilled issue (no repository name or URL in it). A comment that fails to post stays in its box so you can copy it
 - A block gets **+** only when it can be matched to its source lines. Blocks GitHub draws from HTML or diagrams may not get one; use the source diff for those
 
 ## Develop
@@ -66,6 +66,7 @@ No data collected and no remote code. The extension reads the open GitHub page i
 - `pnpm e2e:login` once — sign in to GitHub in the window that opens, then close it. The profile lives in `~/.cache/github-md-diff/e2e-profile` (outside the repo)
 - `pnpm e2e` — real Chromium with the extension against public pull requests, signed in and signed out
 - `GMD_E2E_WRITE=1 pnpm e2e` — also posts comments from the rendered view to the demo pull request as a pending review, checks their source lines, and deletes the review with `gh` (needs `gh` signed in as the repository owner)
+- `pnpm canary [--notify]` — read-only check against live GitHub of everything the extension relies on: signed-in pull request data, file text, auto rich diff, folding, merged tables, **+** on the right line, matching rate, and the signed-out classic page. Exit code 1 when something broke; results go to `~/.cache/github-md-diff/canary.log`. `--notify` shows a macOS notification and prints a prefilled issue link
 - `node scripts/mapping-report.mjs <pull request URL>…` (after `pnpm build`) — how many rendered blocks of each Markdown file match their source lines, and how long matching takes. Read-only
 - `pnpm icons` — regenerate `static/icons/icon{16,32,48,128}.png` from `icon.svg` and `icon{16,32}-off.png` from `icon-off.svg` (commit the PNGs)
 - `pnpm package` — build and zip `dist/` into `release/` for the Chrome Web Store
