@@ -1,7 +1,7 @@
 // 시연 PR 캡처: 확장 없이(전) / 확장 켜고(후) — 파일 영역만 자른다(계정 정보가 찍히지 않게)
 // 사용: node store/capture.mjs [en|ko]  (먼저 pnpm build, pnpm e2e:login으로 로그인한 테스트 프로필 필요)
 import { chromium } from '@playwright/test';
-import { cpSync, mkdirSync, rmSync } from 'node:fs';
+import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -16,6 +16,28 @@ const LANG = process.argv[2] ?? 'en';
 const OUT = resolve(`store/build/capture/${LANG}`);
 mkdirSync(OUT, { recursive: true });
 const FILE = 'div[id^="diff-"][class*="Diff-module__diff__"]';
+// 좁은 창에서 찍어야 글자가 커진다 — 스토어 캐러셀은 1280×800을 절반 가까이로 줄여 보여 준다
+const WIDTH = Number(process.env.CAPTURE_WIDTH ?? 820);
+
+// 파일 요소 기준 좌표(CSS px)로 본문·접기 막대·바뀐 블록을 적어 둔다 — 합성에서 강조 상자와 미니맵을 그린다
+const measure = (file, name) =>
+  file
+    .evaluate((el) => {
+      const o = el.getBoundingClientRect();
+      const rel = (r) => ({ x: r.left - o.left, y: r.top - o.top, w: r.width, h: r.height });
+      const body = el.querySelector('.prose-diff .markdown-body');
+      const visible = (e) => e.getClientRects().length > 0;
+      const CHANGE = 'ins, del, .added, .removed, .changed';
+      const changes = [...body.children]
+        .filter((c) => visible(c) && c.getAttribute('data-mdf') !== 'fold')
+        .filter((c) => c.getAttribute('data-mdf') === 'table' || c.matches(CHANGE) || c.querySelector(CHANGE))
+        .map((c) => rel(c.getBoundingClientRect()));
+      const folds = [...body.querySelectorAll('[data-mdf="fold"]')]
+        .filter(visible)
+        .map((b) => ({ ...rel(b.getBoundingClientRect()), expanded: b.getAttribute('aria-expanded') === 'true', label: b.textContent.trim() }));
+      return { file: { w: o.width, h: o.height }, body: rel(body.getBoundingClientRect()), changes, folds };
+    })
+    .then((m) => writeFileSync(join(OUT, `${name}.json`), JSON.stringify(m, null, 1)));
 
 // 화면 위에 붙어 다니는 머리(PR 제목·파일 머리)가 긴 캡처 한가운데 찍히지 않게 풀어 둔다
 const unstick = (page) =>
@@ -30,7 +52,7 @@ async function open(withExtension) {
   const ctx = await chromium.launchPersistentContext(PROFILE, {
     channel: 'chromium',
     headless: true,
-    viewport: { width: 1280, height: 900 },
+    viewport: { width: WIDTH, height: 900 },
     locale: LANG === 'ko' ? 'ko-KR' : 'en-US',
     deviceScaleFactor: 2,
     colorScheme: 'light',
@@ -59,6 +81,7 @@ async function open(withExtension) {
   await page.waitForTimeout(800);
   await unstick(page);
   await file.screenshot({ path: join(OUT, 'before.png') });
+  await measure(file, 'before');
   await ctx.close();
 }
 
@@ -70,11 +93,20 @@ async function open(withExtension) {
   await page.waitForTimeout(800);
   await unstick(page);
   await file.screenshot({ path: join(OUT, 'after.png') });
+  await measure(file, 'after');
   const table = file.locator('[data-mdf="table"]');
   await table.scrollIntoViewIfNeeded();
   // 합친 표 묶음은 블록이라 폭이 꽉 찬다 — 표 크기로 줄여 찍는다
   await table.evaluate((el) => { el.style.display = 'inline-block'; });
   await table.screenshot({ path: join(OUT, 'table.png') });
+  // 행 수: GitHub의 옛 표 + 새 표 본문 행 / 합친 표에 보이는 바뀐 행
+  const rows = await table.evaluate((wrap) => {
+    const del = wrap.nextElementSibling;
+    const ins = del.nextElementSibling;
+    const body = (t) => t.querySelectorAll('tbody tr').length;
+    return { original: body(del) + body(ins), merged: wrap.querySelectorAll('.mdf-row-added, .mdf-row-removed, .mdf-row-changed').length };
+  });
+  writeFileSync(join(OUT, 'table.json'), JSON.stringify(rows));
   await table.evaluate((el) => { el.style.display = ''; });
   // 막대 하나 펼친 모습
   const bar = file.locator('[data-mdf="fold"]').nth(1);
@@ -82,6 +114,7 @@ async function open(withExtension) {
   await page.waitForTimeout(400);
   await unstick(page);
   await file.screenshot({ path: join(OUT, 'after-expanded.png') });
+  await measure(file, 'after-expanded');
   await bar.click();
   // 원래 표로 바꾼 모습
   await table.locator('[data-mdf-action="original"]').click();
@@ -90,8 +123,8 @@ async function open(withExtension) {
     const wrap = el.querySelector('[data-mdf="table"]');
     const del = wrap.nextElementSibling;
     const ins = del.nextElementSibling;
-    // 도구 줄(원래 표 ↔ 합친 표 버튼)부터 새 표 끝까지, 폭은 표 폭에 맞춘다
-    const a = wrap.querySelector('.mdf-toolbar').getBoundingClientRect();
+    // GitHub가 보여 주는 그대로(옛 표 + 새 표) — 확장의 도구 줄은 빼고, 폭은 표 폭에 맞춘다
+    const a = del.getBoundingClientRect();
     const tables = [del.querySelector('table'), ins.querySelector('table')].map((t) => t.getBoundingClientRect());
     const left = Math.min(...tables.map((t) => t.left));
     const right = Math.max(...tables.map((t) => t.right)) + 4;
