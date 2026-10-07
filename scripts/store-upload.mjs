@@ -19,12 +19,14 @@ mkdirSync(OUT, { recursive: true });
 
 // 1. 올릴 파일 — 대시보드에서 넣는 순서대로 이름 붙인다. 스크린샷은 언어마다 SHOTS장(스토어 최대 5장)
 const SHOTS = 5;
+// 프로모션 타일은 언어별로 올릴 수 없다 — 하나가 모든 언어에 쓰인다(기본 언어 영어판을 쓴다).
+// "The small tile and Marquee promo tile cannot be localized." https://developer.chrome.com/docs/webstore/cws-dashboard-listing (2026-10-08 확인)
+const TILES = [['store/images/en/promo-small-440x280.png', '공통-작은타일-440x280.png'], ['store/images/en/promo-marquee-1400x560.png', '공통-마키-1400x560.png']];
 const files = [[`release/${ZIP}`, `00-패키지-${ZIP}`], ['static/icons/icon128.png', '01-스토어아이콘-128.png']];
 for (const lang of ['en', 'ko']) {
   for (let i = 1; i <= SHOTS; i++) files.push([`store/images/${lang}/screenshot-${i}.png`, `${lang}-스크린샷-${i}.png`]);
-  files.push([`store/images/${lang}/promo-small-440x280.png`, `${lang}-작은타일-440x280.png`]);
-  files.push([`store/images/${lang}/promo-marquee-1400x560.png`, `${lang}-마키-1400x560.png`]);
 }
+files.push(...TILES);
 for (const [from, to] of files) copyFileSync(from, join(OUT, to));
 
 // 2. 붙여 넣을 글 — store/*.md·_locales가 정본. 같은 함수로 지난 릴리스 태그의 글도 만들어 바뀐 칸을 찾는다
@@ -103,7 +105,9 @@ const save = '<p class="note"><b>초안 저장</b>.</p>';
 const images = (lang) =>
   UPDATE && !imagesChanged
     ? `<p class="same-field"><span class="tag same">그대로</span> 아이콘·스크린샷·프로모션 타일 — 다시 올리지 않아요(${esc(prevTag)}와 같음)</p>`
-    : `${lang === 'en' ? `<p>스토어 아이콘</p>${list('01-스토어아이콘-128.png')}` : ''}<p>스크린샷 — 이 순서대로</p>${shots(lang)}<p>작은 프로모션 타일${lang === 'en' ? '(필수)' : ''} · 마키 프로모션 타일</p>${list(`${lang}-작은타일-440x280.png`, `${lang}-마키-1400x560.png`)}`;
+    : lang === 'en'
+      ? `<p>스토어 아이콘</p>${list('01-스토어아이콘-128.png')}<p>스크린샷 — 이 순서대로</p>${shots('en')}<p>작은 프로모션 타일(필수) · 마키 프로모션 타일 — <b>모든 언어 공통</b>(언어별로 못 올려요)</p>${list(...TILES.map(([, to]) => to))}`
+      : `<p>스크린샷 — 이 순서대로</p>${shots(lang)}<p class="note">프로모션 타일(작은 타일·마키)은 언어별 칸이 없어요 — 영어 탭에 올린 <code>공통-…</code> 타일이 모든 언어에 쓰여요.</p>`;
 const summaryNote = (lang) =>
   `<p class="note">요약은 패키지 매니페스트에서 자동으로 들어가요${UPDATE ? (changed.has(lang === 'en' ? 'sumEn' : 'sumKo') ? ' — <b>이번에 바뀜</b>' : ' — 그대로') : ''}: “${esc(lang === 'en' ? D.sumEn : D.sumKo)}”</p>`;
 const privacyStep = `${copy('single', '단일 목적 설명')}${copy('storage', '권한 사유 — storage')}${copy('host', '권한 사유 — 호스트 권한 (https://github.com/*)')}${kv(['원격 코드 사용', '아니요, 원격 코드를 사용하지 않습니다'])}${copy('remote', '원격 코드 사유(칸이 나오면)')}<p><b>데이터 사용</b>: 수집 항목은 <b>아무것도 체크하지 않음</b>. 아래 인증 3개는 <b>모두 체크</b>.</p><p class="note">코멘트는 사용자가 쓴 글을 GitHub(지금 쓰는 사이트)로만 보낸다 — 대시보드가 이것도 신고하라고 하면 <b>Website content</b>를 체크(판단 메모: <code>store/privacy-practices.md</code>).</p>${copy('privacyUrl', '개인정보처리방침 URL', 1)}${save}`;
@@ -121,7 +125,7 @@ const steps = UPDATE
       ['계정 확인', '<p>왼쪽 메뉴 <b>계정</b> → <b>연락처 이메일</b>이 인증됐는지 봐요. 인증 전이면 게시가 막혀요. 오른쪽 위 게시자 계정도 확인.</p>'],
       ['새 항목 만들기', `<p>${link(DASHBOARD, '개발자 대시보드')}에서 <b>+ 새 항목</b> → <code>00-패키지-${esc(ZIP)}</code>를 끌어다 놓기. 이름·요약은 매니페스트에서 자동.</p>`],
       ['스토어 등록정보 — 영어(기본)', `<p>상단 언어가 <b>English</b>인 상태에서:</p>${copy('descEn', '설명')}${kv(['카테고리', '개발자 도구 (Developer Tools)'], ['언어', '영어 (English)'])}${images('en')}${copy('home', '홈페이지 URL', 1)}${copy('support', '지원 URL', 1)}<p class="note">성인용 콘텐츠를 물으면 <b>아니요</b>.</p>${save}`],
-      ['스토어 등록정보 — 한국어', `<p>상단 언어 선택을 <b>한국어</b>로 (이름·요약은 한국어 매니페스트에서 자동):</p>${copy('descKo', '설명')}${images('ko')}<p class="note">언어별 그림 칸이 없으면 설명만 넣어도 돼요(영어 그림이 쓰여요).</p>${save}`],
+      ['스토어 등록정보 — 한국어', `<p>상단 언어 선택을 <b>한국어</b>로 (이름·요약은 한국어 매니페스트에서 자동):</p>${copy('descKo', '설명')}${images('ko')}${save}`],
       ['개인정보 보호 관행', privacyStep],
       ['배포', `${kv(['결제', '무료'], ['공개 상태', '공개'], ['배포 지역', '모든 지역'])}${save}`],
       ['테스트 안내', copy('tests', '추가 안내 (사용자 이름·비밀번호 칸은 비워 둠)')],
