@@ -8,7 +8,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "e2e": "node build.mjs && playwright test",
-    "e2e:login": "node e2e/login.mjs"
+    "e2e:login": "node e2e/login.mjs",
+    "icons": "node scripts/icons.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

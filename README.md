@@ -36,4 +36,5 @@ No network requests, no tokens, no data collection. Permissions: `storage` (on/o
 - `pnpm e2e:login` once — sign in to GitHub in the window that opens, then close it. The profile lives in `~/.cache/github-md-diff/e2e-profile` (outside the repo)
 - `pnpm e2e` — real Chromium with the extension against public pull requests
 - GitHub page assumptions live only in `src/selectors.ts`
+- `pnpm icons` — regenerate `static/icons/icon{16,32,48,128}.png` from `static/icons/icon.svg` (commit the PNGs)
 - Test fixtures must come from public repositories or be handmade; the first line records the source and `test/fixtures.test.ts` checks it
