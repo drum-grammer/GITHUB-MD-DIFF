@@ -136,7 +136,7 @@ async function open(withExtension) {
   await page.screenshot({ path: join(OUT, 'table-original.png'), clip: original, fullPage: true });
   await ctx.close();
 }
-// 코멘트: 블록에 마우스를 올리면 "+" → 입력 상자 → 리뷰 시작(보류 중) → 그 블록 아래 스레드
+// 코멘트: 위 문단(5.2)에 올린 보류 중 코멘트의 스레드 + 아래 문단(5.3)에 쓰는 중인 입력 상자를 한 장면으로
 {
   const REPO = 'drum-grammer/GITHUB-MD-DIFF';
   const NUMBER = PR.match(/pull\/(\d+)/)[1];
@@ -147,8 +147,8 @@ async function open(withExtension) {
     for (const id of ids) execFileSync('gh', ['api', '-X', 'DELETE', `repos/${REPO}/pulls/${NUMBER}/reviews/${id}`]);
   };
   const TEXT = {
-    en: 'Should the reconciler back off while the provider is down?',
-    ko: '프로바이더가 내려가 있는 동안에는 재확인 간격을 늘려야 하지 않을까요?',
+    en: ['Should the reconciler back off while the provider is down?', 'Which dashboard shows the queue depth?'],
+    ko: ['프로바이더가 내려가 있는 동안에는 재확인 간격을 늘려야 하지 않을까요?', '큐 길이는 어느 대시보드에서 보나요?'],
   }[LANG];
   cleanup();
   const { ctx, page } = await open(true);
@@ -159,34 +159,45 @@ async function open(withExtension) {
     const body = file.locator('.prose-diff .markdown-body');
     const heading = file.locator('.markdown-body h3', { hasText: '5.2 Failure handling' });
     const para = file.locator('.markdown-body p', { hasText: 'A reconciler runs every' });
-    await heading.evaluate((el) => el.scrollIntoView({ block: 'start' }));
-    await page.evaluate(() => window.scrollBy(0, -60));
-    // 본문 폭으로, 첫 요소 위부터 마지막 요소 아래까지
-    const clipOf = async (...parts) => {
-      const b = await body.boundingBox();
-      const boxes = await Promise.all(parts.map((l) => l.boundingBox()));
-      const top = Math.min(...boxes.map((x) => x.y)) - 18;
-      const bottom = Math.max(...boxes.map((x) => x.y + x.height)) + 18;
-      return { x: b.x - 14, y: top, width: b.width + 28, height: bottom - top };
-    };
     const plus = file.locator('[data-mdf="add-comment"]');
-    for (let k = 0; k < 60 && !(await plus.isVisible()); k++) {
-      await para.hover({ position: { x: 12 + (k % 5), y: 8 } });
-      await page.waitForTimeout(250);
-    }
-    await page.waitForTimeout(300);
-    await page.screenshot({ path: join(OUT, 'comment-plus.png'), clip: await clipOf(heading, para) });
+    const hoverPlus = async (block) => {
+      for (let k = 0; k < 60 && !(await plus.isVisible()); k++) {
+        await block.hover({ position: { x: 12 + (k % 5), y: 8 } });
+        await page.waitForTimeout(250);
+      }
+    };
+    await heading.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+    await hoverPlus(para);
     await plus.click();
-    const form = file.locator('[data-mdf="comment-form"]');
-    await form.locator('textarea').fill(TEXT);
-    await page.waitForTimeout(300);
-    await page.screenshot({ path: join(OUT, 'comment-form.png'), clip: await clipOf(heading, form) });
-    await form.locator('.mdf-btn-primary').click(); // 리뷰 시작 — 보류 중이라 나만 보인다
+    await file.locator('[data-mdf="comment-form"] textarea').fill(TEXT[0]);
+    await file.locator('[data-mdf="comment-form"] .mdf-btn-primary').click(); // 리뷰 시작 — 보류 중이라 나만 보인다
     const thread = file.locator('[data-mdf="thread"]').first();
     await thread.waitFor({ timeout: 20_000 });
+    // 바로 아래 문단(5.3 Observability)은 접힌 묶음 안일 수 있다 — 막대가 있으면 펼친다
+    const next = file.locator('.markdown-body p', { hasText: 'Each service exports request latency' });
+    if (!(await next.isVisible())) {
+      for (const bar of await file.locator('[data-mdf="fold"][aria-expanded="false"]').all()) {
+        await bar.click();
+        if (await next.isVisible()) break;
+      }
+    }
     await page.mouse.move(2, 2);
+    await plus.waitFor({ state: 'hidden' }).catch(() => {});
+    await hoverPlus(next);
+    await plus.click();
+    const form = file.locator('[data-mdf="comment-form"]');
+    await form.locator('textarea').fill(TEXT[1]);
+    await page.mouse.move(2, 2);
+    await heading.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+    await page.evaluate(() => window.scrollBy(0, -24));
     await page.waitForTimeout(500);
-    await page.screenshot({ path: join(OUT, 'comment-thread.png'), clip: await clipOf(heading, thread) });
+    // 본문 폭으로 5.2 제목 위부터 입력 상자 아래까지. 스레드·입력 상자 위치는 잘라 낸 영역 기준 CSS px로 적는다
+    const b = await body.boundingBox();
+    const [h, t, f] = await Promise.all([heading.boundingBox(), thread.boundingBox(), form.boundingBox()]);
+    const clip = { x: b.x - 14, y: h.y - 18, width: b.width + 28, height: f.y + f.height + 18 - (h.y - 18) };
+    await page.screenshot({ path: join(OUT, 'comment.png'), clip });
+    const rel = (r) => ({ x: r.x - clip.x, y: r.y - clip.y, w: r.width, h: r.height });
+    writeFileSync(join(OUT, 'comment.json'), JSON.stringify({ thread: rel(t), form: rel(f) }));
   } finally {
     await ctx.close();
     cleanup();

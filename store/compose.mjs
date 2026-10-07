@@ -55,8 +55,10 @@ const T = {
     tableOurs: 'Markdown Diff Cat · only what changed',
     commentTitle: 'Comment right on the rendered document',
     commentSub: 'Hover over a block and click +, or drag across blocks for a range. It becomes an ordinary GitHub review comment on the right source line.',
-    commentForm: '① Click + and write',
-    commentThread: '② The thread stays under that block — reply or resolve here',
+    commentFormTitle: 'Click + and write',
+    commentFormText: 'Single comment, or start or add to your review',
+    commentThreadTitle: 'Threads stay under their block',
+    commentThreadText: 'Reply and resolve without leaving the rendered view',
     wayTitle: 'Stays out of your way',
     way: [
       'Opens the rendered view for you on every Markdown file',
@@ -99,8 +101,10 @@ const T = {
     tableOurs: 'Markdown Diff Cat · 바뀐 것만',
     commentTitle: '렌더링된 문서에 바로 코멘트',
     commentSub: '블록에 마우스를 올리고 +를 누르거나, 여러 블록을 끌어 범위로 달아요. 맞는 원문 줄에 붙는 보통의 GitHub 리뷰 코멘트예요.',
-    commentForm: '① +를 누르고 쓰기',
-    commentThread: '② 스레드는 그 블록 아래에 — 답글·해결도 여기서',
+    commentFormTitle: '+를 누르고 쓰기',
+    commentFormText: '단일 코멘트로 달거나, 리뷰를 시작·추가해요',
+    commentThreadTitle: '스레드는 그 블록 아래에',
+    commentThreadText: '렌더링 보기에서 바로 답글·해결',
     wayTitle: '방해하지 않아요',
     way: [
       '마크다운 파일은 열자마자 렌더링 보기로',
@@ -253,21 +257,22 @@ const pages = [];
   `]);
 }
 
-// 2. 렌더링 보기에서 코멘트: 입력 상자(왼쪽) → 블록 아래 스레드(오른쪽)
+// 2. 렌더링 보기에서 코멘트: 큰 화면 한 장(위 문단의 스레드 + 아래 문단에 쓰는 중인 입력 상자) + 오른쪽 설명
 {
-  const panelW = 560;
-  const shot = (name, left, top) => {
-    const s = size(name);
-    const k = Math.min(panelW / s.w, 470 / s.h);
-    return `<div class="shot" style="left:${left}px;top:${top}px;width:${s.w * k}px;height:${s.h * k}px"><img src="${png(name)}" style="left:0;top:0;width:${s.w * k}px"></div>`;
-  };
+  const c = size('comment');
+  const m = data('comment');
+  const k = Math.min(860 / c.w, 590 / c.h);
+  const left = 56;
+  const top = 178;
+  const box = (r) => `<div class="mark" style="left:${left + r.x * k - 6}px;top:${top + r.y * k - 6}px;width:${r.w * k + 12}px;height:${r.h * k + 12}px"></div>`;
+  const note = (r, title, text) => `<div class="abs" style="left:${left + c.w * k + 40}px;width:${1280 - (left + c.w * k + 40) - 40}px;top:${top + (r.y + r.h / 2) * k - 40}px"><div class="accent" style="font-size:22px;font-weight:800;line-height:1.25">${title}</div><div class="sub" style="font-size:16px;margin-top:6px">${text}</div></div>`;
   pages.push(['screenshot-2.png', 1280, 800, `
-    <div class="abs title" style="left:56px;top:46px;font-size:38px">${T.commentTitle}</div>
-    <div class="abs sub" style="left:56px;top:104px;width:1168px;font-size:19px">${T.commentSub}</div>
-    <div class="abs label accent" style="left:56px;top:206px">${T.commentForm}</div>
-    ${shot('comment-form', 56, 240)}
-    <div class="abs label accent" style="left:${56 + panelW + 48}px;top:206px">${T.commentThread}</div>
-    ${shot('comment-thread', 56 + panelW + 48, 240)}
+    <div class="abs title" style="left:56px;top:40px;font-size:38px">${T.commentTitle}</div>
+    <div class="abs sub" style="left:56px;top:98px;width:1168px;font-size:19px">${T.commentSub}</div>
+    <div class="shot" style="left:${left}px;top:${top}px;width:${c.w * k}px;height:${c.h * k}px"><img src="${png('comment')}" style="left:0;top:0;width:${c.w * k}px"></div>
+    ${box(m.thread)}${box(m.form)}
+    ${note(m.thread, T.commentThreadTitle, T.commentThreadText)}
+    ${note(m.form, T.commentFormTitle, T.commentFormText)}
   `]);
 }
 
