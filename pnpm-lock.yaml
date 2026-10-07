@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       markdown-it:
-        specifier: ^14
+        specifier: ^14.3.2
         version: 14.3.2
     devDependencies:
       '@playwright/test':
@@ -19,7 +19,7 @@ importers:
         specifier: ^0.3.4
         version: 0.3.4
       '@types/markdown-it':
-        specifier: ^14
+        specifier: ^14.2.0
         version: 14.2.0
       '@types/node':
         specifier: ^26.6.4
