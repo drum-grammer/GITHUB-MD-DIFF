@@ -12,7 +12,7 @@ GitHub PR의 마크다운 파일을 **렌더링된 모양으로, 바뀐 부분�
 - If you click `<>` (source) on a file to leave a comment, the extension will not switch that file back until you click the rich diff button again or reload
 - Files that already have inline review comments stay in the source diff, because the rich diff does not show comment threads
 - Collapsed files (collapsed or marked **Viewed**) are left collapsed
-- Toolbar icon turns everything on or off. Badge: `ON`, empty when off, `!` when the page could not be read (hover for the reason)
+- Toolbar icon turns everything on or off. The icon is in color when on and gray when off; a `!` badge appears only when the page could not be read (hover for the reason)
 
 ## Privacy
 
@@ -36,5 +36,5 @@ No network requests, no tokens, no data collection. Permissions: `storage` (on/o
 - `pnpm e2e:login` once — sign in to GitHub in the window that opens, then close it. The profile lives in `~/.cache/github-md-diff/e2e-profile` (outside the repo)
 - `pnpm e2e` — real Chromium with the extension against public pull requests
 - GitHub page assumptions live only in `src/selectors.ts`
-- `pnpm icons` — regenerate `static/icons/icon{16,32,48,128}.png` from `static/icons/icon.svg` (commit the PNGs)
+- `pnpm icons` — regenerate `static/icons/icon{16,32,48,128}.png` from `icon.svg` and `icon{16,32}-off.png` from `icon-off.svg` (commit the PNGs)
 - Test fixtures must come from public repositories or be handmade; the first line records the source and `test/fixtures.test.ts` checks it

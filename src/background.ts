@@ -1,4 +1,4 @@
-import { badgeFor } from './badge';
+import { ICON_PATHS, badgeFor } from './badge';
 
 async function isEnabled(): Promise<boolean> {
   const { enabled } = await chrome.storage.local.get({ enabled: true });
@@ -10,6 +10,7 @@ async function paint(enabled: boolean, problems: string[], tabId?: number): Prom
   const b = badgeFor(enabled, problems);
   const title = chrome.i18n.getMessage(b.titleKey, b.titleSubs) || 'GitHub MD Diff';
   const target = tabId === undefined ? {} : { tabId };
+  await chrome.action.setIcon({ ...target, path: ICON_PATHS[b.icon] });
   await chrome.action.setBadgeBackgroundColor({ ...target, color: b.color });
   await chrome.action.setBadgeText({ ...target, text: b.text });
   await chrome.action.setTitle({ ...target, title });
