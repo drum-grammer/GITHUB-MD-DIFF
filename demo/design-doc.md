@@ -1,6 +1,6 @@
 # Checkout Service v2 — Design Document
 
-> Status: In review · Owner: Payments Platform · Last updated: 2026-10-01
+> Status: In review · Owner: Payments Platform · Last updated: 2026-10-07
 
 ## 1. Overview
 
@@ -10,10 +10,11 @@ This document describes the target architecture, the public API, the data model,
 
 ## 2. Goals
 
-- Reduce p95 checkout latency to under 300 ms.
+- Reduce p95 checkout latency to under 200 ms.
 - Recover from payment provider timeouts without double charging.
 - Let the pricing, payment, and order teams deploy independently.
 - Keep the public checkout API backward compatible for one year.
+- Show users the final payment status within 5 seconds.
 
 ## 3. Non-goals
 
@@ -45,7 +46,7 @@ The checkout API gateway calls Pricing synchronously and hands off to Payment th
 
 ### 5.2 Failure handling
 
-Payment timeouts move the order to `PENDING_PAYMENT`. A reconciler runs every minute, asks the provider for the final status, and either confirms or cancels the order. Users see a "processing" screen instead of an error.
+Payment timeouts move the order to `PENDING_PAYMENT`. A reconciler runs every 30 seconds, asks the provider for the final status, and either confirms or cancels the order. Users see a "processing" screen instead of an error, and on-call gets an alert if an order stays pending for more than 10 minutes.
 
 ### 5.3 Observability
 
@@ -76,8 +77,9 @@ All endpoints return JSON. Errors use the shared error format with a stable `cod
 | Phase | Scope | Traffic | Status |
 |---|---|---|---|
 | 1 | Internal employees | 1% | Done |
-| 2 | One region | 10% | Planned |
+| 2 | One region | 10% | In progress |
 | 3 | All regions | 100% | Planned |
+| 4 | Remove the old flow | 100% | Planned |
 
 Each phase needs one week of stable error rates before the next one starts. The old flow stays deployed behind a feature flag until phase 3 has run for a month.
 
@@ -86,6 +88,7 @@ Each phase needs one week of stable error rates before the next one starts. The 
 - The event bus becomes a single point of failure. Mitigation: two clusters in separate zones.
 - The reconciler could cancel orders the provider later confirms. Mitigation: a manual review queue for late confirmations.
 - Teams may drift on the shared error format. Mitigation: a contract test in each pipeline.
+- Webhook retries from the provider can arrive out of order. Mitigation: process them by event timestamp, not arrival time.
 
 ## 10. Open questions
 
