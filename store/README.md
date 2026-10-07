@@ -10,7 +10,7 @@ To announce the extension in a chat or post, start from [sharing.md](sharing.md)
 | Name, summary | `static/_locales/<lang>/messages.json` (`extName`, `extDescription`) |
 | Description | [`listing.en.md`](listing.en.md), [`listing.ko.md`](listing.ko.md) |
 | Icon | in the package (`icons/icon128.png`, 96 px artwork + 16 px padding) |
-| Screenshots (1280×800) | `images/<lang>/screenshot-1.png` … `screenshot-4.png` |
+| Screenshots (1280×800) | `images/<lang>/screenshot-1.png` … `screenshot-5.png` (store maximum 5) |
 | Small promo tile (440×280) | `images/<lang>/promo-small-440x280.png` |
 | Marquee promo tile (1400×560) | `images/<lang>/promo-marquee-1400x560.png` |
 | Privacy practices | [`privacy-practices.md`](privacy-practices.md) |
@@ -20,7 +20,7 @@ To announce the extension in a chat or post, start from [sharing.md](sharing.md)
 
 ## Regenerating the images
 
-`pnpm store:assets` builds the extension, captures the demo pull request ([#6](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/6), never merged) with and without the extension, and composes the screenshots, promo tiles, and `docs/demo.gif`. It needs the signed-in test profile (`pnpm e2e:login`), because GitHub shows the new "Files changed" page only to signed-in users. Captures cover only the file area, so no account details appear.
+`pnpm store:assets` builds the extension, captures the demo pull request ([#6](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/6), never merged) with and without the extension, and composes the screenshots, promo tiles, and `docs/demo.gif`. It needs the signed-in test profile (`pnpm e2e:login`), because GitHub shows the new "Files changed" page only to signed-in users. Captures cover only the file area, so no account details appear. The commenting scene (screenshot 2) posts two comments as a pending review on the demo pull request, which only you can see, and deletes the review with `gh` afterwards (needs `gh` signed in as the repository owner). Five screenshots per language: 1 overview, 2 commenting, 3 folding, 4 tables, 5 stays out of your way.
 
 ## Filling in the dashboard
 
