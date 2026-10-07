@@ -1,6 +1,6 @@
 {
   "extName": {"message": "Markdown Diff Cat for GitHub"},
-  "extDescription": {"message": "Rendered Markdown diffs in GitHub pull requests: only the changed parts, with comments right on them. Unofficial; not by GitHub."},
+  "extDescription": {"message": "Rendered Markdown diffs in GitHub pull requests: see only the changed parts and comment right on them."},
   "titleOn": {"message": "Markdown Diff Cat: on (click to turn off)"},
   "titleOff": {"message": "Markdown Diff Cat: off (click to turn on)"},
   "titleProblem": {"message": "Markdown Diff Cat: could not read the page — $WHAT$", "placeholders": {"what": {"content": "$1"}}},

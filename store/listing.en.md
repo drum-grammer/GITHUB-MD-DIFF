@@ -2,7 +2,7 @@
 
 **Name** (from `_locales/en/messages.json`): Markdown Diff Cat for GitHub
 
-**Summary** (manifest description, 132 characters max): Rendered Markdown diffs in GitHub pull requests: only the changed parts, with comments right on them. Unofficial; not by GitHub.
+**Summary** (manifest description, 132 characters max): Rendered Markdown diffs in GitHub pull requests: see only the changed parts and comment right on them.
 
 **Category:** Developer Tools · **Language:** English
 
