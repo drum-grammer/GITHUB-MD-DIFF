@@ -44,6 +44,27 @@ function lastHeading(run: Element[]): string | undefined {
 }
 
 /**
+ * 접기를 다시 짠다 — 막대를 걷고 `change`(블록 고정·코멘트 상자 넣기)를 한 뒤 다시 접는다.
+ * 펼쳐 둔 묶음에 있던 블록이 든 새 묶음은 펼친 채로 둔다.
+ */
+export function refold(body: HTMLElement, change: () => void): void {
+  const open = new Set<Element>();
+  for (const bar of foldBars(body)) {
+    const expanded = bar.getAttribute('aria-expanded') === 'true';
+    for (const el of runAfter(bar)) {
+      if (expanded) open.add(el);
+      setHidden(el, false);
+    }
+    bar.remove();
+  }
+  change();
+  foldUnchanged(body);
+  for (const bar of foldBars(body)) {
+    if (runAfter(bar).some((el) => open.has(el))) setFoldExpanded(bar, true);
+  }
+}
+
+/**
  * 연속된 변경 없는 블록마다 접기 막대를 붙이고 숨긴다. 이미 막대가 있는 묶음은 건너뛴다. 새로 만든 막대 수를 돌려준다.
  * 묶음은 앵커로 시작하지 않는다 — 바뀐 제목 바로 뒤 앵커는 그 제목의 것이다.
  * 보일 블록이 없는 묶음(아이콘·앵커뿐)은 막대 없이 숨긴다.

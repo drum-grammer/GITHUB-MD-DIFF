@@ -27,3 +27,67 @@
 .mdf-row-removed > td { background: var(--bgColor-danger-muted, #ffebe9); text-decoration: line-through; }
 .mdf-cell-old { background: var(--bgColor-danger-muted, #ffebe9); text-decoration: line-through; }
 .mdf-cell-new { background: var(--bgColor-success-muted, #dafbe1); }
+
+/* 렌더링 보기에서 코멘트 달기 */
+[data-mdf-comments] { position: relative; }
+.mdf-add {
+  position: absolute; z-index: 5; width: 22px; height: 22px; padding: 0;
+  border: 0; border-radius: 6px; cursor: pointer;
+  background: var(--bgColor-accent-emphasis, #0969da); color: var(--fgColor-onEmphasis, #ffffff);
+  font-size: 16px; font-weight: 600; line-height: 22px; text-align: center;
+  box-shadow: var(--shadow-resting-small, 0 1px 1px rgba(31, 35, 40, 0.15));
+}
+.mdf-add:hover { transform: scale(1.1); }
+.mdf-add[hidden] { display: none; }
+.mdf-selected { background: var(--bgColor-attention-muted, #fff8c5) !important; }
+
+.mdf-comment-form, .mdf-thread, .mdf-unplaced, .mdf-notice {
+  margin: 8px 0 16px; padding: 8px 12px; text-decoration: none; text-align: left;
+  border: 1px solid var(--borderColor-default, #d0d7de); border-radius: 6px;
+  background: var(--bgColor-default, #ffffff); color: var(--fgColor-default, #1f2328);
+  font-size: 14px; font-style: normal; font-weight: 400; white-space: normal;
+}
+li > .mdf-comment-form, li > .mdf-thread { margin: 8px 0; }
+.mdf-unplaced > .mdf-thread { margin: 8px 0 0; }
+.mdf-comment-label { margin: 0 0 6px; color: var(--fgColor-muted, #59636e); font-size: 12px; }
+.mdf-textarea {
+  display: block; box-sizing: border-box; width: 100%; min-height: 80px; padding: 8px;
+  border: 1px solid var(--borderColor-default, #d0d7de); border-radius: 6px;
+  background: var(--bgColor-inset, #f6f8fa); color: inherit; font: inherit; resize: vertical;
+}
+.mdf-comment-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+.mdf-comment-actions .mdf-btn { padding: 4px 12px; font-size: 13px; }
+.mdf-btn-primary {
+  border-color: var(--button-primary-borderColor-rest, rgba(31, 35, 40, 0.15)) !important;
+  background: var(--button-primary-bgColor-rest, #1f883d) !important; color: var(--button-primary-fgColor-rest, #ffffff) !important;
+}
+.mdf-btn:disabled { opacity: 0.6; cursor: default; }
+.mdf-comment-error { margin-top: 6px; color: var(--fgColor-danger, #d1242f); font-size: 13px; }
+.mdf-thread-head {
+  display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer;
+  color: var(--fgColor-muted, #59636e); font-size: 12px; text-align: left;
+}
+.mdf-thread-head::before { content: '💬 '; }
+.mdf-thread-body[hidden] { display: none; }
+.mdf-comment { padding: 8px 0; border-bottom: 1px solid var(--borderColor-muted, #d8dee4); }
+.mdf-comment-meta { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.mdf-comment-link { margin-left: auto; font-size: 12px; }
+.mdf-pending {
+  padding: 0 6px; border: 1px solid var(--borderColor-attention-emphasis, #9a6700); border-radius: 999px;
+  color: var(--fgColor-attention, #9a6700); font-size: 11px; cursor: help;
+}
+.mdf-comment-body { margin-top: 4px; }
+.mdf-comment-body > :last-child { margin-bottom: 0; }
+.mdf-plain { white-space: pre-wrap; }
+.mdf-notice { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* 문제 안내 — 페이지 오른쪽 아래 */
+.mdf-toast {
+  position: fixed; right: 16px; bottom: 16px; z-index: 1000; max-width: 420px;
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border: 1px solid var(--borderColor-danger-emphasis, #cf222e); border-radius: 8px;
+  background: var(--bgColor-default, #ffffff); color: var(--fgColor-default, #1f2328);
+  box-shadow: var(--shadow-floating-large, 0 8px 24px rgba(140, 149, 159, 0.2)); font-size: 13px;
+}
+.mdf-toast a { white-space: nowrap; font-weight: 600; }
+.mdf-toast-close { padding: 0 4px; border: 0; background: none; color: inherit; font-size: 16px; cursor: pointer; }

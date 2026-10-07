@@ -37,7 +37,7 @@ The publisher account is new. The warning is not caused by anything in the exten
 
 - The extension passed Chrome Web Store review and is listed publicly.
 - Permissions are narrow: `storage` for its one on/off setting, and it runs only on `https://github.com/*`. It does not run on other sites.
-- It collects no data, makes no network requests, and loads no remote code ([privacy policy](../PRIVACY.md)).
+- It collects no data and loads no remote code. It talks only to GitHub, with the session you already have, and only to show review comments and post the ones you write. Nothing goes to the developer or anyone else ([privacy policy](../PRIVACY.md)).
 - The code is open source (MIT). Each release on GitHub is tagged at the commit it was built from and carries the exact package uploaded to the store.
 
 ### What to do
@@ -66,16 +66,16 @@ On its own, after the publisher has followed the policies for a few months. Neit
 
 ### English
 
-> Yes. Chrome shows it for extensions from publishers who are new to the Chrome Web Store. Google says a new publisher takes a few months to become trusted. It does not mean anything harmful was found. The extension passed store review, only runs on github.com, makes no network requests, and its code is open source.
+> Yes. Chrome shows it for extensions from publishers who are new to the Chrome Web Store. Google says a new publisher takes a few months to become trusted. It does not mean anything harmful was found. The extension passed store review, only runs on github.com, sends nothing to anyone but GitHub, and its code is open source.
 
 ### 한국어
 
-> 네, 괜찮아요. 크롬은 웹 스토어에 새로 온 게시자의 확장에 이 창을 띄워요. Google 안내로는 새 게시자가 신뢰 목록에 오르기까지 몇 달 걸려요. 해로운 게 발견됐다는 뜻은 아니에요. 스토어 심사를 통과했고, github.com에서만 동작하고, 네트워크 요청이 없고, 코드도 공개돼 있어요.
+> 네, 괜찮아요. 크롬은 웹 스토어에 새로 온 게시자의 확장에 이 창을 띄워요. Google 안내로는 새 게시자가 신뢰 목록에 오르기까지 몇 달 걸려요. 해로운 게 발견됐다는 뜻은 아니에요. 스토어 심사를 통과했고, github.com에서만 동작하고, GitHub 말고는 아무 데도 보내지 않고, 코드도 공개돼 있어요.
 
 ## 한국어 요약
 
 - **무엇**: 향상된 세이프 브라우징을 켠 크롬에서 **Chrome에 추가**를 누르면 "주의해서 진행하시기 바랍니다 — 향상된 세이프 브라우징에서 신뢰하지 않는 확장 프로그램입니다" 창이 뜬다. 기본값(표준 보호)인 사람에게는 뜨지 않는다.
 - **왜**: 게시자 계정이 새것이라서다. Google은 웹 스토어 정책을 지키는 개발자의 확장을 신뢰하고, 새 개발자는 최소 몇 달 정책을 지켜야 신뢰 목록에 오른다(위 출처). "아직 신뢰 목록에 없음"이지 "해로운 것을 찾음"이 아니다.
-- **괜찮은 근거**: 스토어 심사 통과·공개 게시, 권한은 `storage`와 `https://github.com/*`뿐, 데이터 수집·네트워크 요청·원격 코드 없음, MIT 공개 소스, 릴리스마다 스토어에 올린 zip을 GitHub Release에 그대로 첨부.
+- **괜찮은 근거**: 스토어 심사 통과·공개 게시, 권한은 `storage`와 `https://github.com/*`뿐, 데이터 수집·원격 코드 없음, GitHub 말고는 아무 데도 보내지 않음(1.1.0부터 코멘트를 위해 이미 있는 세션으로 GitHub와만 통신), MIT 공개 소스, 릴리스마다 스토어에 올린 zip을 GitHub Release에 그대로 첨부.
 - **할 일**: **설치 계속**. 세이프 브라우징을 끄라고 안내하지 않는다.
 - **언제 사라지나**: 몇 달 뒤 저절로. 정확한 날짜는 Google이 알려 주지 않으니 날짜를 약속하지 않는다. 공유하기 전에 위 "Before you post" 방법으로 아직 뜨는지 확인하고, 사라졌으면 안내 문장을 뺀다.

@@ -97,7 +97,7 @@ const CHANGE_INSIDE = 'ins, del, .vicinity, .changed, .added, .removed, .moved';
  * 안쪽에만 `unchanged`가 있다. 앵커는 제목에 딸린 빈 요소다. 표시를 알 수 없으면 접지 않는다.
  */
 export function isFoldable(el: Element): boolean {
-  if (el.hasAttribute(MDF_ATTR)) return false;
+  if (el.hasAttribute(MDF_ATTR) || el.hasAttribute(PIN_ATTR)) return false;
   if (el.tagName === 'INS' || el.tagName === 'DEL') return false;
   if (CHANGE_CLASSES.some((c) => el.classList.contains(c))) return false;
   if (el.classList.contains('unchanged') || isAnchor(el)) return true;
@@ -136,6 +136,31 @@ export function isAnchor(el: Element): boolean {
 export function isDecoration(el: Element): boolean {
   return isAnchor(el) || el.tagName.toLowerCase() === 'svg';
 }
+
+/** 코멘트·스레드가 붙은 블록의 맨 위 묶음 — 접지 않는다 */
+export const PIN_ATTR = 'data-mdf-pin';
+
+/** 어느 "Files changed" 화면인가 — 문제 보고에 적는다 */
+export function pageVariant(doc: Document): 'new' | 'classic' | 'unknown' {
+  if (doc.querySelector('div[id^="diff-"][class*="Diff-module__diff__"]')) return 'new';
+  if (doc.querySelector('div.file.js-file')) return 'classic';
+  return 'unknown';
+}
+
+/** 로그인했는가 — 코멘트는 로그인한 사람만 단다 */
+export function isSignedIn(doc: Document): boolean {
+  return Boolean(doc.querySelector('meta[name="user-login"]')?.getAttribute('content'));
+}
+
+/** 코멘트를 붙이는 블록 — 제목·문단·목록 항목·표 행·코드 */
+export const COMMENT_BLOCK = 'h1, h2, h3, h4, h5, h6, p, li, tr, pre';
+/** 렌더링 diff에서 블록째 지운 내용 — 블록을 감싼 <del> 또는 .removed(2026-10-08 확인) */
+export const REMOVED_BLOCK = 'del, .removed';
+/** 고친 블록 안의 글자 단위 변경 — 새 파일 쪽 글에서는 <del>을, 원래 파일 쪽 글에서는 <ins>를 뺀다 */
+export const INLINE_DELETED = 'del';
+export const INLINE_INSERTED = 'ins';
+/** 코멘트 상자를 감싼 바꾸기 표시를 벗어날 때 보는 것 — 상자가 취소선·밑줄을 물려받지 않게 */
+export const CHANGE_WRAPPER = 'ins, del, .added, .removed';
 
 /** 옛 화면은 .prose-diff.collapsed로 묶음 내용을 숨긴다. 확장이 접기를 맡는 동안 떼어 두고 이 속성으로 표시한다 */
 export const UNCOLLAPSED_ATTR = 'data-mdf-uncollapsed';

@@ -1,6 +1,6 @@
 {
   "name": "github-md-diff",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,15 +12,20 @@
     "icons": "node scripts/icons.mjs",
     "package": "node scripts/package.mjs",
     "store:upload": "node scripts/store-upload.mjs",
+    "canary": "node build.mjs && node scripts/canary.mjs",
     "store:assets": "node build.mjs && node store/capture.mjs en && node store/capture.mjs ko && node store/compose.mjs en && node store/compose.mjs ko"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@types/chrome": "^0.3.4",
+    "@types/markdown-it": "^14.2.0",
     "@types/node": "^26.6.4",
     "esbuild": "^0.28.2",
     "jsdom": "^30.1.2",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
+  },
+  "dependencies": {
+    "markdown-it": "^14.3.2"
   }
 }

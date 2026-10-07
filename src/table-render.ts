@@ -6,6 +6,27 @@ export const MAX_ROWS = 2000;
 const WRAP = 'table';
 const ROW_FOLD = 'fold-rows';
 
+/** 합친 표의 행 → 그 행을 복사해 온 GitHub 원래 표의 행(코멘트가 가리킬 원문 줄을 찾을 때 쓴다) */
+const origins = new WeakMap<Element, HTMLTableRowElement>();
+/** GitHub 원래 표의 행 → 합친 표에서 그 행을 보여 주는 행(바뀐 행은 옛 행도 같은 행으로) */
+const copies = new WeakMap<Element, HTMLTableRowElement>();
+
+function cloneRow(row: HTMLTableRowElement): HTMLTableRowElement {
+  const tr = row.cloneNode(true) as HTMLTableRowElement;
+  origins.set(tr, row);
+  copies.set(row, tr);
+  return tr;
+}
+
+export function originRow(tr: Element): HTMLTableRowElement | null {
+  return origins.get(tr) ?? null;
+}
+
+export function mergedRow(original: Element): HTMLTableRowElement | null {
+  const tr = copies.get(original);
+  return tr?.isConnected ? tr : null;
+}
+
 interface TableParts {
   header: HTMLTableRowElement;
   rows: HTMLTableRowElement[];
@@ -76,16 +97,17 @@ function renderOp(
   newRows: HTMLTableRowElement[],
 ): HTMLTableRowElement {
   if (op.kind === 'added') {
-    const tr = newRows[op.newIndex].cloneNode(true) as HTMLTableRowElement;
+    const tr = cloneRow(newRows[op.newIndex]);
     tr.classList.add('mdf-row-added');
     return tr;
   }
   if (op.kind === 'removed') {
-    const tr = oldRows[op.oldIndex].cloneNode(true) as HTMLTableRowElement;
+    const tr = cloneRow(oldRows[op.oldIndex]);
     tr.classList.add('mdf-row-removed');
     return tr;
   }
-  const tr = newRows[op.newIndex].cloneNode(true) as HTMLTableRowElement;
+  const tr = cloneRow(newRows[op.newIndex]);
+  copies.set(oldRows[op.oldIndex], tr);
   tr.classList.add('mdf-row-changed');
   const oldCells = oldRows[op.oldIndex].cells;
   for (const c of op.changedCells) {
@@ -119,7 +141,7 @@ export function mergeTablePair(pair: TablePair): HTMLElement | null {
   const doc = del.ownerDocument;
   const table = doc.createElement('table');
   const thead = doc.createElement('thead');
-  thead.append(n.header.cloneNode(true));
+  thead.append(cloneRow(n.header));
   const tbody = doc.createElement('tbody');
   const colCount = Math.max(n.header.cells.length, 1);
   let sameRun: HTMLTableRowElement[] = [];
@@ -130,7 +152,7 @@ export function mergeTablePair(pair: TablePair): HTMLElement | null {
   };
   for (const op of ops) {
     if (op.kind === 'same') {
-      const tr = n.rows[op.newIndex].cloneNode(true) as HTMLTableRowElement;
+      const tr = cloneRow(n.rows[op.newIndex]);
       tr.classList.add('mdf-row-same');
       setHidden(tr, true);
       sameRun.push(tr);

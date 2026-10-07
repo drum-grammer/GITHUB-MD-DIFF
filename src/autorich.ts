@@ -18,10 +18,12 @@ export interface AutoRichState {
   userSource: Set<string>;
   /** 파일 키 → 렌더링 버튼을 처음 못 찾은 시각(그리는 중일 수 있어 바로 실패로 치지 않는다) */
   missingSince: Map<string, number>;
+  /** 줄 코멘트가 있는데 렌더링으로 바꾼 파일 키 — 렌더링 보기에 스레드를 못 보여 주면 원문 보기 안내를 띄운다 */
+  hadThreads: Set<string>;
 }
 
 export function createAutoRichState(): AutoRichState {
-  return { clicks: new Map(), userSource: new Set(), missingSince: new Map() };
+  return { clicks: new Map(), userSource: new Set(), missingSince: new Map(), hadThreads: new Set() };
 }
 
 export type RichStatus =
@@ -33,14 +35,15 @@ export type RichStatus =
   | 'no-button' // 시간이 지나도 버튼이 없다
   | 'idle' // 할 일 없음: 접힌 파일, 또는 렌더링 보기가 이미 골라져 본문만 내려간 상태
   | 'user-source' // 사람이 원문 보기를 골랐다
-  | 'has-threads'; // 줄 코멘트가 있어 원문 그대로 둔다
+  | 'has-threads'; // 줄 코멘트가 있어 원문 그대로 둔다(로그아웃 — 렌더링 보기에 스레드를 보여 줄 수 없다)
 
 /**
  * md 파일을 렌더링 보기로 맞춘다. 누른 뒤 렌더링이 나타날 때까지는 다시 누르지 않는다 —
  * 단 눌림이 반영되지 않았으면 1초 간격으로 최대 3번까지 다시 누른다.
- * 사람이 원문을 고른 파일, 접힌 파일, 줄 코멘트가 있는 파일은 건드리지 않는다.
+ * 사람이 원문을 고른 파일, 접힌 파일은 건드리지 않는다. 줄 코멘트가 있는 파일은 렌더링 보기에 스레드를 보여 줄 수 있을 때
+ * (`threadsInRich`, 로그인)만 바꾼다.
  */
-export function ensureRich(file: HTMLElement, key: string, state: AutoRichState, now: number): RichStatus {
+export function ensureRich(file: HTMLElement, key: string, state: AutoRichState, now: number, threadsInRich = false): RichStatus {
   if (proseBody(file)) {
     state.clicks.delete(key); // 나중에 GitHub가 원문으로 다시 그리면 한 번 더 누를 수 있게
     state.missingSince.delete(key);
@@ -71,7 +74,10 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
   }
   state.missingSince.delete(key);
   if (isPressed(button)) return 'idle';
-  if (hasReviewThreads(file)) return 'has-threads';
+  if (hasReviewThreads(file)) {
+    if (!threadsInRich) return 'has-threads';
+    state.hadThreads.add(key);
+  }
   button.click();
   state.clicks.set(key, { first: now, last: now, count: 1 });
   return 'clicked';
