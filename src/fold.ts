@@ -65,7 +65,10 @@ export function foldUnchanged(body: HTMLElement): number {
     const blocks = countBlocks(run);
     if (blocks === 0) continue;
     const heading = lastHeading(run);
-    const label = heading ? t('foldBlocksHeading', [blocks, heading]) : t('foldBlocks', [blocks]);
+    const one = blocks === 1;
+    const label = heading
+      ? one ? t('foldBlockOneHeading', [heading]) : t('foldBlocksHeading', [blocks, heading])
+      : one ? t('foldBlockOne') : t('foldBlocks', [blocks]);
 
     const bar = doc.createElement('button');
     bar.type = 'button';
