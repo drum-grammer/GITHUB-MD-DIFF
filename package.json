@@ -11,6 +11,7 @@
     "e2e:login": "node e2e/login.mjs",
     "icons": "node scripts/icons.mjs",
     "package": "node scripts/package.mjs",
+    "store:upload": "node scripts/store-upload.mjs",
     "store:assets": "node build.mjs && node store/capture.mjs en && node store/capture.mjs ko && node store/compose.mjs en && node store/compose.mjs ko"
   },
   "devDependencies": {
