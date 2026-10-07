@@ -26,6 +26,8 @@ Markdown Diff Cat gives you both: the rendered document, with only the changes i
   - Hover over a block and click **+**, or drag from **+** to another block to comment on a range
   - The comment lands on the right source line as an ordinary GitHub review comment: add a single comment, or start or add to your review
   - Existing review threads show under the block they refer to, where you can reply and resolve them
+
+  ![A review thread under a paragraph and a comment box under the next one, in the rendered diff](store/images/en/screenshot-2.png)
 - **Stays out of your way**
   - Click `<>` (source) on a file to leave a comment and it will not switch that file back until you choose the rich diff again or reload
   - Signed out, files that already have inline review comments stay in the source view, because only signed-in users see threads in the rendered view
@@ -108,6 +110,8 @@ Markdown Diff Cat은 두 장점을 합쳤어요. 렌더링된 문서를 보면�
   - 블록에 마우스를 올리고 **+**를 누르거나, **+**에서 다른 블록까지 끌면 그 범위에 달아요
   - 코멘트는 맞는 원문 줄에 붙는 보통의 GitHub 리뷰 코멘트예요. 단일 코멘트로 달거나 리뷰를 시작·추가할 수 있어요
   - 이미 달린 리뷰 스레드는 그 블록 아래에 보이고, 답글과 해결도 그 자리에서 해요
+
+  ![렌더링 보기에서 문단 아래 리뷰 스레드와 다음 문단의 코멘트 입력 상자](store/images/ko/screenshot-2.png)
 - **방해하지 않아요**
   - 코멘트를 달려고 `<>`(원문)를 누르면, 렌더링 보기를 다시 고르거나 새로고침하기 전까지 그 파일은 그대로 둬요
   - 로그아웃 상태에서는 리뷰 코멘트가 이미 달린 파일을 원문 보기 그대로 둬요. 렌더링 보기의 스레드는 로그인해야 보이거든요

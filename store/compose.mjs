@@ -53,17 +53,24 @@ const T = {
     tableSub: 'One changed row used to mean two full tables. Now it is one table: changed cells as old → new, added and removed rows in color.',
     tableGitHub: 'GitHub rich diff · old table + new table',
     tableOurs: 'Markdown Diff Cat · only what changed',
+    commentTitle: 'Comment right on the rendered document',
+    commentSub: 'Hover over a block and click +, or drag across blocks for a range. It becomes an ordinary GitHub review comment on the right source line.',
+    commentFormTitle: 'Click + and write',
+    commentFormText: 'Single comment, or start or add to your review',
+    commentThreadTitle: 'Threads stay under their block',
+    commentThreadText: 'Reply and resolve without leaving the rendered view',
     wayTitle: 'Stays out of your way',
     way: [
       'Opens the rendered view for you on every Markdown file',
-      'Click <code>&lt;&gt;</code> to leave a comment — it will not switch that file back',
-      'Files with review comments stay in the source view',
+      'Review threads show under the block they refer to (signed in)',
+      'Click <code>&lt;&gt;</code> for the source diff — it will not switch that file back',
       'Color icon = on, gray icon = off. One click to switch',
-      'No data collected. No network requests. Only github.com pages',
+      'No data collected. Talks only to GitHub, with your own session',
     ],
     on: 'On',
     off: 'Off',
     tagline: 'See only what changed in Markdown pull requests',
+    taglineLong: 'See only what changed in Markdown pull requests — and comment right on it',
     unofficial: 'Unofficial. Not affiliated with GitHub.',
     gif: [
       (px) => `GitHub rich diff: the whole document · ${px}`,
@@ -92,17 +99,24 @@ const T = {
     tableSub: '행 하나만 바뀌어도 GitHub는 표 두 개를 통째로 보여 줘요. 여기서는 표 하나에 바뀐 칸은 이전 → 이후로, 추가·삭제된 행은 색으로.',
     tableGitHub: 'GitHub 렌더링 보기 · 옛 표 + 새 표',
     tableOurs: 'Markdown Diff Cat · 바뀐 것만',
+    commentTitle: '렌더링된 문서에 바로 코멘트',
+    commentSub: '블록에 마우스를 올리고 +를 누르거나, 여러 블록을 끌어 범위로 달아요. 맞는 원문 줄에 붙는 보통의 GitHub 리뷰 코멘트예요.',
+    commentFormTitle: '+를 누르고 쓰기',
+    commentFormText: '단일 코멘트로 달거나, 리뷰를 시작·추가해요',
+    commentThreadTitle: '스레드는 그 블록 아래에',
+    commentThreadText: '렌더링 보기에서 바로 답글·해결',
     wayTitle: '방해하지 않아요',
     way: [
       '마크다운 파일은 열자마자 렌더링 보기로',
-      '코멘트를 달려고 <code>&lt;&gt;</code>를 누르면 그 파일은 되돌리지 않아요',
-      '리뷰 코멘트가 있는 파일은 원문 보기 그대로',
+      '리뷰 스레드는 그 블록 아래에 보여요(로그인했을 때)',
+      '<code>&lt;&gt;</code>로 원문 보기를 고르면 그 파일은 되돌리지 않아요',
       '컬러 아이콘 = 켜짐, 회색 아이콘 = 꺼짐. 한 번에 전환',
-      '수집하는 데이터도, 네트워크 요청도 없어요. github.com 화면에서만 동작',
+      '수집하는 데이터가 없어요. GitHub하고만, 내 로그인 세션으로 통신해요',
     ],
     on: '켜짐',
     off: '꺼짐',
     tagline: '마크다운 PR, 바뀐 부분만 보기',
+    taglineLong: '마크다운 PR, 바뀐 부분만 보고 그 자리에서 코멘트까지',
     unofficial: 'GitHub와 관련 없는 비공식 도구입니다.',
     gif: [
       (px) => `GitHub 렌더링 보기: 문서 전체 · ${px}`,
@@ -207,20 +221,20 @@ const pages = [];
   `]);
 }
 
-// 2. 접기: 막대 두 개가 보이는 곳을 크게
+// 3. 접기: 막대 두 개가 보이는 곳을 크게
 {
   const scale = 1168 / COL.w;
   const h = 584 / scale;
   const [f2, f3] = after.folds.filter((f) => blocksOf(f) > 1);
   const y = f2.y - 12;
-  pages.push(['screenshot-2.png', 1280, 800, `
+  pages.push(['screenshot-3.png', 1280, 800, `
     <div class="abs title" style="left:56px;top:46px;font-size:38px">${T.foldTitle}</div>
     <div class="abs sub" style="left:56px;top:104px;width:1168px;font-size:19px">${T.foldSub}</div>
     ${view('after', { left: 56, top: 176, y, h, scale, marks: [f2, f3].filter((f) => inRange(f, y, h)), pills: [foldPill(f2, T.pillFold(blocksOf(f2))), foldPill(f3, T.pillClick)].filter((q) => q.y < y + h), pillSize: 20 })}
   `]);
 }
 
-// 3. 표: GitHub(왼쪽) → Markdown Diff Cat(오른쪽)
+// 4. 표: GitHub(왼쪽) → Markdown Diff Cat(오른쪽)
 {
   const o = size('table-original');
   const t = size('table');
@@ -228,7 +242,7 @@ const pages = [];
   const leftW = o.w * s;
   const rightL = 56 + leftW + 70;
   const shot = (name, left, top, w, h) => `<div class="shot" style="left:${left}px;top:${top}px;width:${w}px;height:${h}px"><img src="${png(name)}" style="left:0;top:0;width:${w}px"></div>`;
-  pages.push(['screenshot-3.png', 1280, 800, `
+  pages.push(['screenshot-4.png', 1280, 800, `
     <div class="abs title" style="left:56px;top:46px;font-size:38px">${T.tableTitle}</div>
     <div class="abs sub" style="left:56px;top:104px;width:1168px;font-size:19px">${T.tableSub}</div>
     <div class="abs label" style="left:56px;top:206px">${T.tableGitHub}</div>
@@ -243,8 +257,27 @@ const pages = [];
   `]);
 }
 
-// 4. 방해하지 않아요 + 켜짐·꺼짐 아이콘
-pages.push(['screenshot-4.png', 1280, 800, `
+// 2. 렌더링 보기에서 코멘트: 큰 화면 한 장(위 문단의 스레드 + 아래 문단에 쓰는 중인 입력 상자) + 오른쪽 설명
+{
+  const c = size('comment');
+  const m = data('comment');
+  const k = Math.min(860 / c.w, 590 / c.h);
+  const left = 56;
+  const top = 178;
+  const box = (r) => `<div class="mark" style="left:${left + r.x * k - 6}px;top:${top + r.y * k - 6}px;width:${r.w * k + 12}px;height:${r.h * k + 12}px"></div>`;
+  const note = (r, title, text) => `<div class="abs" style="left:${left + c.w * k + 40}px;width:${1280 - (left + c.w * k + 40) - 40}px;top:${top + (r.y + r.h / 2) * k - 40}px"><div class="accent" style="font-size:22px;font-weight:800;line-height:1.25">${title}</div><div class="sub" style="font-size:16px;margin-top:6px">${text}</div></div>`;
+  pages.push(['screenshot-2.png', 1280, 800, `
+    <div class="abs title" style="left:56px;top:40px;font-size:38px">${T.commentTitle}</div>
+    <div class="abs sub" style="left:56px;top:98px;width:1168px;font-size:19px">${T.commentSub}</div>
+    <div class="shot" style="left:${left}px;top:${top}px;width:${c.w * k}px;height:${c.h * k}px"><img src="${png('comment')}" style="left:0;top:0;width:${c.w * k}px"></div>
+    ${box(m.thread)}${box(m.form)}
+    ${note(m.thread, T.commentThreadTitle, T.commentThreadText)}
+    ${note(m.form, T.commentFormTitle, T.commentFormText)}
+  `]);
+}
+
+// 5. 방해하지 않아요 + 켜짐·꺼짐 아이콘
+pages.push(['screenshot-5.png', 1280, 800, `
   <div style="padding:60px 64px;display:flex;gap:56px;align-items:center;height:100%">
     <div style="flex:1">
       <div class="title" style="font-size:42px;margin-bottom:32px">${T.wayTitle}</div>
@@ -287,7 +320,7 @@ pages.push(['promo-small-440x280.png', 440, 280, `
     <img class="abs" src="${icon}" style="left:64px;top:96px;width:120px;height:120px">
     <div class="abs title" style="left:64px;top:236px;font-size:50px">Markdown Diff Cat</div>
     <div class="abs muted" style="left:66px;top:302px;font-size:21px">for GitHub</div>
-    <div class="abs accent" style="left:64px;top:350px;width:470px;font-size:24px;font-weight:700;line-height:1.35">${T.tagline}</div>
+    <div class="abs accent" style="left:64px;top:350px;width:470px;font-size:24px;font-weight:700;line-height:1.35">${T.taglineLong}</div>
     ${view('after', { left: 590, top: 65, y, h, scale, marks: folds, pills: folds.filter((f) => blocksOf(f) > 1).map((f) => foldPill(f, T.pillFold(blocksOf(f)))), pillSize: 16 })}
   `]);
 }

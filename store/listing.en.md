@@ -12,8 +12,9 @@ AI coding assistants write long design documents, and reviewing them in a pull r
 
 • GitHub's rich diff renders the whole file, so you scroll past hundreds of unchanged lines to find what changed.
 • The source diff shows only the changes, but they are buried in Markdown syntax, tables, and code fences.
+• And to leave a review comment, you have to go back to the source diff.
 
-Markdown Diff Cat gives you both: the rendered document, with only the changes in view.
+Markdown Diff Cat gives you the rendered document with only the changes in view — and lets you comment right on it.
 
 WHAT IT DOES
 • Opens every Markdown file (.md, .markdown, .mdx) in the rendered view for you.

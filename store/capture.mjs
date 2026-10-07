@@ -1,6 +1,8 @@
-// 시연 PR 캡처: 확장 없이(전) / 확장 켜고(후) — 파일 영역만 자른다(계정 정보가 찍히지 않게)
+// 시연 PR 캡처: 확장 없이(전) / 확장 켜고(후) / 렌더링 보기에서 코멘트 — 파일 영역만 자른다(계정 정보가 찍히지 않게)
 // 사용: node store/capture.mjs [en|ko]  (먼저 pnpm build, pnpm e2e:login으로 로그인한 테스트 프로필 필요)
+// 코멘트 장면은 시연 PR에 보류 중 코멘트(나만 보임)를 올렸다가, 찍고 나면 gh로 그 리뷰를 지운다(gh 로그인 필요)
 import { chromium } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -133,5 +135,72 @@ async function open(withExtension) {
   });
   await page.screenshot({ path: join(OUT, 'table-original.png'), clip: original, fullPage: true });
   await ctx.close();
+}
+// 코멘트: 위 문단(5.2)에 올린 보류 중 코멘트의 스레드 + 아래 문단(5.3)에 쓰는 중인 입력 상자를 한 장면으로
+{
+  const REPO = 'drum-grammer/GITHUB-MD-DIFF';
+  const NUMBER = PR.match(/pull\/(\d+)/)[1];
+  const cleanup = () => {
+    const ids = execFileSync('gh', ['api', `repos/${REPO}/pulls/${NUMBER}/reviews`, '--jq', '.[] | select(.state=="PENDING") | .id'], { encoding: 'utf8' })
+      .split('\n')
+      .filter(Boolean);
+    for (const id of ids) execFileSync('gh', ['api', '-X', 'DELETE', `repos/${REPO}/pulls/${NUMBER}/reviews/${id}`]);
+  };
+  const TEXT = {
+    en: ['Should the reconciler back off while the provider is down?', 'Which dashboard shows the queue depth?'],
+    ko: ['프로바이더가 내려가 있는 동안에는 재확인 간격을 늘려야 하지 않을까요?', '큐 길이는 어느 대시보드에서 보나요?'],
+  }[LANG];
+  cleanup();
+  const { ctx, page } = await open(true);
+  try {
+    const file = page.locator(FILE).first();
+    await file.locator('[data-mdf="fold"]').first().waitFor({ timeout: 20_000 });
+    await unstick(page);
+    const body = file.locator('.prose-diff .markdown-body');
+    const heading = file.locator('.markdown-body h3', { hasText: '5.2 Failure handling' });
+    const para = file.locator('.markdown-body p', { hasText: 'A reconciler runs every' });
+    const plus = file.locator('[data-mdf="add-comment"]');
+    const hoverPlus = async (block) => {
+      for (let k = 0; k < 60 && !(await plus.isVisible()); k++) {
+        await block.hover({ position: { x: 12 + (k % 5), y: 8 } });
+        await page.waitForTimeout(250);
+      }
+    };
+    await heading.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+    await hoverPlus(para);
+    await plus.click();
+    await file.locator('[data-mdf="comment-form"] textarea').fill(TEXT[0]);
+    await file.locator('[data-mdf="comment-form"] .mdf-btn-primary').click(); // 리뷰 시작 — 보류 중이라 나만 보인다
+    const thread = file.locator('[data-mdf="thread"]').first();
+    await thread.waitFor({ timeout: 20_000 });
+    // 바로 아래 문단(5.3 Observability)은 접힌 묶음 안일 수 있다 — 막대가 있으면 펼친다
+    const next = file.locator('.markdown-body p', { hasText: 'Each service exports request latency' });
+    if (!(await next.isVisible())) {
+      for (const bar of await file.locator('[data-mdf="fold"][aria-expanded="false"]').all()) {
+        await bar.click();
+        if (await next.isVisible()) break;
+      }
+    }
+    await page.mouse.move(2, 2);
+    await plus.waitFor({ state: 'hidden' }).catch(() => {});
+    await hoverPlus(next);
+    await plus.click();
+    const form = file.locator('[data-mdf="comment-form"]');
+    await form.locator('textarea').fill(TEXT[1]);
+    await page.mouse.move(2, 2);
+    await heading.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+    await page.evaluate(() => window.scrollBy(0, -24));
+    await page.waitForTimeout(500);
+    // 본문 폭으로 5.2 제목 위부터 입력 상자 아래까지. 스레드·입력 상자 위치는 잘라 낸 영역 기준 CSS px로 적는다
+    const b = await body.boundingBox();
+    const [h, t, f] = await Promise.all([heading.boundingBox(), thread.boundingBox(), form.boundingBox()]);
+    const clip = { x: b.x - 14, y: h.y - 18, width: b.width + 28, height: f.y + f.height + 18 - (h.y - 18) };
+    await page.screenshot({ path: join(OUT, 'comment.png'), clip });
+    const rel = (r) => ({ x: r.x - clip.x, y: r.y - clip.y, w: r.width, h: r.height });
+    writeFileSync(join(OUT, 'comment.json'), JSON.stringify({ thread: rel(t), form: rel(f) }));
+  } finally {
+    await ctx.close();
+    cleanup();
+  }
 }
 console.log(`캡처 → ${OUT}`);
