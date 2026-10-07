@@ -62,4 +62,5 @@ The developer dashboard cannot be automated: Chrome blocks every extension from 
 
 | Version | Date | What | Status |
 |---|---|---|---|
+| 1.1.0 | — | Comment in the rendered view (+ on hover, drag for a range, single comment or review), review threads under their blocks with reply and resolve, files with threads open rendered when signed in. Summary, description, privacy policy, privacy practices, and test instructions updated. No new permissions | Not submitted yet |
 | 1.0.0 | 2026-10-07 | First submission: English and Korean listings, 4 screenshots and 2 promo tiles per language, public, all regions, publish automatically after review | Published, public ([listing](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj), checked 2026-10-08) · [v1.0.0](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases/tag/v1.0.0) |
