@@ -8,6 +8,7 @@ import {
   commentPayload,
   fetchFileText,
   fetchPrData,
+  isCommitRangeView,
   postComment,
   prKey,
   prRef,
@@ -18,15 +19,17 @@ import {
   type ReviewThread,
 } from './github-api';
 import { domBlocks, mapBlocks, spanOf, type BlockTarget } from './dom-blocks';
-import { FORM, NOTICE, THREAD, UNPLACED, addButton, commentForm, lineLabel, noticeBox, placeBox, threadBox, topLevel, unplacedBox } from './comment-ui';
+import { FORM, NOTICE, THREAD, UNPLACED, addButton, commentForm, lineLabel, noticeBox, placeBox, replyDraft, threadBox, topLevel, unplacedBox } from './comment-ui';
 import { t } from './i18n';
 import { MDF_ATTR, PIN_ATTR, viewButton } from './selectors';
 import { sourceBlocks } from './source-blocks';
-import { originRow } from './table-render';
+import { mergedRow, originRow } from './table-render';
 
 const LOG = '[github-md-diff]';
 export const HOST_ATTR = 'data-mdf-comments';
 const SELECTED = 'mdf-selected';
+/** 원래 파일이 없는(삭제된) 파일의 종류 이름 — GitHub 내부 JSON은 REMOVED, GraphQL은 DELETED */
+const REMOVED_FILE = new Set(['REMOVED', 'DELETED']);
 /** PR 데이터를 다시 쓰는 시간 — 그보다 오래되면 새 파일 묶음이 붙을 때 다시 읽는다 */
 const PR_TTL_MS = 60_000;
 
@@ -70,14 +73,14 @@ export function commentPath(displayPath: string): string {
 /** 렌더링 본문 하나에 코멘트 기능을 붙인다. 이미 붙어 있으면 그대로 */
 export function attachComments(file: HTMLElement, body: HTMLElement, path: string, hadThreads: boolean): void {
   for (const [b, c] of controllers) {
-    if (!b.isConnected) {
+    if (!b.isConnected || !c.alive()) {
       c.dispose();
       controllers.delete(b);
     }
   }
   if (controllers.has(body)) return;
   const pr = prRef(location.href);
-  if (!pr) return;
+  if (!pr || isCommitRangeView(location.href)) return;
   controllers.set(body, new FileComments(file, body, commentPath(path), pr, hadThreads));
 }
 
@@ -121,6 +124,13 @@ class FileComments {
     void this.start();
   }
 
+  /** GitHub가 본문 안을 통째로 다시 그리면 "+"와 연결한 블록이 사라진다 — 그때는 새로 붙인다 */
+  alive(): boolean {
+    if (!this.button.isConnected) return false;
+    const first = this.mapping?.keys().next().value;
+    return !first || first.isConnected;
+  }
+
   dispose(): void {
     this.disposed = true;
     this.host.removeEventListener('mousemove', this.onMove);
@@ -142,12 +152,16 @@ class FileComments {
       return;
     }
     this.data = d;
-    if (!this.disposed && d.files.get(this.path)?.threads.length) await this.showThreads(d);
+    if (this.disposed) return;
+    if (d.files.get(this.path)?.threads.length) await this.showThreads(d);
+    else if (this.hadThreads) this.showNotice(); // 원문 보기엔 스레드가 있었는데 여기서 못 찾았다(파일 코멘트 등)
   }
 
+  /** 실패하면 다음에 다시 시도한다(잠깐의 요청 실패로 "+"가 영영 안 나오지 않게) */
   private ensureMapping(): Promise<Map<HTMLElement, BlockTarget> | null> {
     this.loading ??= this.buildMapping().catch((e: unknown) => {
       console.warn(LOG, this.path, e);
+      this.loading = null;
       return null;
     });
     return this.loading;
@@ -157,12 +171,13 @@ class FileComments {
     const d = this.data ?? (await loadPr(this.pr));
     const info = d.files.get(this.path);
     const blocks = domBlocks(this.body);
-    const removedFile = info?.changeType === 'REMOVED';
+    const removedFile = REMOVED_FILE.has(info?.changeType ?? '');
     const needBase = removedFile || (info?.changeType !== 'ADDED' && blocks.some((b) => b.side === 'left'));
     const [head, base] = await Promise.all([
-      removedFile ? null : loadText(this.pr, d.headOid, this.path),
+      removedFile ? null : loadText(this.pr, d.headOid, this.path).catch(() => null),
       needBase ? loadText(this.pr, d.baseOid, info?.oldPath ?? this.path).catch(() => null) : null,
     ]);
+    if (head === null && base === null) throw new Error('no source text');
     this.headOid = d.headOid;
     this.mapping = mapBlocks(blocks, head === null ? null : sourceBlocks(head), base === null ? null : sourceBlocks(base));
     return this.mapping;
@@ -282,7 +297,15 @@ class FileComments {
     const span = a && b ? spanOf([a, b]) : null;
     if (!span) return;
     this.button.hidden = true;
-    this.body.querySelector(`[${MDF_ATTR}="${FORM}"]`)?.remove();
+    // 같은 줄의 상자가 열려 있으면 그것으로. 다른 줄의 빈 상자는 닫고, 글을 쓰던 상자는 둔다
+    const key = `${span.side}:${span.start}-${span.end}`;
+    for (const open of this.body.querySelectorAll<HTMLElement>(`[${MDF_ATTR}="${FORM}"]`)) {
+      if (open.dataset.span === key) {
+        open.querySelector('textarea')?.focus();
+        return;
+      }
+      if (!open.querySelector('textarea')?.value.trim() && !open.dataset.busy) open.remove();
+    }
     const last = from.compareDocumentPosition(to) & Node.DOCUMENT_POSITION_FOLLOWING ? to : from;
     const form = commentForm(
       this.body.ownerDocument,
@@ -295,6 +318,7 @@ class FileComments {
         onCancel: () => form.remove(),
       },
     );
+    form.dataset.span = key;
     this.insertBoxes([{ block: last, box: form }]);
     form.querySelector('textarea')?.focus();
   }
@@ -334,17 +358,21 @@ class FileComments {
     return best ? this.visible(best.el) : null;
   }
 
-  /** 합친 표 뒤에 숨은 GitHub 원래 표의 행이면 합친 표의 행 */
+  /** 합친 표 뒤에 숨은 GitHub 원래 표의 행이면 합친 표에서 그 행을 보여 주는 행 */
   private visible(el: HTMLElement): HTMLElement {
-    if (el.tagName !== 'TR') return el;
-    for (const tr of this.body.querySelectorAll<HTMLElement>(`[${MDF_ATTR}="table"] tr`)) if (originRow(tr) === el) return tr;
-    return el;
+    return mergedRow(el) ?? el;
   }
 
   private async showThreads(d: PrData): Promise<void> {
     this.data = d;
     const threads = d.files.get(this.path)?.threads ?? [];
     const old = [...this.body.querySelectorAll(`[${MDF_ATTR}="${THREAD}"], [${MDF_ATTR}="${UNPLACED}"], [${MDF_ATTR}="${NOTICE}"]`)];
+    // 열어 둔 답글 상자의 글은 다시 그려도 남긴다
+    const drafts = new Map<string, string>();
+    for (const box of this.body.querySelectorAll<HTMLElement>(`[${MDF_ATTR}="${THREAD}"]`)) {
+      const draft = replyDraft(box);
+      if (draft !== null && box.dataset.threadId) drafts.set(box.dataset.threadId, draft);
+    }
     if (threads.length === 0) {
       for (const n of old) n.remove();
       return;
@@ -371,7 +399,7 @@ class FileComments {
     const placed: Array<{ block: HTMLElement; box: HTMLElement }> = [];
     const unplaced: HTMLElement[] = [];
     for (const th of threads) {
-      const box = threadBox(doc, th, Boolean(d.pendingReviewId), handlers);
+      const box = threadBox(doc, th, Boolean(d.pendingReviewId), handlers, drafts.get(th.id) ?? null);
       const block = this.anchorFor(th);
       if (block) placed.push({ block, box });
       else unplaced.push(box);

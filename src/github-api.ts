@@ -91,6 +91,15 @@ export function prRef(url: string): PrRef | null {
   }
 }
 
+/** 커밋 일부만 보는 화면(`/changes/<sha>`·`/files/<범위>`)인가 — 그때 줄 번호는 PR 전체 기준이 아니라 코멘트를 막는다 */
+export function isCommitRangeView(url: string): boolean {
+  try {
+    return /^\/[^/]+\/[^/]+\/pull\/\d+\/(?:changes|files)\/[^/]/.test(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+}
+
 export const prKey = (pr: PrRef): string => `${pr.owner}/${pr.repo}#${pr.number}`;
 const prUrl = (pr: PrRef, rest: string): string => `/${pr.owner}/${pr.repo}/pull/${pr.number}/${rest}`;
 const encodePath = (path: string): string => path.split('/').map(encodeURIComponent).join('/');

@@ -29,6 +29,8 @@ export function frontMatterLines(lines: string[]): number {
   return 0;
 }
 
+/** 할 일 목록 표시 — GitHub는 체크 상자로 그리므로 글에서 뺀다 */
+const TASK_MARK = /^\[[ xX]\]\s+/;
 const YAML_KEY = /^([^\s#:][^:]*):(?:\s+(.*))?$/;
 
 /**
@@ -111,7 +113,7 @@ export function sourceBlocks(src: string): SourceBlock[] {
         const top = containers[containers.length - 1];
         const text = inlineText(tokens[i + 1]);
         if (top && top !== 'quote') {
-          top.texts.push(text);
+          top.texts.push(top.texts.length === 0 ? text.replace(TASK_MARK, '') : text);
           if (tk.map) top.block.end = Math.max(top.block.end, tk.map[1]);
         } else {
           push('paragraph', tk.map, text);
