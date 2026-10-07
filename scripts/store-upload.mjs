@@ -32,11 +32,13 @@ const D = {
   single: after(privacy, '## Single purpose').split('\n## ')[0].trim(),
   storage: reason('`storage`'),
   host: reason('Host permission'),
-  remote: 'All JavaScript is bundled in the package. The extension makes no network requests and loads no remote code.',
+  // 원격 코드 사유 — privacy-practices.md "## Remote code" 문단에서 굵은 답("No, …")을 뺀 나머지
+  remote: plain(after(privacy, '## Remote code').split('\n## ')[0].replace(/^\*\*[^*]+\*\*\s*/, '').trim()),
   privacyUrl: `${REPO}/blob/main/PRIVACY.md`,
   home: REPO,
   support: `${REPO}/issues`,
-  tests: plain(`No account or sign-in is needed.\n\n${after(md('test-instructions.md'), 'No account or sign-in is needed.')}`),
+  // 테스트 안내 — test-instructions.md 첫 줄의 안내 문구 뒤 전부(버전마다 바뀌는 문장을 코드에 박지 않는다)
+  tests: plain(after(md('test-instructions.md'), 'Paste into the dashboard → Test instructions.')),
 };
 for (const [k, v] of Object.entries(D)) if (!v || v.length < 10) throw new Error(`글이 비었다: ${k}`);
 
@@ -56,7 +58,7 @@ const steps = [
   ['새 항목 만들기(처음) · 새 패키지(업데이트)', `<p><b>+ 새 항목</b>(업데이트면 항목 → <b>패키지</b> → <b>새 패키지 업로드</b>) → <code>00-패키지-${esc(ZIP)}</code>를 끌어다 놓기. 이름·요약은 매니페스트에서 자동.</p>`],
   ['스토어 등록정보 — 영어(기본)', `<p>상단 언어가 <b>English</b>인 상태에서:</p>${copy('descEn', '설명')}${kv(['카테고리', '개발자 도구 (Developer Tools)'], ['언어', '영어 (English)'])}<p>스토어 아이콘</p>${list('01-스토어아이콘-128.png')}<p>스크린샷 — 이 순서대로</p>${shots('en')}<p>작은 프로모션 타일(필수) · 마키 프로모션 타일</p>${list('en-작은타일-440x280.png', 'en-마키-1400x560.png')}${copy('home', '홈페이지 URL', 1)}${copy('support', '지원 URL', 1)}<p class="note">성인용 콘텐츠를 물으면 <b>아니요</b>.</p>${save}`],
   ['스토어 등록정보 — 한국어', `<p>상단 언어 선택을 <b>한국어</b>로 (이름·요약은 한국어 매니페스트에서 자동):</p>${copy('descKo', '설명')}<p>스크린샷 — 이 순서대로</p>${shots('ko')}<p>작은 프로모션 타일 · 마키 프로모션 타일</p>${list('ko-작은타일-440x280.png', 'ko-마키-1400x560.png')}<p class="note">언어별 그림 칸이 없으면 설명만 넣어도 돼요(영어 그림이 쓰여요).</p>${save}`],
-  ['개인정보 보호 관행', `${copy('single', '단일 목적 설명')}${copy('storage', '권한 사유 — storage')}${copy('host', '권한 사유 — 호스트 권한 (https://github.com/*)')}${kv(['원격 코드 사용', '아니요, 원격 코드를 사용하지 않습니다'])}${copy('remote', '(사유 칸이 나오면)')}<p><b>데이터 사용</b>: 수집 항목은 <b>아무것도 체크하지 않음</b>. 아래 인증 3개는 <b>모두 체크</b>.</p>${copy('privacyUrl', '개인정보처리방침 URL', 1)}${save}`],
+  ['개인정보 보호 관행', `${copy('single', '단일 목적 설명')}${copy('storage', '권한 사유 — storage')}${copy('host', '권한 사유 — 호스트 권한 (https://github.com/*)')}${kv(['원격 코드 사용', '아니요, 원격 코드를 사용하지 않습니다'])}${copy('remote', '(사유 칸이 나오면)')}<p><b>데이터 사용</b>: 수집 항목은 <b>아무것도 체크하지 않음</b>. 아래 인증 3개는 <b>모두 체크</b>.</p><p class="note">코멘트는 사용자가 쓴 글을 GitHub(지금 쓰는 사이트)로만 보낸다 — 대시보드가 이것도 신고하라고 하면 <b>Website content</b>를 체크(판단 메모: <code>store/privacy-practices.md</code>).</p>${copy('privacyUrl', '개인정보처리방침 URL', 1)}${save}`],
   ['배포', `${kv(['결제', '무료'], ['공개 상태', '공개'], ['배포 지역', '모든 지역'])}${save}`],
   ['테스트 안내', copy('tests', '추가 안내 (사용자 이름·비밀번호 칸은 비워 둠)')],
   ['제출', '<p>오른쪽 위 <b>검토를 위해 제출</b> → 대화상자에서 <b>검토 후 자동으로 게시</b>를 켠 채 제출. 빠진 칸이 있으면 그 탭에 빨간 표시가 떠요. 심사는 보통 며칠, 길면 몇 주.</p>'],
