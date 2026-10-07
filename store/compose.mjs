@@ -70,7 +70,8 @@ const T = {
     on: 'On',
     off: 'Off',
     tagline: 'See only what changed in Markdown pull requests',
-    taglineLong: 'See only what changed in Markdown pull requests — and comment right on it',
+    // 큰 홍보 타일 — 줄은 직접 나눈다(자동 줄바꿈은 낱말 중간·어색한 자리에서 끊긴다)
+    taglineLong: 'Reviewing Markdown in a PR?<br>See only the changes, rendered,<br>and review right there',
     unofficial: 'Unofficial. Not affiliated with GitHub.',
     gif: [
       (px) => `GitHub rich diff: the whole document · ${px}`,
@@ -116,7 +117,7 @@ const T = {
     on: '켜짐',
     off: '꺼짐',
     tagline: '마크다운 PR, 바뀐 부분만 보기',
-    taglineLong: '마크다운 PR, 바뀐 부분만 보고 그 자리에서 코멘트까지',
+    taglineLong: 'PR 마크다운 리뷰할 때<br>변경된 부분만 렌더링해서 보고<br>바로 리뷰하기',
     unofficial: 'GitHub와 관련 없는 비공식 도구입니다.',
     gif: [
       (px) => `GitHub 렌더링 보기: 문서 전체 · ${px}`,
@@ -132,7 +133,7 @@ const ORANGE = '#f6a04d';
 const FONT = LANG === 'ko' ? '"Apple SD Gothic Neo", "Pretendard", system-ui, sans-serif' : '-apple-system, "Segoe UI", system-ui, sans-serif';
 const BASE_CSS = `
   * { box-sizing: border-box; margin: 0; }
-  body { font-family: ${FONT}; color: #f0f4ff; background: #0d1b3e; -webkit-font-smoothing: antialiased; position: relative; }
+  body { font-family: ${FONT}; color: #f0f4ff; background: #0d1b3e; -webkit-font-smoothing: antialiased; position: relative;${LANG === 'ko' ? ' word-break: keep-all;' : ''} }
   .abs { position: absolute; }
   .accent { color: ${ORANGE}; }
   .muted { color: #9aa6c4; }
