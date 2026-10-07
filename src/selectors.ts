@@ -88,6 +88,19 @@ export function proseBody(file: ParentNode): HTMLElement | null {
   return file.querySelector<HTMLElement>(PROSE_BODY);
 }
 
+/** 렌더링된 마크다운에만 있는 요소 — 원문 diff 표·불러오기 표시(스피너)·빈 상자에는 없다 */
+const RENDERED_CONTENT = 'p, li, blockquote, img, iframe, h1, h2, h4, h5, h6';
+
+/**
+ * 렌더링 본문(.prose-diff)은 없는데 파일 머리 밖에 렌더링된 글이 보이는가 — 그러면 GitHub가 렌더링 보기의 구조를 바꾼 것이다.
+ * 없으면(빈 상자·불러오는 중) GitHub가 그 파일의 렌더링을 아직 못 만들었거나 실패한 것이다(큰 파일에서 504, 2026-10-08 확인).
+ */
+export function hasUnknownRendering(file: Element): boolean {
+  if (proseBody(file)) return false;
+  const header = file.querySelector(HEADER);
+  return [...file.querySelectorAll(RENDERED_CONTENT)].some((el) => !header?.contains(el) && !el.closest(`[${MDF_ATTR}]`));
+}
+
 const CHANGE_CLASSES = ['vicinity', 'changed', 'added', 'removed', 'moved'];
 const CHANGE_INSIDE = 'ins, del, .vicinity, .changed, .added, .removed, .moved';
 

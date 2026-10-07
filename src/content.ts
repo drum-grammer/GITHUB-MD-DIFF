@@ -81,8 +81,13 @@ function scan(): void {
   }
   // 코멘트는 로그인했을 때만 — PR 데이터를 먼저 한 번 읽어 GitHub 요청이 그대로인지 본다
   const signedIn = isSignedIn(document);
-  if (signedIn) prepareComments(location.href);
-  const comments = signedIn && commentsReady(location.href);
+  let comments = false;
+  try {
+    if (signedIn) prepareComments(location.href);
+    comments = signedIn && commentsReady(location.href);
+  } catch (e) {
+    warnOnce('comments', e); // 코멘트 준비가 실패해도 접기·표 합치기는 그대로
+  }
   const results: FileResult[] = [];
   for (const file of fileElements(document)) {
     try {

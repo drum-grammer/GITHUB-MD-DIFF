@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  fileElements, fileOf, filePath, hasReviewThreads, isCollapsed, isFoldable, isMarkdownPath, isPressed, proseBody, setHidden, tablePairs, viewButton,
+  fileElements, fileOf, filePath, hasReviewThreads, hasUnknownRendering, isCollapsed, isFoldable, isMarkdownPath, isPressed, proseBody, setHidden, tablePairs, viewButton,
 } from '../src/selectors';
 import { addProse, fakeClassicFile, fakeFile, loadFixture } from './helpers';
 
@@ -119,5 +119,30 @@ describe('옛 화면(로그아웃)', () => {
     const file = fakeFile();
     expect(isPressed(viewButton(file, 'source')!)).toBe(true);
     expect(isPressed(viewButton(file, 'rich')!)).toBe(false);
+  });
+});
+
+describe('hasUnknownRendering', () => {
+  it('빈 상자·불러오기 표시·원문 diff 표는 렌더링이 아니다', () => {
+    const file = fakeFile();
+    const body = file.querySelector('.diff-body')!;
+    expect(hasUnknownRendering(file)).toBe(false);
+    body.innerHTML = '<div><svg class="spinner"></svg><span class="sr-only">Loading</span></div>';
+    expect(hasUnknownRendering(file)).toBe(false);
+    body.innerHTML = '<table><tr><td class="blob-code">+ 줄</td></tr></table>';
+    expect(hasUnknownRendering(file)).toBe(false);
+  });
+
+  it('머리의 파일 이름(h3)은 세지 않고, 렌더링된 글이 .prose-diff 밖에 있으면 모르는 모양', () => {
+    const file = fakeFile();
+    expect(file.querySelector('h3')).not.toBeNull();
+    file.querySelector('.diff-body')!.innerHTML = '<article class="markdown-body-v2"><p>글</p></article>';
+    expect(hasUnknownRendering(file)).toBe(true);
+  });
+
+  it('.prose-diff가 있으면 아는 모양', () => {
+    const file = fakeFile();
+    addProse(file);
+    expect(hasUnknownRendering(file)).toBe(false);
   });
 });

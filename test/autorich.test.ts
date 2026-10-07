@@ -15,16 +15,60 @@ function pressOnClick(btn: HTMLElement): void {
 }
 
 describe('ensureRich', () => {
-  it('렌더링 버튼을 한 번만 누르고(눌림이 반영되면), 5초가 지나면 timeout', () => {
+  it('렌더링 버튼을 한 번만 누르고(눌림이 반영되면), 렌더링이 모르는 모양으로 나오면 5초 뒤 timeout', () => {
     const file = fakeFile();
     const state = createAutoRichState();
     pressOnClick(viewButton(file, 'rich')!);
     const clicks = countClicks(viewButton(file, 'rich')!);
     expect(ensureRich(file, 'k', state, 0)).toBe('clicked');
     expect(ensureRich(file, 'k', state, 1000)).toBe('waiting');
+    file.querySelector('.diff-body')!.innerHTML = '<div class="new-rich-view"><h2>제목</h2><p>글</p></div>';
     expect(ensureRich(file, 'k', state, 5001)).toBe('timeout');
-    expect(ensureRich(file, 'k', state, 9000)).toBe('timeout');
+    expect(ensureRich(file, 'k', state, 20000)).toBe('timeout');
     expect(clicks()).toBe(1);
+  });
+
+  it('렌더링이 안 오고 상자가 비어 있으면(GitHub 504 등) 기다렸다가 원문 보기로 되돌리고, 다시 누르지 않는다', () => {
+    const file = fakeFile();
+    const rich = viewButton(file, 'rich')!;
+    const source = viewButton(file, 'source')!;
+    pressOnClick(rich);
+    source.addEventListener('click', () => {
+      source.setAttribute('aria-pressed', 'true');
+      rich.setAttribute('aria-pressed', 'false');
+    });
+    const richClicks = countClicks(rich);
+    const sourceClicks = countClicks(source);
+    const state = createAutoRichState();
+    const stop = watchUserViewClicks(document, state, () => 'k');
+    expect(ensureRich(file, 'k', state, 0)).toBe('clicked');
+    rich.setAttribute('aria-pressed', 'true');
+    source.setAttribute('aria-pressed', 'false');
+    file.querySelector('.diff-body')!.innerHTML = '<div class="d-flex"><svg class="spinner"></svg><span class="sr-only">Loading</span></div>';
+    expect(ensureRich(file, 'k', state, 5001)).toBe('waiting');
+    file.querySelector('.diff-body')!.innerHTML = '<div class="d-flex"></div>';
+    expect(ensureRich(file, 'k', state, 14000)).toBe('waiting');
+    expect(ensureRich(file, 'k', state, 15001)).toBe('fallback');
+    expect(sourceClicks()).toBe(1);
+    expect(state.userSource.has('k')).toBe(false); // 확장이 누른 원문 클릭은 사람의 선택이 아니다
+    expect(ensureRich(file, 'k', state, 20000)).toBe('fallback');
+    expect(richClicks()).toBe(1);
+    expect(sourceClicks()).toBe(1);
+    stop();
+  });
+
+  it('되돌린 뒤 사람이 렌더링을 누르면 늦게 나와도 되돌리지 않는다', () => {
+    const file = fakeFile();
+    const rich = viewButton(file, 'rich')!;
+    const state = createAutoRichState();
+    const stop = watchUserViewClicks(document, state, () => 'k');
+    ensureRich(file, 'k', state, 0);
+    expect(ensureRich(file, 'k', state, 15001)).toBe('fallback');
+    rich.click();
+    rich.setAttribute('aria-pressed', 'true');
+    expect(ensureRich(file, 'k', state, 16000)).toBe('idle');
+    expect(ensureRich(file, 'k', state, 60000)).toBe('idle');
+    stop();
   });
 
   it('눌렀는데 눌림이 반영되지 않으면(페이지가 아직 준비 전) 1초 간격으로 최대 3번 누른다', () => {
@@ -36,7 +80,7 @@ describe('ensureRich', () => {
     expect(ensureRich(file, 'k', state, 1001)).toBe('clicked');
     expect(ensureRich(file, 'k', state, 2002)).toBe('clicked');
     expect(ensureRich(file, 'k', state, 3003)).toBe('waiting');
-    expect(ensureRich(file, 'k', state, 5001)).toBe('timeout');
+    expect(ensureRich(file, 'k', state, 5001)).toBe('waiting');
     expect(clicks()).toBe(3);
   });
 
@@ -135,6 +179,17 @@ describe('watchUserViewClicks', () => {
     expect(ensureRich(file, 'k', state, 0)).toBe('user-source');
     viewButton(file, 'rich')!.click();
     expect(state.userSource.has('k')).toBe(false);
+    stop();
+  });
+
+  it('확장이 누른 렌더링 클릭은 기록을 지우지 않는다(다시 누르기·시간 판정 유지)', () => {
+    const file = fakeFile();
+    const state = createAutoRichState();
+    const stop = watchUserViewClicks(document, state, () => 'k');
+    expect(ensureRich(file, 'k', state, 0)).toBe('clicked');
+    expect(state.clicks.has('k')).toBe(true);
+    expect(ensureRich(file, 'k', state, 1001)).toBe('clicked'); // 눌림이 반영되지 않아 다시
+    expect(state.clicks.get('k')?.count).toBe(2);
     stop();
   });
 

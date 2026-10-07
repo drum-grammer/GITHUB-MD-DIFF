@@ -1,6 +1,11 @@
-import { fileOf, hasReviewThreads, isCollapsed, isPressed, proseBody, viewButton } from './selectors';
+import { fileOf, hasReviewThreads, hasUnknownRendering, isCollapsed, isPressed, proseBody, viewButton } from './selectors';
 
 export const RICH_TIMEOUT_MS = 5000;
+/**
+ * 누른 뒤 이만큼 지나도 렌더링이 없고 상자가 비어 있으면 GitHub가 그 파일의 렌더링을 못 만든 것으로 보고
+ * 원문 보기로 되돌린다 — 그대로 두면 빈 상자만 남아 원문도 못 읽는다. GitHub의 시간 초과(504)는 10초 안팎이다
+ */
+export const FALLBACK_MS = 15000;
 /** 눌렀는데 눌림이 반영되지 않으면(GitHub가 아직 클릭을 받을 준비 전) 다시 누르는 간격과 최대 횟수 */
 export const RECLICK_MS = 1000;
 export const MAX_CLICKS = 3;
@@ -20,17 +25,32 @@ export interface AutoRichState {
   missingSince: Map<string, number>;
   /** 줄 코멘트가 있는데 렌더링으로 바꾼 파일 키 — 렌더링 보기에 스레드를 못 보여 주면 원문 보기 안내를 띄운다 */
   hadThreads: Set<string>;
+  /** GitHub가 렌더링을 못 만들어 확장이 원문 보기로 되돌린 파일 키 — 다시 누르지 않는다 */
+  fellBack: Set<string>;
+  /** 확장이 버튼을 누르는 중 — 그 클릭을 사람의 선택으로 기억하지 않는다 */
+  selfClick: boolean;
 }
 
 export function createAutoRichState(): AutoRichState {
-  return { clicks: new Map(), userSource: new Set(), missingSince: new Map(), hadThreads: new Set() };
+  return { clicks: new Map(), userSource: new Set(), missingSince: new Map(), hadThreads: new Set(), fellBack: new Set(), selfClick: false };
+}
+
+/** 확장이 누르는 클릭 */
+function press(state: AutoRichState, button: HTMLElement): void {
+  state.selfClick = true;
+  try {
+    button.click();
+  } finally {
+    state.selfClick = false;
+  }
 }
 
 export type RichStatus =
   | 'rich' // 렌더링 본문이 있다
   | 'clicked' // 방금 렌더링 버튼을 눌렀다(다시 누른 경우 포함)
   | 'waiting' // 누른 뒤 렌더링을 기다린다
-  | 'timeout' // 눌렀는데 시간 안에 렌더링이 안 나왔다
+  | 'timeout' // 눌렀는데 렌더링이 확장이 모르는 모양으로 나왔다(GitHub 화면 변경)
+  | 'fallback' // GitHub가 렌더링을 못 만들어(빈 상자) 원문 보기로 되돌렸다
   | 'pending' // 버튼이 아직 안 그려졌다
   | 'no-button' // 시간이 지나도 버튼이 없다
   | 'idle' // 할 일 없음: 접힌 파일, 또는 렌더링 보기가 이미 골라져 본문만 내려간 상태
@@ -50,6 +70,7 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
     return 'rich';
   }
   if (state.userSource.has(key)) return 'user-source';
+  if (state.fellBack.has(key)) return 'fallback';
   if (isCollapsed(file)) {
     state.clicks.delete(key);
     return 'idle';
@@ -57,10 +78,18 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
   const button = viewButton(file, 'rich');
   const rec = state.clicks.get(key);
   if (rec) {
-    if (now - rec.first > RICH_TIMEOUT_MS) return 'timeout';
+    const waited = now - rec.first;
+    if (waited > RICH_TIMEOUT_MS && hasUnknownRendering(file)) return 'timeout';
+    if (waited > FALLBACK_MS) {
+      state.clicks.delete(key);
+      state.fellBack.add(key);
+      const source = viewButton(file, 'source');
+      if (source && !isPressed(source)) press(state, source);
+      return 'fallback';
+    }
     const lost = button && !isPressed(button);
     if (lost && rec.count < MAX_CLICKS && now - rec.last >= RECLICK_MS) {
-      button.click();
+      press(state, button);
       rec.last = now;
       rec.count++;
       return 'clicked';
@@ -78,7 +107,7 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
     if (!threadsInRich) return 'has-threads';
     state.hadThreads.add(key);
   }
-  button.click();
+  press(state, button);
   state.clicks.set(key, { first: now, last: now, count: 1 });
   return 'clicked';
 }
@@ -90,12 +119,18 @@ export function watchUserViewClicks(
   keyOf: (file: HTMLElement) => string,
 ): () => void {
   const onClick = (e: Event) => {
+    if (state.selfClick) return;
     const btn = e.target instanceof Element ? e.target.closest('button') : null;
     const file = btn ? fileOf(btn) : null;
     if (!btn || !file) return;
-    // 확장은 렌더링 버튼만 누르므로, 원문 클릭은 언제나 사람 것이다
-    if (viewButton(file, 'source') === btn) state.userSource.add(keyOf(file));
-    else if (viewButton(file, 'rich') === btn) state.userSource.delete(keyOf(file));
+    const key = keyOf(file);
+    if (viewButton(file, 'source') === btn) state.userSource.add(key);
+    else if (viewButton(file, 'rich') === btn) {
+      // 사람이 고른 렌더링 — 늦게 나와도 되돌리지 않는다
+      state.userSource.delete(key);
+      state.fellBack.delete(key);
+      state.clicks.delete(key);
+    }
   };
   doc.addEventListener('click', onClick, true);
   return () => doc.removeEventListener('click', onClick, true);

@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { problemsFor } from '../src/problems';
 
 describe('problemsFor', () => {
-  it('렌더링이 시간 안에 안 나오면 그 파일은 문제', () => {
+  it('GitHub가 렌더링을 못 만들어 원문으로 되돌린 파일은 문제 아님 — GitHub 화면 변경이 아니다(이슈 #22)', () => {
+    expect(problemsFor([{ key: 'a', status: 'fallback' }, { key: 'b', status: 'rich' }]).size).toBe(0);
+    expect(problemsFor([{ key: 'a', status: 'fallback' }]).size).toBe(0);
+    expect(problemsFor([{ key: 'a', status: 'fallback' }, { key: 'b', status: 'no-button' }]).size).toBe(0);
+  });
+
+  it('렌더링이 모르는 모양으로 나오면(timeout) 그 파일은 문제', () => {
     expect(problemsFor([{ key: 'a', status: 'timeout' }, { key: 'b', status: 'rich' }])).toEqual(
       new Map([['a', 'problemNoProseDiff']]),
     );
