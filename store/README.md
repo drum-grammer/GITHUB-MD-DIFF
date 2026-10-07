@@ -2,6 +2,8 @@
 
 Everything needed to publish or update the [listing](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj).
 
+To announce the extension in a chat or post, start from [sharing.md](sharing.md): links, ready-to-paste messages, and what to tell people about the "Proceed with caution" warning.
+
 | Dashboard field | Source |
 |---|---|
 | Package | `pnpm package` → `release/markdown-diff-cat-for-github-<version>.zip` |
@@ -28,14 +30,36 @@ The developer dashboard cannot be automated: Chrome blocks every extension from 
 2. `release/store-upload/` now holds every file to upload, numbered in dashboard order (package, store icon, then `en-*` and `ko-*` screenshots and promo tiles), plus `guide.html`
 3. Open `guide.html` next to the dashboard. It lists the steps in dashboard order with a **Copy** button for every text field. The text comes from the files in this folder
 
+## Versioning
+
+[Semantic Versioning](https://semver.org/), `MAJOR.MINOR.PATCH`. The same number goes in `static/manifest.json`, `package.json` (a test checks that they match), the git tag `vX.Y.Z`, and the GitHub Release.
+
+| Bump | When | Example |
+|---|---|---|
+| PATCH | Bug fixes and keeping up with GitHub page changes. Nothing new for people to learn | A selector stops matching after a GitHub redesign |
+| MINOR | New features or newly supported pages, without new permissions | Supporting the commit or compare pages |
+| MAJOR | New permissions or site access, because Chrome disables the extension until each person accepts them. Also removing or changing behavior people rely on | Running on `gist.github.com` too |
+
+- Changes to docs, store listing text or images, tests, or tooling leave the package unchanged, so they get no new version. Update the listing in the dashboard without uploading a package.
+- The store accepts only a package with a higher version than the published one.
+- Tags start at `v1.0.0`, the first public release. `0.1.0` was a private developer-mode build and has no tag.
+
 ## Releasing an update
 
-1. Bump `version` in `static/manifest.json` and `package.json`.
+1. Bump `version` in `static/manifest.json` and `package.json` following [Versioning](#versioning).
 2. `pnpm test && pnpm e2e && pnpm package`.
-3. Dashboard → Package → Upload new package → Submit for review. Re-enter listing text or images only when they change (`pnpm store:upload` for the helper).
+3. Merge to `main`.
+4. Dashboard → Package → Upload new package (`release/markdown-diff-cat-for-github-<version>.zip`) → Submit for review. Re-enter listing text or images only when they change (`pnpm store:upload` for the helper). Add a row to the submission log.
+5. Once the store publishes it, tag the commit the package was built from, and publish a GitHub Release with that same zip. The notes say what changed for people, any permission change, the store link, and the zip's SHA-256. Then update the row's status.
+
+   ```bash
+   git tag -a vX.Y.Z <commit> -m "Markdown Diff Cat for GitHub X.Y.Z"
+   git push origin vX.Y.Z
+   gh release create vX.Y.Z release/markdown-diff-cat-for-github-X.Y.Z.zip --title "X.Y.Z" --notes-file <notes.md>
+   ```
 
 ## Submission log
 
 | Version | Date | What | Status |
 |---|---|---|---|
-| 1.0.0 | 2026-10-07 | First submission: English and Korean listings, 4 screenshots and 2 promo tiles per language, public, all regions, publish automatically after review | Published, public ([listing](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj), checked 2026-10-08) |
+| 1.0.0 | 2026-10-07 | First submission: English and Korean listings, 4 screenshots and 2 promo tiles per language, public, all regions, publish automatically after review | Published, public ([listing](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj), checked 2026-10-08) · [v1.0.0](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases/tag/v1.0.0) |
