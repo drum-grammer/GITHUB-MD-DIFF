@@ -32,7 +32,7 @@ Works on both "Files changed" pages: the new one for signed-in users (`/pull/<n>
 
 ## Install
 
-**Chrome Web Store** — under review. This section will link to the listing once it is published.
+**Chrome Web Store** — submitted on 2026-10-07 and under review. This section will link to the listing once it is published.
 
 **From source (developer mode)**
 
