@@ -49,7 +49,7 @@ describe('mergeTablePair — 고정 자료', () => {
 
   it('접기 행 문구에 같은 행 수, 누르면 그 구간만 펼친다', () => {
     const bars = [...wrap.querySelectorAll<HTMLElement>('[data-mdf="fold-rows"]')];
-    expect(bars.map((b) => b.textContent)).toEqual(['▸foldRows:1', '▸foldRows:2']);
+    expect(bars.map((b) => b.textContent)).toEqual(['▸foldRowOne', '▸foldRows:2']);
     bars[1].click();
     expect(visibleRows(wrap).map((r) => r.cells[0].textContent)).toContain('다');
     expect(visibleRows(wrap).map((r) => r.cells[0].textContent)).not.toContain('가');

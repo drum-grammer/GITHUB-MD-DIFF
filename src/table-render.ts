@@ -60,7 +60,7 @@ function foldRow(doc: Document, count: number, colCount: number): HTMLTableRowEl
   arrow.className = 'mdf-arrow';
   arrow.textContent = '▸';
   const text = doc.createElement('span');
-  text.textContent = t('foldRows', [count]);
+  text.textContent = count === 1 ? t('foldRowOne') : t('foldRows', [count]);
   btn.append(arrow, text);
   btn.setAttribute('aria-expanded', 'false');
   btn.addEventListener('click', () => setRowFoldExpanded(btn, btn.getAttribute('aria-expanded') !== 'true'));

@@ -17,7 +17,7 @@ describe('foldUnchanged', () => {
     foldUnchanged(body);
     const [a, b] = foldBars(body);
     expect(a.textContent).toContain('foldBlocksHeading:4|설치');
-    expect(b.textContent).toContain('foldBlocks:1');
+    expect(b.textContent).toContain('foldBlockOne');
   });
 
   it('묶음은 숨기고, 막대를 누르면 그 묶음만 펼친다', () => {
@@ -59,7 +59,7 @@ describe('foldUnchanged — 묶음 없이 블록마다 unchanged가 붙은 화�
     expect(foldBars(body).map((b) => b.textContent)).toEqual([
       '▸foldBlocksHeading:5|배경',
       '▸foldBlocksHeading:4|맺음',
-      '▸foldBlocks:1',
+      '▸foldBlockOne',
     ]);
   });
 

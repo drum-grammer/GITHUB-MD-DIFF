@@ -1,6 +1,6 @@
 {
   "name": "github-md-diff",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit",
     "e2e": "node build.mjs && playwright test",
     "e2e:login": "node e2e/login.mjs",
-    "icons": "node scripts/icons.mjs"
+    "icons": "node scripts/icons.mjs",
+    "package": "node scripts/package.mjs",
+    "store:assets": "node build.mjs && node store/capture.mjs en && node store/capture.mjs ko && node store/compose.mjs en && node store/compose.mjs ko"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
