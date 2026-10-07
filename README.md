@@ -32,7 +32,11 @@ Works on both "Files changed" pages: the new one for signed-in users (`/pull/<n>
 
 ## Install
 
-**Chrome Web Store** — submitted on 2026-10-07 and under review. This section will link to the listing once it is published.
+**Chrome Web Store** — [Markdown Diff Cat for GitHub](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj)
+
+If Enhanced Safe Browsing is on, Chrome may say "Proceed with caution" because the extension is not trusted by Enhanced Safe Browsing yet. Google trusts extensions from publishers that follow its policies, and new publishers usually take a few months ([Chrome Web Store Help](https://support.google.com/chrome_webstore/answer/2664769)). Choose **Continue to install**.
+
+Release notes: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases)
 
 **From source (developer mode)**
 
@@ -94,6 +98,16 @@ Markdown Diff Cat은 두 장점을 합쳤어요. 렌더링된 문서를 보면�
 - **한 번에 켜고 끄기** — 툴바 아이콘이 컬러면 켜짐, 회색이면 꺼짐이에요. 화면을 읽지 못했을 때만 `!` 배지가 뜨고, 마우스를 올리면 이유가 보여요
 
 로그인한 새 화면(`/pull/<n>/changes`)과 옛 화면(`/pull/<n>/files`) 모두에서 동작해요.
+
+### 설치
+
+**크롬 웹 스토어** — [Markdown Diff Cat for GitHub](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj)
+
+향상된 세이프 브라우징을 켜 두었다면 "주의해서 진행하시기 바랍니다" 창이 뜰 수 있어요. 새 게시자의 확장이라 아직 신뢰 목록에 오르지 않아서예요. Google은 정책을 지키는 게시자의 확장을 신뢰하고, 새 게시자는 보통 몇 달 걸린다고 안내해요([크롬 웹 스토어 고객센터](https://support.google.com/chrome_webstore/answer/2664769?hl=ko)). **설치 계속**을 누르면 돼요.
+
+릴리스 노트: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases)
+
+소스에서 설치하는 방법은 위 [Install](#install)에 있어요.
 
 ### 개인정보
 
