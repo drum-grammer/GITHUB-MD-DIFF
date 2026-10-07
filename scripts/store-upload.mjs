@@ -8,6 +8,10 @@ const { version } = JSON.parse(readFileSync('static/manifest.json', 'utf8'));
 const OUT = 'release/store-upload';
 const ZIP = `markdown-diff-cat-for-github-${version}.zip`;
 const REPO = 'https://github.com/drum-grammer/GITHUB-MD-DIFF';
+// 개발자 대시보드(게시자 홈)와 공개 스토어 페이지 — 2026-10-08 확인. 계정 번호(/u/N/)는 브라우저마다 달라 넣지 않는다
+const DASHBOARD = 'https://chrome.google.com/webstore/devconsole/1679ec25-b84c-44d3-8b31-357020b6b255?hl=ko';
+const LISTING = 'https://chromewebstore.google.com/detail/kabekbbeoajhpbcppidepmcbbjjochlj';
+const link = (href, label) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 
@@ -55,7 +59,7 @@ const kv = (...pairs) => `<div class="kv">${pairs.map(([k, v]) => `<span>${k}</s
 const save = '<p class="note"><b>초안 저장</b>.</p>';
 const steps = [
   ['계정 확인', '<p>왼쪽 메뉴 <b>계정</b> → <b>연락처 이메일</b>이 인증됐는지 봐요. 인증 전이면 게시가 막혀요. 오른쪽 위 게시자 계정도 확인.</p>'],
-  ['새 항목 만들기(처음) · 새 패키지(업데이트)', `<p><b>+ 새 항목</b>(업데이트면 항목 → <b>패키지</b> → <b>새 패키지 업로드</b>) → <code>00-패키지-${esc(ZIP)}</code>를 끌어다 놓기. 이름·요약은 매니페스트에서 자동.</p>`],
+  ['새 항목 만들기(처음) · 새 패키지(업데이트)', `<p>${link(DASHBOARD, '개발자 대시보드')}에서 <b>+ 새 항목</b>(업데이트면 항목 → <b>패키지</b> → <b>새 패키지 업로드</b>) → <code>00-패키지-${esc(ZIP)}</code>를 끌어다 놓기. 이름·요약은 매니페스트에서 자동.</p>`],
   ['스토어 등록정보 — 영어(기본)', `<p>상단 언어가 <b>English</b>인 상태에서:</p>${copy('descEn', '설명')}${kv(['카테고리', '개발자 도구 (Developer Tools)'], ['언어', '영어 (English)'])}<p>스토어 아이콘</p>${list('01-스토어아이콘-128.png')}<p>스크린샷 — 이 순서대로</p>${shots('en')}<p>작은 프로모션 타일(필수) · 마키 프로모션 타일</p>${list('en-작은타일-440x280.png', 'en-마키-1400x560.png')}${copy('home', '홈페이지 URL', 1)}${copy('support', '지원 URL', 1)}<p class="note">성인용 콘텐츠를 물으면 <b>아니요</b>.</p>${save}`],
   ['스토어 등록정보 — 한국어', `<p>상단 언어 선택을 <b>한국어</b>로 (이름·요약은 한국어 매니페스트에서 자동):</p>${copy('descKo', '설명')}<p>스크린샷 — 이 순서대로</p>${shots('ko')}<p>작은 프로모션 타일 · 마키 프로모션 타일</p>${list('ko-작은타일-440x280.png', 'ko-마키-1400x560.png')}<p class="note">언어별 그림 칸이 없으면 설명만 넣어도 돼요(영어 그림이 쓰여요).</p>${save}`],
   ['개인정보 보호 관행', `${copy('single', '단일 목적 설명')}${copy('storage', '권한 사유 — storage')}${copy('host', '권한 사유 — 호스트 권한 (https://github.com/*)')}${kv(['원격 코드 사용', '아니요, 원격 코드를 사용하지 않습니다'])}${copy('remote', '(사유 칸이 나오면)')}<p><b>데이터 사용</b>: 수집 항목은 <b>아무것도 체크하지 않음</b>. 아래 인증 3개는 <b>모두 체크</b>.</p><p class="note">코멘트는 사용자가 쓴 글을 GitHub(지금 쓰는 사이트)로만 보낸다 — 대시보드가 이것도 신고하라고 하면 <b>Website content</b>를 체크(판단 메모: <code>store/privacy-practices.md</code>).</p>${copy('privacyUrl', '개인정보처리방침 URL', 1)}${save}`],
@@ -91,9 +95,14 @@ code { background:var(--code); padding:1px 6px; border-radius:4px; font-size:13p
 .files { margin:4px 0 8px; padding-left:20px; }
 .kv { display:grid; grid-template-columns:max-content 1fr; gap:4px 14px; margin:8px 0; } .kv span { color:var(--muted); }
 .note { color:var(--muted); font-size:14px; }
+a { color:var(--accent); font-weight:700; }
+.links { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 4px; }
+.links a { border:1px solid var(--accent); border-radius:999px; padding:6px 14px; text-decoration:none; }
 </style></head><body><main>
 <header><h1>Markdown Diff Cat ${esc(version)} — 스토어 등록 도우미</h1>
-<p>웹 스토어 대시보드는 확장·자동화 도구가 조작할 수 없어서 직접 입력해요. 칸마다 <b>복사</b> → 붙여넣기. 올릴 파일은 이 파일이 있는 폴더에서 끌어다 놓기. 끝낸 단계는 체크하면 접혀요.</p></header>
+<p>웹 스토어 대시보드는 확장·자동화 도구가 조작할 수 없어서 직접 입력해요. 칸마다 <b>복사</b> → 붙여넣기. 올릴 파일은 이 파일이 있는 폴더에서 끌어다 놓기. 끝낸 단계는 체크하면 접혀요.</p>
+<p class="links">${link(DASHBOARD, '개발자 대시보드 열기 ↗')}${link(LISTING, '스토어 페이지 ↗')}</p>
+<p class="note">대시보드가 다른 Google 계정으로 열리면 오른쪽 위 프로필에서 게시자 계정으로 바꾸세요.</p></header>
 ${body}
 </main>
 <script>
