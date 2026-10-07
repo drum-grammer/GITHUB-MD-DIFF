@@ -1,6 +1,6 @@
 # Chrome Web Store kit
 
-Everything needed to publish or update the listing.
+Everything needed to publish or update the [listing](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj).
 
 | Dashboard field | Source |
 |---|---|
@@ -38,4 +38,4 @@ The developer dashboard cannot be automated: Chrome blocks every extension from 
 
 | Version | Date | What | Status |
 |---|---|---|---|
-| 1.0.0 | 2026-10-07 | First submission: English and Korean listings, 4 screenshots and 2 promo tiles per language, public, all regions, publish automatically after review | Pending review |
+| 1.0.0 | 2026-10-07 | First submission: English and Korean listings, 4 screenshots and 2 promo tiles per language, public, all regions, publish automatically after review | Published, public ([listing](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj), checked 2026-10-08) |
