@@ -24,6 +24,13 @@ describe('아이콘', () => {
     expect(Object.keys(manifest.action?.default_icon ?? {}).sort()).toEqual(['16', '32']);
   });
 
+  it.each([
+    ['16', 'icons/icon16-off.png'],
+    ['32', 'icons/icon32-off.png'],
+  ])('꺼짐 아이콘 %spx → %s: 파일이 있고 크기가 같다', (size, path) => {
+    expect(pngSize(`static/${path}`)).toEqual([Number(size), Number(size)]);
+  });
+
   it.each(entries)('%spx → %s: 파일이 있고 크기가 같다', (size, path) => {
     expect(pngSize(`static/${path}`)).toEqual([Number(size), Number(size)]);
   });
