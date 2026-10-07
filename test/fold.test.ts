@@ -97,3 +97,31 @@ describe('foldUnchanged — 묶음 없이 블록마다 unchanged가 붙은 화�
     expect(foldBars(body)).toHaveLength(3);
   });
 });
+
+describe('foldUnchanged — 옛 화면(로그아웃): 묶음 맨 앞에 펼치기 아이콘, prose-diff.collapsed', () => {
+  let body: HTMLElement;
+  beforeEach(() => {
+    body = loadFixture('handmade-classic.html');
+  });
+
+  it('펼치기 아이콘은 블록으로 세지 않는다 — 아이콘·앵커뿐인 묶음엔 막대가 없다', () => {
+    expect(foldUnchanged(body)).toBe(2);
+    expect(foldBars(body).map((b) => b.textContent)).toEqual(['▸foldBlockOne', '▸foldBlocksHeading:3|배경']);
+  });
+
+  it('아이콘·앵커뿐인 묶음은 막대 없이 숨긴다', () => {
+    foldUnchanged(body);
+    const empty = [...body.querySelectorAll(':scope > .expandable')].filter((e) => !e.querySelector('p, h2'));
+    expect(empty).toHaveLength(3);
+    for (const e of empty) expect(e.classList.contains('mdf-hidden')).toBe(true);
+  });
+
+  it('GitHub의 collapsed를 떼어 막대로 펼친 내용이 보이게 하고, 두 번 불러도 같다', () => {
+    const prose = body.closest('.prose-diff')!;
+    foldUnchanged(body);
+    expect(prose.classList.contains('collapsed')).toBe(false);
+    expect(prose.hasAttribute('data-mdf-uncollapsed')).toBe(true);
+    expect(foldUnchanged(body)).toBe(0);
+    expect(foldBars(body)).toHaveLength(2);
+  });
+});

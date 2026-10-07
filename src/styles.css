@@ -1,4 +1,6 @@
 .mdf-hidden { display: none !important; }
+/* 옛 화면: 확장이 접기를 맡는 동안 GitHub 펼치기 아이콘은 감춘다 */
+[data-mdf-uncollapsed] .expandable > .octicon-unfold { display: none; }
 
 .mdf-fold {
   display: flex; align-items: center; gap: 6px; width: 100%;

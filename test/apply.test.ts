@@ -52,12 +52,15 @@ describe('파일 버튼', () => {
     applyBody(body);
     const btn = body.querySelector<HTMLElement>('[data-mdf="file-toolbar"] button')!;
     expect(btn.textContent).toBe('expandAll');
+    // 앵커뿐인 묶음은 보일 것이 없어 늘 숨어 있다 — 내용 있는 묶음만 센다
+    const hiddenWithContent = () =>
+      [...body.querySelectorAll('.expandable.unchanged.mdf-hidden')].filter((e) => e.querySelector(':scope > :not(a.anchor):not(svg)'));
     btn.click();
-    expect(body.querySelectorAll('.expandable.unchanged.mdf-hidden')).toHaveLength(0);
+    expect(hiddenWithContent()).toHaveLength(0);
     expect(body.querySelectorAll('tr.mdf-row-same.mdf-hidden')).toHaveLength(0);
     expect(btn.textContent).toBe('changedOnly');
     btn.click();
-    expect(body.querySelectorAll('.expandable.unchanged.mdf-hidden')).toHaveLength(2);
+    expect(hiddenWithContent()).toHaveLength(2);
     expect(body.querySelectorAll('tr.mdf-row-same.mdf-hidden')).toHaveLength(3);
   });
 
@@ -80,5 +83,20 @@ describe('applyBody / undoAll — 묶음 없는 화면', () => {
     body.querySelector<HTMLElement>('[data-mdf="file-toolbar"] button')!.click();
     undoAll(document);
     expect(body.innerHTML).toBe(original);
+  });
+});
+
+describe('applyBody / undoAll — 옛 화면(prose-diff.collapsed)', () => {
+  it('접기 2개, 두 번 적용해도 같고, 걷어내면 collapsed까지 처음과 같다', () => {
+    const body = loadFixture('handmade-classic.html');
+    const prose = body.closest('.prose-diff')!;
+    const original = prose.outerHTML;
+    expect(applyBody(body)).toEqual({ folds: 2, tables: 0, errors: [] });
+    const once = prose.outerHTML;
+    applyBody(body);
+    expect(prose.outerHTML).toBe(once);
+    body.querySelector<HTMLElement>('[data-mdf="file-toolbar"] button')!.click();
+    undoAll(document);
+    expect(prose.outerHTML).toBe(original);
   });
 });
