@@ -1,6 +1,8 @@
-// 시연 PR 캡처: 확장 없이(전) / 확장 켜고(후) — 파일 영역만 자른다(계정 정보가 찍히지 않게)
+// 시연 PR 캡처: 확장 없이(전) / 확장 켜고(후) / 렌더링 보기에서 코멘트 — 파일 영역만 자른다(계정 정보가 찍히지 않게)
 // 사용: node store/capture.mjs [en|ko]  (먼저 pnpm build, pnpm e2e:login으로 로그인한 테스트 프로필 필요)
+// 코멘트 장면은 시연 PR에 보류 중 코멘트(나만 보임)를 올렸다가, 찍고 나면 gh로 그 리뷰를 지운다(gh 로그인 필요)
 import { chromium } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -133,5 +135,61 @@ async function open(withExtension) {
   });
   await page.screenshot({ path: join(OUT, 'table-original.png'), clip: original, fullPage: true });
   await ctx.close();
+}
+// 코멘트: 블록에 마우스를 올리면 "+" → 입력 상자 → 리뷰 시작(보류 중) → 그 블록 아래 스레드
+{
+  const REPO = 'drum-grammer/GITHUB-MD-DIFF';
+  const NUMBER = PR.match(/pull\/(\d+)/)[1];
+  const cleanup = () => {
+    const ids = execFileSync('gh', ['api', `repos/${REPO}/pulls/${NUMBER}/reviews`, '--jq', '.[] | select(.state=="PENDING") | .id'], { encoding: 'utf8' })
+      .split('\n')
+      .filter(Boolean);
+    for (const id of ids) execFileSync('gh', ['api', '-X', 'DELETE', `repos/${REPO}/pulls/${NUMBER}/reviews/${id}`]);
+  };
+  const TEXT = {
+    en: 'Should the reconciler back off while the provider is down?',
+    ko: '프로바이더가 내려가 있는 동안에는 재확인 간격을 늘려야 하지 않을까요?',
+  }[LANG];
+  cleanup();
+  const { ctx, page } = await open(true);
+  try {
+    const file = page.locator(FILE).first();
+    await file.locator('[data-mdf="fold"]').first().waitFor({ timeout: 20_000 });
+    await unstick(page);
+    const body = file.locator('.prose-diff .markdown-body');
+    const heading = file.locator('.markdown-body h3', { hasText: '5.2 Failure handling' });
+    const para = file.locator('.markdown-body p', { hasText: 'A reconciler runs every' });
+    await heading.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+    await page.evaluate(() => window.scrollBy(0, -60));
+    // 본문 폭으로, 첫 요소 위부터 마지막 요소 아래까지
+    const clipOf = async (...parts) => {
+      const b = await body.boundingBox();
+      const boxes = await Promise.all(parts.map((l) => l.boundingBox()));
+      const top = Math.min(...boxes.map((x) => x.y)) - 18;
+      const bottom = Math.max(...boxes.map((x) => x.y + x.height)) + 18;
+      return { x: b.x - 14, y: top, width: b.width + 28, height: bottom - top };
+    };
+    const plus = file.locator('[data-mdf="add-comment"]');
+    for (let k = 0; k < 60 && !(await plus.isVisible()); k++) {
+      await para.hover({ position: { x: 12 + (k % 5), y: 8 } });
+      await page.waitForTimeout(250);
+    }
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(OUT, 'comment-plus.png'), clip: await clipOf(heading, para) });
+    await plus.click();
+    const form = file.locator('[data-mdf="comment-form"]');
+    await form.locator('textarea').fill(TEXT);
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(OUT, 'comment-form.png'), clip: await clipOf(heading, form) });
+    await form.locator('.mdf-btn-primary').click(); // 리뷰 시작 — 보류 중이라 나만 보인다
+    const thread = file.locator('[data-mdf="thread"]').first();
+    await thread.waitFor({ timeout: 20_000 });
+    await page.mouse.move(2, 2);
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: join(OUT, 'comment-thread.png'), clip: await clipOf(heading, thread) });
+  } finally {
+    await ctx.close();
+    cleanup();
+  }
 }
 console.log(`캡처 → ${OUT}`);

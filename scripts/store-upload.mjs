@@ -17,10 +17,11 @@ const link = (href, label) => `<a href="${href}" target="_blank" rel="noopener n
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 
-// 1. 올릴 파일 — 대시보드에서 넣는 순서대로 이름 붙인다
+// 1. 올릴 파일 — 대시보드에서 넣는 순서대로 이름 붙인다. 스크린샷은 언어마다 SHOTS장(스토어 최대 5장)
+const SHOTS = 5;
 const files = [[`release/${ZIP}`, `00-패키지-${ZIP}`], ['static/icons/icon128.png', '01-스토어아이콘-128.png']];
 for (const lang of ['en', 'ko']) {
-  for (let i = 1; i <= 4; i++) files.push([`store/images/${lang}/screenshot-${i}.png`, `${lang}-스크린샷-${i}.png`]);
+  for (let i = 1; i <= SHOTS; i++) files.push([`store/images/${lang}/screenshot-${i}.png`, `${lang}-스크린샷-${i}.png`]);
   files.push([`store/images/${lang}/promo-small-440x280.png`, `${lang}-작은타일-440x280.png`]);
   files.push([`store/images/${lang}/promo-marquee-1400x560.png`, `${lang}-마키-1400x560.png`]);
 }
@@ -96,7 +97,7 @@ const copy = (key, label, rows) => {
   return `<div class="field"><div class="fhead"><span>${tag(key)} ${esc(label)}</span><button data-copy="${key}">복사</button></div><textarea readonly rows="${r}" id="t-${key}">${esc(v)}</textarea></div>`;
 };
 const list = (...names) => `<ul class="files">${names.map((n) => `<li><code>${esc(n)}</code></li>`).join('')}</ul>`;
-const shots = (lang) => list(...[1, 2, 3, 4].map((i) => `${lang}-스크린샷-${i}.png`));
+const shots = (lang) => list(...Array.from({ length: SHOTS }, (_, i) => `${lang}-스크린샷-${i + 1}.png`));
 const kv = (...pairs) => `<div class="kv">${pairs.map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('')}</div>`;
 const save = '<p class="note"><b>초안 저장</b>.</p>';
 const images = (lang) =>
