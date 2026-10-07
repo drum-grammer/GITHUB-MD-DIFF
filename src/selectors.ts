@@ -132,6 +132,14 @@ export function isAnchor(el: Element): boolean {
   return el.tagName === 'A' && el.classList.contains('anchor');
 }
 
+/** 블록으로 세지 않는 것: 제목 앵커, 옛 화면 묶음 맨 앞의 GitHub 펼치기 아이콘(svg) */
+export function isDecoration(el: Element): boolean {
+  return isAnchor(el) || el.tagName.toLowerCase() === 'svg';
+}
+
+/** 옛 화면은 .prose-diff.collapsed로 묶음 내용을 숨긴다. 확장이 접기를 맡는 동안 떼어 두고 이 속성으로 표시한다 */
+export const UNCOLLAPSED_ATTR = 'data-mdf-uncollapsed';
+
 /** 숨김을 켜고 끈다. 끌 때 class가 비면 속성째 지운다 — 원래 class가 없던 <del>/<ins>에 class=""가 남지 않게 */
 export function setHidden(el: Element, hidden: boolean): void {
   el.classList.toggle(HIDDEN_CLASS, hidden);

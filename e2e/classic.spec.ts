@@ -5,6 +5,16 @@ import { launchLoggedOut } from './support';
 const FOLD_PR = 'https://github.com/github/docs/pull/46149/files';
 const FOLD_FILE = 'requiring-two-factor-authentication-in-your-organization.md';
 const TABLE_PR = 'https://github.com/github/docs/pull/46192/files';
+// 이 저장소의 시연 PR(병합하지 않는다) — 스토어 심사 안내도 이 PR을 쓴다
+const DEMO_PR = 'https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/6/files';
+
+/** 막대 바로 뒤 묶음에서 아이콘·앵커 말고 실제 내용이 보이는가 */
+const runContentShown = (bar: ReturnType<Page['locator']>) =>
+  bar.evaluate((b) => {
+    const el = b.nextElementSibling!;
+    const kids = el.classList.contains('expandable') ? [...el.children].filter((c) => c.tagName.toLowerCase() !== 'svg' && !c.matches('a.anchor')) : [el];
+    return kids.some((c) => c.getBoundingClientRect().height > 0);
+  });
 
 const test = base.extend<{ context: BrowserContext; page: Page }>({
   context: async ({}, use) => {
@@ -27,10 +37,18 @@ test('옛 화면: md 파일이 자동으로 렌더링되고 변경 없는 구간
   await expect(file.locator('.prose-diff .markdown-body')).toBeVisible({ timeout: 20_000 });
   const bar = file.locator('[data-mdf="fold"]').first();
   await expect(bar).toBeVisible();
-  const run = file.locator('.markdown-body > .expandable.unchanged').first();
-  await expect(run).toBeHidden();
+  expect(await runContentShown(bar)).toBe(false);
   await bar.click();
-  await expect(run).toBeVisible();
+  // GitHub의 collapsed가 남아 있으면 펼치기 아이콘만 보이고 내용은 숨는다
+  await expect.poll(() => runContentShown(bar)).toBe(true);
+});
+
+test('옛 화면: 펼치기 아이콘·앵커뿐인 묶음엔 막대가 없다', async ({ page }) => {
+  await page.goto(DEMO_PR);
+  const file = classicFile(page, 'design-doc.md');
+  await expect(file.locator('[data-mdf="fold"]').first()).toBeVisible({ timeout: 20_000 });
+  await expect(file.locator('[data-mdf="fold"]')).toHaveCount(4);
+  await expect(file.locator('.markdown-body svg.octicon-unfold').first()).toBeHidden();
 });
 
 test('옛 화면: 표는 바뀐 행만 한 표로 합친다', async ({ page }) => {

@@ -1,5 +1,5 @@
 import { t } from './i18n';
-import { MDF_ATTR, isAnchor, isFoldable, setHidden } from './selectors';
+import { MDF_ATTR, UNCOLLAPSED_ATTR, isAnchor, isDecoration, isFoldable, setHidden } from './selectors';
 
 const BAR = 'fold';
 const HEADING = /^H[1-6]$/;
@@ -23,12 +23,12 @@ export function setFoldExpanded(bar: HTMLElement, expanded: boolean): void {
   if (arrow) arrow.textContent = expanded ? '▾' : '▸';
 }
 
-/** 보이는 블록 수 — 앵커는 빼고, GitHub가 묶어 둔 묶음은 그 안의 블록을 센다 */
+/** 보이는 블록 수 — 앵커·펼치기 아이콘은 빼고, GitHub가 묶어 둔 묶음은 그 안의 블록을 센다 */
 function countBlocks(run: Element[]): number {
   let n = 0;
   for (const el of run) {
-    if (isAnchor(el)) continue;
-    n += el.classList.contains('expandable') ? [...el.children].filter((c) => !isAnchor(c)).length : 1;
+    if (isDecoration(el)) continue;
+    n += el.classList.contains('expandable') ? [...el.children].filter((c) => !isDecoration(c)).length : 1;
   }
   return n;
 }
@@ -46,9 +46,16 @@ function lastHeading(run: Element[]): string | undefined {
 /**
  * 연속된 변경 없는 블록마다 접기 막대를 붙이고 숨긴다. 이미 막대가 있는 묶음은 건너뛴다. 새로 만든 막대 수를 돌려준다.
  * 묶음은 앵커로 시작하지 않는다 — 바뀐 제목 바로 뒤 앵커는 그 제목의 것이다.
+ * 보일 블록이 없는 묶음(아이콘·앵커뿐)은 막대 없이 숨긴다.
  */
 export function foldUnchanged(body: HTMLElement): number {
   const doc = body.ownerDocument;
+  // 옛 화면: GitHub가 묶음 내용을 숨겨 두면 막대를 펼쳐도 아이콘만 보인다 — 숨기기는 확장이 맡는다
+  const prose = body.closest('.prose-diff');
+  if (prose?.classList.contains('collapsed')) {
+    prose.classList.remove('collapsed');
+    prose.setAttribute(UNCOLLAPSED_ATTR, '');
+  }
   const kids = [...body.children];
   let made = 0;
   let i = 0;
@@ -63,7 +70,10 @@ export function foldUnchanged(body: HTMLElement): number {
     i = j;
     if (run[0].previousElementSibling?.getAttribute(MDF_ATTR) === BAR) continue;
     const blocks = countBlocks(run);
-    if (blocks === 0) continue;
+    if (blocks === 0) {
+      for (const el of run) setHidden(el, true);
+      continue;
+    }
     const heading = lastHeading(run);
     const one = blocks === 1;
     const label = heading
