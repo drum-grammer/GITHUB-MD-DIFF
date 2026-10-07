@@ -20,7 +20,7 @@ No network requests, no tokens, no data collection. Permissions: `storage` (on/o
 
 ## Limits
 
-- Works on the new "Files changed" page that GitHub shows to signed-in users (`/pull/<n>/changes`). The classic page is left as is
+- Works on both pull request "Files changed" pages: the new one GitHub shows to signed-in users (`/pull/<n>/changes`) and the classic one shown when signed out (`/pull/<n>/files`)
 - Files that GitHub does not render (very large files behind "Load diff") are left as is
 
 ## Install (developer mode)

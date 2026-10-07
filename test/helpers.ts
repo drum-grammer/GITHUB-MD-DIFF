@@ -34,3 +34,19 @@ export function addProse(file: HTMLElement): HTMLElement {
   box.innerHTML = '<div class="prose-diff"><div><div class="markdown-body"><p class="changed">x</p></div></div></div>';
   return box.querySelector<HTMLElement>('.markdown-body')!;
 }
+
+/** 옛 "Files changed" 화면(로그아웃 사용자에게 보이는 화면)의 파일 묶음 하나를 본뜬다(2026-10-07 구조) */
+export function fakeClassicFile(path = 'docs/a.md'): HTMLElement {
+  document.body.innerHTML = `
+<div id="diff-abc" class="file js-file js-details-container Details Details--on open" data-file-type=".md">
+  <div class="file-header d-flex" data-path="${path}">
+    <button type="button" aria-label="Toggle diff contents" aria-expanded="true" class="btn-octicon js-details-target"></button>
+    <form class="BtnGroup-parent js-prose-diff-toggle-form"><button type="button" aria-label="Display the source diff" class="btn btn-sm BtnGroup-item source js-source selected"></button></form>
+    <form class="BtnGroup-parent js-prose-diff-toggle-form"><button type="button" aria-label="Display the rich diff" class="btn btn-sm BtnGroup-item rendered js-rendered"></button></form>
+  </div>
+  <div class="js-file-content diff-body"></div>
+</div>`;
+  const file = document.querySelector<HTMLElement>('#diff-abc');
+  if (!file) throw new Error('fakeClassicFile 실패');
+  return file;
+}

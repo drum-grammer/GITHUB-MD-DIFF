@@ -1,4 +1,4 @@
-import { fileOf, hasReviewThreads, isCollapsed, proseBody, viewButton } from './selectors';
+import { fileOf, hasReviewThreads, isCollapsed, isPressed, proseBody, viewButton } from './selectors';
 
 export const RICH_TIMEOUT_MS = 5000;
 /** 눌렀는데 눌림이 반영되지 않으면(GitHub가 아직 클릭을 받을 준비 전) 다시 누르는 간격과 최대 횟수 */
@@ -55,7 +55,7 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
   const rec = state.clicks.get(key);
   if (rec) {
     if (now - rec.first > RICH_TIMEOUT_MS) return 'timeout';
-    const lost = button && button.getAttribute('aria-pressed') !== 'true';
+    const lost = button && !isPressed(button);
     if (lost && rec.count < MAX_CLICKS && now - rec.last >= RECLICK_MS) {
       button.click();
       rec.last = now;
@@ -70,7 +70,7 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
     return now - since > RICH_TIMEOUT_MS ? 'no-button' : 'pending';
   }
   state.missingSince.delete(key);
-  if (button.getAttribute('aria-pressed') === 'true') return 'idle';
+  if (isPressed(button)) return 'idle';
   if (hasReviewThreads(file)) return 'has-threads';
   button.click();
   state.clicks.set(key, { first: now, last: now, count: 1 });
