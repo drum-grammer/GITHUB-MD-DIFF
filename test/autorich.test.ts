@@ -96,7 +96,7 @@ describe('ensureRich', () => {
     expect(clicks()).toBe(0);
   });
 
-  it('줄 코멘트 스레드가 있는 파일은 원문 그대로 둔다 — 렌더링 보기는 스레드를 보여 주지 않는다', () => {
+  it('줄 코멘트 스레드가 있는 파일은 원문 그대로 둔다 — 로그아웃이면 렌더링 보기에 스레드를 보여 줄 수 없다', () => {
     const file = fakeFile();
     file.querySelector('.diff-body')!.insertAdjacentHTML(
       'beforeend',
@@ -105,6 +105,19 @@ describe('ensureRich', () => {
     const clicks = countClicks(viewButton(file, 'rich')!);
     expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('has-threads');
     expect(clicks()).toBe(0);
+  });
+
+  it('로그인하면(threadsInRich) 스레드가 있어도 렌더링으로 바꾸고 기억해 둔다', () => {
+    const file = fakeFile();
+    file.querySelector('.diff-body')!.insertAdjacentHTML(
+      'beforeend',
+      '<div class="InlineReviewThread-module__ReviewThreadContainer__iFcNZ">코멘트</div>',
+    );
+    const state = createAutoRichState();
+    const clicks = countClicks(viewButton(file, 'rich')!);
+    expect(ensureRich(file, 'k', state, 0, true)).toBe('clicked');
+    expect(clicks()).toBe(1);
+    expect(state.hadThreads.has('k')).toBe(true);
   });
 
   it('툴팁 라벨이 없어도 아이콘으로 찾아 누른다', () => {
