@@ -12,7 +12,9 @@ export interface SourceBlock {
   text: string;
 }
 
-const md = new MarkdownIt('default', { html: true });
+/** 파서는 처음 쓸 때 만든다 — 확장은 github.com의 모든 페이지에 들어가므로 페이지를 열 때마다 만들지 않는다 */
+let md: MarkdownIt | null = null;
+const parser = (): MarkdownIt => (md ??= new MarkdownIt('default', { html: true }));
 
 /** 글자 비교용 — 기호·공백·대소문자를 지우고 글자와 숫자만 남긴다 */
 export function normalizeText(text: string): string {
@@ -162,7 +164,7 @@ export function sourceBlocks(src: string): SourceBlock[] {
   const lines = src.replace(/\r\n?/g, '\n').split('\n');
   const skip = frontMatterLines(lines);
   const body = lines.map((l, i) => (i < skip ? '' : l)).join('\n');
-  const tokens = md.parse(body, {});
+  const tokens = parser().parse(body, {});
   const out: SourceBlock[] = frontMatterRows(lines, skip);
   const code: Array<[number, number]> = tokens.filter((t) => (t.type === 'fence' || t.type === 'code_block') && t.map).map((t) => [t.map![0] + 1, t.map![1]]);
   const inCode = (n: number): boolean => code.some(([a, b]) => n >= a && n <= b);

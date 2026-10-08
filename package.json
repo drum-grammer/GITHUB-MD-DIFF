@@ -16,6 +16,7 @@
     "explore:pick": "node scripts/explore-pick.mjs",
     "explore": "node build.mjs && node scripts/explore.mjs",
     "explore:report": "node scripts/explore-report.mjs",
+    "perf": "node build.mjs && node scripts/perf.mjs",
     "store:assets": "node build.mjs && node store/capture.mjs en && node store/capture.mjs ko && node store/compose.mjs en && node store/compose.mjs ko"
   },
   "devDependencies": {
