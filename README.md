@@ -46,7 +46,7 @@ Release notes: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/
 
 **Try a build before it reaches the store (developer mode)**
 
-1. `pnpm install && pnpm dev:chrome` — builds a development copy into `~/.local/share/github-md-diff/chrome-dev` (set `GMD_CHROME_DEV_DIR` to change it) and, on macOS, copies that path to the clipboard. `--open` also opens `chrome://extensions`
+1. `pnpm install && pnpm dev:chrome` — builds a development copy into `~/.local/share/github-md-diff/chrome-dev` (set `GMD_CHROME_DEV_DIR` to change it; it refuses a folder that holds anything else) and, on macOS, copies that path to the clipboard. `--open` also opens `chrome://extensions`
 2. First time only: `chrome://extensions` → turn on **Developer mode** → **Load unpacked** → choose that folder (`Cmd+Shift+G` and paste on macOS). Turn off the store version while you test, or both will change the same page
 3. After that, run `pnpm dev:chrome` from any branch and reload a GitHub tab. The development copy notices the new build, reloads itself, and reloads that tab. It shows as **Markdown Diff Cat (dev)**, with the commit in its version
 
@@ -78,7 +78,7 @@ No data collected and no remote code. The extension reads the open GitHub page i
 - `pnpm perf [--reps 2] [--window 20] [pull request URL…]` — how much the extension slows GitHub down: opens each pull request with the extension off and on, and records the extension's own CPU time (from a CPU profile, with its busiest functions), long tasks and total blocking time, page script and layout time, how long Markdown files take to render, the delay from GitHub's rendered diff to folding, and how long the first **+** takes on the largest file. Without URLs it uses eight public pull requests from 1 to 334 Markdown files. Read-only
 - `pnpm icons` — regenerate `static/icons/icon{16,32,48,128}.png` from `icon.svg` and `icon{16,32}-off.png` from `icon-off.svg` (commit the PNGs)
 - `pnpm package` — build and zip `dist/` into `release/` for the Chrome Web Store
-- `pnpm release <check|upload|submit|status|finish>` — publish an update to the Chrome Web Store through its API. See [store/README.md](store/README.md#releasing-an-update)
+- `pnpm release <check|upload|submit|status|notes|finish>` — publish an update to the Chrome Web Store through its API. See [store/README.md](store/README.md#releasing-an-update)
 - `pnpm store:assets` — regenerate the store screenshots, promo tiles, and `docs/demo.gif`. See [store/README.md](store/README.md)
 - GitHub page assumptions live only in `src/selectors.ts`, and GitHub request assumptions only in `src/github-api.ts`
 - Test fixtures must come from public repositories or be handmade; the first line records the source and `test/fixtures.test.ts` checks it
