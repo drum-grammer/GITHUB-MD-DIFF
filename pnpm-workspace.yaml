@@ -1,0 +1,4 @@
+# pnpm 12는 설치할 때 빌드 스크립트를 돌릴지 이 파일에 묻는다 — 없으면 자리표시 파일을 만들어 작업 트리가 지저분해진다(release check가 멈춤).
+# esbuild는 플랫폼 바이너리 패키지로 돌아가 설치 스크립트가 필요 없다
+allowBuilds:
+  esbuild: false
