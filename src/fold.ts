@@ -1,5 +1,5 @@
 import { t } from './i18n';
-import { MDF_ATTR, UNCOLLAPSED_ATTR, isAnchor, isDecoration, isFoldable, setHidden } from './selectors';
+import { MDF_ATTR, PIN_ATTR, UNCOLLAPSED_ATTR, isAnchor, isDecoration, isFoldable, setHidden } from './selectors';
 
 const BAR = 'fold';
 const HEADING = /^H[1-6]$/;
@@ -8,10 +8,27 @@ export function foldBars(root: ParentNode): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>(`[${MDF_ATTR}="${BAR}"]`)];
 }
 
+/** GitHub가 변경 없는 블록을 하나로 묶어 둔 것(`div.expandable.unchanged`) */
+function isUnchangedGroup(el: Element): boolean {
+  return el.classList.contains('expandable') && el.classList.contains('unchanged');
+}
+
+/** 코멘트가 붙어 고정된 묶음 — 묶음째 펼치지 않고 그 안에서 다시 접는다 */
+function isPinnedGroup(el: Element): boolean {
+  return isUnchangedGroup(el) && el.hasAttribute(PIN_ATTR);
+}
+
+/** 접어도 되는가 — 고정된 묶음 안에서는 고정되지 않은 자식 모두(묶음 전체가 변경 없음), 그 밖에는 isFoldable */
+function foldableIn(el: Element): boolean {
+  const parent = el.parentElement;
+  if (parent && isPinnedGroup(parent)) return !el.hasAttribute(MDF_ATTR) && !el.hasAttribute(PIN_ATTR);
+  return isFoldable(el);
+}
+
 /** 막대 바로 뒤에 이어지는 접어도 되는 블록들 */
 function runAfter(bar: Element): Element[] {
   const run: Element[] = [];
-  for (let el = bar.nextElementSibling; el && isFoldable(el); el = el.nextElementSibling) run.push(el);
+  for (let el = bar.nextElementSibling; el && foldableIn(el); el = el.nextElementSibling) run.push(el);
   return run;
 }
 
@@ -70,23 +87,30 @@ export function refold(body: HTMLElement, change: () => void): void {
  * 보일 블록이 없는 묶음(아이콘·앵커뿐)은 막대 없이 숨긴다.
  */
 export function foldUnchanged(body: HTMLElement): number {
-  const doc = body.ownerDocument;
   // 옛 화면: GitHub가 묶음 내용을 숨겨 두면 막대를 펼쳐도 아이콘만 보인다 — 숨기기는 확장이 맡는다
   const prose = body.closest('.prose-diff');
   if (prose?.classList.contains('collapsed')) {
     prose.classList.remove('collapsed');
     prose.setAttribute(UNCOLLAPSED_ATTR, '');
   }
-  const kids = [...body.children];
+  let made = foldChildren(body);
+  // 코멘트가 붙은 GitHub 묶음은 묶음째 펼쳐 두지 않고 안에서 다시 접는다(PowerShell-Docs#13281: 170블록 묶음이 통째로 펼쳐지던 것)
+  for (const group of body.children) if (isPinnedGroup(group)) made += foldChildren(group as HTMLElement);
+  return made;
+}
+
+function foldChildren(container: HTMLElement): number {
+  const doc = container.ownerDocument;
+  const kids = [...container.children];
   let made = 0;
   let i = 0;
   while (i < kids.length) {
-    if (!isFoldable(kids[i]) || isAnchor(kids[i])) {
+    if (!foldableIn(kids[i]) || isAnchor(kids[i])) {
       i++;
       continue;
     }
     let j = i;
-    while (j < kids.length && isFoldable(kids[j])) j++;
+    while (j < kids.length && foldableIn(kids[j])) j++;
     const run = kids.slice(i, j);
     i = j;
     if (run[0].previousElementSibling?.getAttribute(MDF_ATTR) === BAR) continue;

@@ -371,10 +371,17 @@ class FileComments {
       before();
       for (const { block, box } of items) {
         placeBox(block, this.body, box);
-        topLevel(block, this.body)?.setAttribute(PIN_ATTR, '');
-        topLevel(box, this.body)?.setAttribute(PIN_ATTR, '');
+        this.pin(block);
+        this.pin(box);
       }
     });
+  }
+
+  /** 접히지 않게 맨 위 묶음을 고정한다. GitHub가 변경 없는 블록을 하나로 묶은 곳이면 묶음 안의 그 블록도 — 나머지는 묶음 안에서 다시 접힌다 */
+  private pin(node: Element): void {
+    const top = topLevel(node, this.body);
+    top?.setAttribute(PIN_ATTR, '');
+    if (top && top !== node && top.classList.contains('expandable')) topLevel(node, top as HTMLElement)?.setAttribute(PIN_ATTR, '');
   }
 
   private openForm(from: HTMLElement, to: HTMLElement): void {

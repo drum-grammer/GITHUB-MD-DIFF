@@ -36,3 +36,55 @@ describe('refold', () => {
     expect(b.querySelector('#b')!.classList.contains('mdf-hidden')).toBe(false);
   });
 });
+
+describe('코멘트가 붙은 GitHub 묶음(div.expandable.unchanged)', () => {
+  function grouped(): HTMLElement {
+    const ps = Array.from({ length: 8 }, (_, k) => `<p class="unchanged" id="p${k}">p${k}</p>`).join('');
+    document.body.innerHTML =
+      '<div class="prose-diff"><div><div class="markdown-body">' +
+      '<h1 class="vicinity">제목</h1>' +
+      `<div class="expandable unchanged js-expandable" id="g"><h2>절</h2><a class="anchor" href="#x"></a>${ps}</div>` +
+      '<div class="changed"><p>바뀜</p></div></div></div></div>';
+    return document.querySelector<HTMLElement>('.markdown-body')!;
+  }
+
+  it('묶음째 펼치지 않고, 고정한 블록 앞뒤를 묶음 안에서 접는다', () => {
+    const b = grouped();
+    foldUnchanged(b);
+    expect(foldBars(b)).toHaveLength(1);
+    refold(b, () => {
+      const g = b.querySelector('#g')!;
+      g.setAttribute(PIN_ATTR, '');
+      b.querySelector('#p4')!.setAttribute(PIN_ATTR, '');
+      const box = document.createElement('div');
+      box.setAttribute('data-mdf', 'thread');
+      b.querySelector('#p4')!.after(box);
+    });
+    const bars = foldBars(b);
+    expect(bars).toHaveLength(2);
+    expect(bars.every((bar) => bar.parentElement?.id === 'g')).toBe(true);
+    expect(b.querySelector('#g')!.classList.contains('mdf-hidden')).toBe(false);
+    expect(b.querySelector('#p4')!.classList.contains('mdf-hidden')).toBe(false);
+    for (const id of ['p0', 'p3', 'p5', 'p7']) expect(b.querySelector(`#${id}`)!.classList.contains('mdf-hidden')).toBe(true);
+    expect(b.querySelector('[data-mdf="thread"]')!.classList.contains('mdf-hidden')).toBe(false);
+  });
+
+  it('묶음 안 막대도 펼치고 접히며, 다시 짜도 숨은 채 남는 것이 없다', () => {
+    const b = grouped();
+    foldUnchanged(b);
+    const pinIt = () => {
+      b.querySelector('#g')!.setAttribute(PIN_ATTR, '');
+      b.querySelector('#p4')!.setAttribute(PIN_ATTR, '');
+    };
+    refold(b, pinIt);
+    const [first] = foldBars(b);
+    setFoldExpanded(first, true);
+    expect(b.querySelector('#p0')!.classList.contains('mdf-hidden')).toBe(false);
+    refold(b, () => {});
+    expect(foldBars(b)[0].getAttribute('aria-expanded')).toBe('true');
+    expect(b.querySelector('#p0')!.classList.contains('mdf-hidden')).toBe(false);
+    expect(b.querySelector('#p7')!.classList.contains('mdf-hidden')).toBe(true);
+    for (const bar of foldBars(b)) setFoldExpanded(bar, true);
+    expect(b.querySelectorAll('.mdf-hidden')).toHaveLength(0);
+  });
+});
