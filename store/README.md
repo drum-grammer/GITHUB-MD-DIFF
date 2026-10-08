@@ -46,18 +46,27 @@ The developer dashboard cannot be automated: Chrome blocks every extension from 
 
 ## Releasing an update
 
-1. Bump `version` in `static/manifest.json` and `package.json` following [Versioning](#versioning).
-2. `pnpm test && pnpm e2e`, then the release scenarios on the public test repository: `pnpm testbed:setup && pnpm testbed` (all must pass, see [testbed/README.md](../testbed/README.md)), then `pnpm package`.
-3. Merge to `main`.
-4. Dashboard → Package → Upload new package (`release/markdown-diff-cat-for-github-<version>.zip`) → Submit for review. Re-enter listing text or images only when they change (`pnpm store:upload` for the helper). Add a row to the submission log.
-   - If a review was cancelled and the draft already holds a newer listing than the last tag, compare against the commit that listing came from: `node scripts/store-upload.mjs --since <commit>`
-5. Once the store publishes it, tag the commit the package was built from, and publish a GitHub Release with that same zip. The notes live in `docs/releases/vX.Y.Z.md` (written before submission, kept in the repo) and say what changed for people, any permission change, how it was tested (include the line `pnpm testbed:report` prints), the store link, and the zip's SHA-256. A release with substantial testing also gets a report in `docs/reports/`. Then update the row's status.
+`pnpm release` runs each step against the [Chrome Web Store API](https://developer.chrome.com/docs/webstore/using-api). It uploads the package and submits it; listing text and images still go through the dashboard.
 
-   ```bash
-   git tag -a vX.Y.Z <commit> -m "Markdown Diff Cat for GitHub X.Y.Z"
-   git push origin vX.Y.Z
-   gh release create vX.Y.Z release/markdown-diff-cat-for-github-X.Y.Z.zip --title "X.Y.Z" --notes-file docs/releases/vX.Y.Z.md
-   ```
+**One-time setup:** in Google Cloud, enable the Chrome Web Store API and create a service account (no roles needed), then create a JSON key for it. Put the whole JSON in the environment variable `CWS_SERVICE_ACCOUNT_KEY`, and keep the key file out of the repository. In the developer dashboard, add the service account's email under **Account** (one per publisher). Publishing needs 2-step verification on the publisher account. `pnpm release status` confirms access. If the publisher ID differs from the one in `scripts/cws.mjs`, set `CWS_PUBLISHER_ID`.
+
+1. Bump `version` in `static/manifest.json` and `package.json` following [Versioning](#versioning), and merge to `main`.
+2. On `main`, run the release scenarios on the public test repository first: `pnpm testbed:setup && pnpm testbed` (all must pass, see [testbed/README.md](../testbed/README.md)). `check` does not run them, because they need `gh` and the signed-in test profile and post real comments. Then `pnpm release check`: tests, typecheck, e2e (`--no-e2e` skips it and says so in the record), then `pnpm package`. It keeps the record (version, commit, zip SHA-256) and the zip itself in `~/.local/share/github-md-diff/releases/<version>/` (set `GMD_RELEASE_DIR` to change it), outside the repository, because review takes days and the last step usually runs in another session. Do steps 2 to 8 on one machine. It also tells you if the listing text or images differ from the last tag. Once a version has been uploaded, `check` will not replace its record; `--redo` does, keeping the old files under new names, for when a cancelled review is resubmitted with the same version.
+3. If the listing differs: `pnpm store:upload`, enter the changed fields in the dashboard, and save the draft.
+   - If a review was cancelled and the draft already holds a newer listing than the last tag, compare against the commit that listing came from: `node scripts/store-upload.mjs --since <commit>`
+4. Release notes, written before submission and kept in the repo: `pnpm release notes` starts `docs/releases/vX.Y.Z.md` with the recorded commit and zip SHA-256. Write what changed for people, any permission change, and how it was tested, including the line `pnpm testbed:report` prints (see v1.1.1). A release with substantial testing also gets a report in `docs/reports/`. Remove the marker line and merge it to `main`.
+5. `pnpm release upload` uploads the recorded zip as a draft. Nothing is public yet.
+6. `pnpm release submit --confirm X.Y.Z` (add `--listing-done` after step 3) submits it for review, and the store publishes it automatically once approved. Add a row to the submission log.
+7. `pnpm release status` shows the local record and the published and pending versions.
+8. Once it is published: `pnpm release finish --confirm X.Y.Z`. It checks that the store published this version, that the zip is the one uploaded, and that `docs/releases/vX.Y.Z.md` on `main` is final and names the zip's SHA-256. Then it tags the recorded commit `vX.Y.Z`, pushes the tag, and publishes a GitHub Release with that zip and those notes. If it stops after pushing the tag, running it again continues. Then update the row's status.
+
+If the API is unavailable, the dashboard still works: Package → Upload new package → Submit for review. Then tag and release by hand:
+
+```bash
+git tag -a vX.Y.Z <commit> -m "Markdown Diff Cat for GitHub X.Y.Z"
+git push origin vX.Y.Z
+gh release create vX.Y.Z release/markdown-diff-cat-for-github-X.Y.Z.zip --title "X.Y.Z" --notes-file docs/releases/vX.Y.Z.md
+```
 
 ## Submission log
 

@@ -1,0 +1,7 @@
+# pnpm 12는 설치할 때 빌드 스크립트를 돌릴지 이 파일에 묻는다 — 없으면 자리표시 파일을 만들어 작업 트리가 지저분해진다(release check가 멈춤).
+# esbuild는 플랫폼 바이너리 패키지로 돌아가 설치 스크립트가 필요 없다
+# packages는 저장소 하나뿐이라는 뜻이다. pnpm 9는 이 파일이 있는데 packages가 없으면 어떤 명령도 돌리지 않는다 — 맥 미니 canary가 아직 9.15.9(2026-10-09)
+packages:
+  - .
+allowBuilds:
+  esbuild: false
