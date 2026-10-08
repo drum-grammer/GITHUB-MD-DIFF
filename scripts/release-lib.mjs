@@ -1,10 +1,17 @@
 // 스토어 업데이트 하네스의 판단 — 버전·관문·릴리스 노트(입출력 없음, 테스트 대상)
+import { join, resolve } from 'node:path';
 import { LISTING_URL } from './cws.mjs';
 
 export const zipName = (version) => `markdown-diff-cat-for-github-${version}.zip`;
-export const recordPath = (version) => `release/release-${version}.json`;
-export const notesPath = (version) => `release/notes-${version}.md`;
-export const NOTES_DRAFT_MARK = '<!-- 초안: 사람이 읽을 글로 고쳐 쓰고(v1.0.0 노트처럼 영어 + 한국어) 이 줄을 지운 뒤 finish를 다시 -->';
+
+/**
+ * 버전마다 기록(record.json)·스토어에 올린 zip·릴리스 노트(notes.md)를 두는 폴더. 심사는 며칠~몇 주라 finish는 다른 세션에서 돈다 —
+ * 세션 worktree의 release/는 그때 없으므로 저장소 밖 고정 폴더에 둔다(GMD_RELEASE_DIR로 바꿈)
+ */
+export function releaseDir(env, home, version) {
+  return resolve(env.GMD_RELEASE_DIR || join(home, '.local', 'share', 'github-md-diff', 'releases'), version);
+}
+export const NOTES_DRAFT_MARK = '<!-- 초안: 사람이 읽을 글로 고쳐 쓰고(v1.0.0 노트처럼 영어 + 한국어) 이 줄을 지운 뒤 finish -->';
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
 
 export function compareVersions(a, b) {
@@ -37,27 +44,43 @@ export function versionProblems({ manifest, pkg, latestTag, published }) {
   return out;
 }
 
-export function uploadGate(record, { head, sha256 }) {
-  if (!record) return 'release check를 먼저 돌린다(기록 없음)';
-  if (record.commit !== head) return `기록의 커밋 ${record.commit.slice(0, 7)} ≠ HEAD ${head.slice(0, 7)} — release check를 다시`;
-  if (record.sha256 !== sha256) return 'zip이 기록과 다르다 — release check를 다시';
+/** check가 기록을 덮어써도 되는가 — 이미 스토어에 올린 기록은 --redo 없이 덮지 않는다(올린 zip과 태그할 커밋이 어긋난다) */
+export function checkGate(existing, { redo }) {
+  if (existing?.upload && !redo) return `${existing.version}을 이미 스토어에 올린 기록이 있다(커밋 ${existing.commit.slice(0, 7)}) — 같은 버전을 다시 낼 때만 --redo(옛 기록은 보관)`;
   return null;
 }
 
-export function submitGate(record, { confirm, listingDone }) {
+export function uploadGate(record, { zipSha }) {
+  if (!record) return 'release check를 먼저 돌린다(기록 없음)';
+  if (zipSha !== record.sha256) return 'zip이 기록과 다르다 — release check를 다시';
+  if (record.submit) return `${record.version}은 이미 제출했다 — 다시 낼 때는 release check --redo`;
+  return null;
+}
+
+export function submitGate(record, { confirm, listingDone, zipSha }) {
   if (!record) return 'release check를 먼저 돌린다(기록 없음)';
   if (confirm !== record.version) return `제출은 버전을 직접 적는다: --confirm ${record.version}`;
-  if (record.upload?.version !== record.version) return `${record.version} 업로드 기록이 없다 — release upload를 먼저`;
+  if (record.submit) return `${record.version}은 이미 제출했다 — pnpm release status로 확인`;
+  if (record.upload?.version !== record.version || record.upload?.sha256 !== record.sha256) return `${record.version} 업로드 기록이 없다 — release upload를 먼저`;
+  if (zipSha !== record.sha256) return 'zip이 스토어에 올린 것과 다르다 — 멈춘다';
   if (record.listingChanged && !listingDone) return '등록정보 글·그림이 지난 태그와 다르다 — pnpm store:upload 도우미로 대시보드 초안에 넣고 저장한 뒤 --listing-done을 붙인다';
   return null;
 }
 
-export function finishGate(record, { confirm, published, tags }) {
-  if (!record) return 'release check 기록이 없다';
+export function finishGate(record, { confirm, published, zipSha }) {
+  if (!record) return '이 버전의 릴리스 기록이 없다 — release check·upload·submit을 한 기기에서 한다';
   if (confirm !== record.version) return `태그·릴리스는 버전을 직접 적는다: --confirm ${record.version}`;
+  if (!record.submit) return `${record.version} 제출 기록이 없다 — 이 기록으로 낸 패키지가 아니다`;
+  if (record.upload?.sha256 !== record.sha256 || zipSha !== record.sha256) return 'zip이 스토어에 올린 것과 다르다 — 멈춘다';
   if (published !== record.version) return `스토어 게시 버전이 ${published ?? '없음'}이다 — ${record.version}이 게시된 뒤에 finish`;
-  if (tags.includes(`v${record.version}`)) return `태그 v${record.version}이 이미 있다 — 건드리지 않고 멈춘다`;
   return null;
+}
+
+/** 태그를 새로 만들지, 지난 finish가 만든 것을 이어 쓸지. 다른 커밋을 가리키는 태그는 건드리지 않는다 */
+export function tagPlan({ existingTagCommit, recordCommit }) {
+  if (existingTagCommit === null) return { action: 'create' };
+  if (existingTagCommit === recordCommit) return { action: 'reuse' };
+  return { problem: `태그가 이미 다른 커밋(${existingTagCommit.slice(0, 7)})에 있다 — 건드리지 않고 멈춘다` };
 }
 
 /** store/README 제출 기록에서 그 버전 행의 What 칸 */
@@ -92,5 +115,11 @@ export function notesProblem(notes, sha256) {
 export function parseArgs(argv) {
   const [step, ...rest] = argv;
   const i = rest.indexOf('--confirm');
-  return { step, confirm: i >= 0 ? rest[i + 1] : undefined, listingDone: rest.includes('--listing-done'), e2e: !rest.includes('--no-e2e') };
+  return {
+    step,
+    confirm: i >= 0 ? rest[i + 1] : undefined,
+    listingDone: rest.includes('--listing-done'),
+    e2e: !rest.includes('--no-e2e'),
+    redo: rest.includes('--redo'),
+  };
 }

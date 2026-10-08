@@ -12,13 +12,15 @@ describe('등록정보 글', () => {
 
   it('같은 커밋과 비교하면 바뀐 칸이 없다', () => {
     const atHead = textsFrom((p: string) => execFileSync('git', ['show', `HEAD:${p}`], { encoding: 'utf8' }));
-    const { changed } = compareListing('HEAD', atHead);
+    const { changed, prevRead } = compareListing('HEAD', atHead);
     expect([...changed]).toEqual([]);
+    expect(prevRead).toBe(true);
   });
 
   it('없는 기준이면 전부 바뀐 것으로 본다', () => {
     const cur = textsFrom((p: string) => readFileSync(p, 'utf8'));
-    const { changed, imagesChanged } = compareListing('no-such-ref', cur);
+    const { changed, imagesChanged, prevRead } = compareListing('no-such-ref', cur);
+    expect(prevRead).toBe(false);
     expect(changed.size).toBe(Object.keys(cur).length);
     expect(imagesChanged).toBe(true);
   });

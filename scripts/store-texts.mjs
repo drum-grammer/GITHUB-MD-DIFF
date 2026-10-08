@@ -26,12 +26,14 @@ export function textsFrom(read) {
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 
-/** 지난 태그·커밋(prevRef)의 글과 cur을 비교해 바뀐 칸(cur의 키)과 그림 변경 여부 */
+/** 지난 태그·커밋(prevRef)의 글과 cur을 비교해 바뀐 칸(cur의 키)·그림 변경 여부·지난 글을 읽었는지(prevRead) */
 export function compareListing(prevRef, cur) {
   const changed = new Set(Object.keys(cur));
+  let prevRead = false;
   try {
     const prev = textsFrom((path) => git('show', `${prevRef}:${path}`));
     for (const k of Object.keys(prev)) if (prev[k] === cur[k]) changed.delete(k);
+    prevRead = true;
   } catch {
     // 지난 글 모양이 달라 못 읽으면 전부 바뀐 것으로 본다
   }
@@ -42,5 +44,5 @@ export function compareListing(prevRef, cur) {
   } catch {
     imagesChanged = true;
   }
-  return { changed, imagesChanged };
+  return { changed, imagesChanged, prevRead };
 }

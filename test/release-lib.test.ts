@@ -3,14 +3,17 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   NOTES_DRAFT_MARK,
+  checkGate,
   compareVersions,
   finishGate,
   latestVersionTag,
   notesDraft,
   notesProblem,
   parseArgs,
+  releaseDir,
   submissionWhat,
   submitGate,
+  tagPlan,
   treeProblems,
   uploadGate,
   versionProblems,
@@ -43,27 +46,58 @@ describe('관문', () => {
     expect(treeProblems({ head: 'a', originMain: 'b', porcelain: '' })[0]).toContain('origin/main');
     expect(treeProblems({ head: 'a', originMain: 'a', porcelain: '?? x' })[0]).toContain('깨끗하지 않다');
   });
-  it('upload는 기록과 HEAD·zip이 같을 때만', () => {
-    expect(uploadGate(null, { head: 'a', sha256: 'f' })).toContain('release check');
-    expect(uploadGate(record, { head: 'b'.repeat(40), sha256: record.sha256 })).toContain('≠ HEAD');
-    expect(uploadGate(record, { head: record.commit, sha256: '0' })).toContain('zip이 기록과 다르다');
-    expect(uploadGate(record, { head: record.commit, sha256: record.sha256 })).toBeNull();
+  it('check는 이미 스토어에 올린 기록을 --redo 없이 덮지 않는다', () => {
+    expect(checkGate(null, { redo: false })).toBeNull();
+    expect(checkGate(record, { redo: false })).toBeNull();
+    const uploaded = { ...record, upload: { version: '1.1.1', sha256: record.sha256, state: 'SUCCEEDED', at: '' } };
+    expect(checkGate(uploaded, { redo: false })).toContain('--redo');
+    expect(checkGate(uploaded, { redo: true })).toBeNull();
   });
-  it('submit은 버전을 직접 적고, 업로드가 끝났고, 바뀐 등록정보는 넣었다고 할 때만', () => {
-    const uploaded = { ...record, upload: { version: '1.1.1', state: 'SUCCEEDED', at: '' } };
-    expect(submitGate(uploaded, { confirm: undefined, listingDone: false })).toContain('--confirm 1.1.1');
-    expect(submitGate(uploaded, { confirm: '1.1.0', listingDone: false })).toContain('--confirm 1.1.1');
-    expect(submitGate(record, { confirm: '1.1.1', listingDone: false })).toContain('release upload');
-    expect(submitGate({ ...uploaded, listingChanged: true }, { confirm: '1.1.1', listingDone: false })).toContain('--listing-done');
-    expect(submitGate({ ...uploaded, listingChanged: true }, { confirm: '1.1.1', listingDone: true })).toBeNull();
-    expect(submitGate(uploaded, { confirm: '1.1.1', listingDone: false })).toBeNull();
+  it('upload는 기록의 zip일 때만, 제출한 뒤에는 하지 않는다', () => {
+    expect(uploadGate(null, { zipSha: 'f' })).toContain('release check');
+    expect(uploadGate(record, { zipSha: '0' })).toContain('zip이 기록과 다르다');
+    expect(uploadGate({ ...record, submit: { state: 'PENDING_REVIEW', at: '' } }, { zipSha: record.sha256 })).toContain('이미 제출');
+    expect(uploadGate(record, { zipSha: record.sha256 })).toBeNull();
   });
-  it('finish는 게시된 뒤, 태그가 없을 때만', () => {
-    expect(finishGate(record, { confirm: '1.1.1', published: '1.0.0', tags: [] })).toContain('게시 버전이 1.0.0');
-    expect(finishGate(record, { confirm: '1.1.1', published: null, tags: [] })).toContain('없음');
-    expect(finishGate(record, { confirm: '1.1.1', published: '1.1.1', tags: ['v1.1.1'] })).toContain('이미 있다');
-    expect(finishGate(record, { confirm: '1.1', published: '1.1.1', tags: [] })).toContain('--confirm 1.1.1');
-    expect(finishGate(record, { confirm: '1.1.1', published: '1.1.1', tags: ['v1.0.0'] })).toBeNull();
+  it('submit은 버전을 직접 적고, 그 zip을 올렸고, 바뀐 등록정보는 넣었다고 할 때만, 한 번만', () => {
+    const uploaded = { ...record, upload: { version: '1.1.1', sha256: record.sha256, state: 'SUCCEEDED', at: '' } };
+    const ok = { confirm: '1.1.1', listingDone: false, zipSha: record.sha256 };
+    expect(submitGate(uploaded, { ...ok, confirm: undefined })).toContain('--confirm 1.1.1');
+    expect(submitGate(uploaded, { ...ok, confirm: '1.1.0' })).toContain('--confirm 1.1.1');
+    expect(submitGate(record, ok)).toContain('release upload');
+    expect(submitGate({ ...uploaded, upload: { ...uploaded.upload, sha256: '0' } }, ok)).toContain('release upload');
+    expect(submitGate(uploaded, { ...ok, zipSha: '0' })).toContain('zip이 스토어에 올린 것과 다르다');
+    expect(submitGate({ ...uploaded, submit: { state: 'PENDING_REVIEW', at: '' } }, ok)).toContain('이미 제출');
+    expect(submitGate({ ...uploaded, listingChanged: true }, ok)).toContain('--listing-done');
+    expect(submitGate({ ...uploaded, listingChanged: true }, { ...ok, listingDone: true })).toBeNull();
+    expect(submitGate(uploaded, ok)).toBeNull();
+  });
+  it('finish는 제출한 그 zip이 게시된 뒤에만', () => {
+    const submitted = {
+      ...record,
+      upload: { version: '1.1.1', sha256: record.sha256, state: 'SUCCEEDED', at: '' },
+      submit: { state: 'PENDING_REVIEW', at: '' },
+    };
+    const ok = { confirm: '1.1.1', published: '1.1.1', zipSha: record.sha256 };
+    expect(finishGate(null, ok)).toContain('기록이 없다');
+    expect(finishGate(submitted, { ...ok, confirm: '1.1' })).toContain('--confirm 1.1.1');
+    expect(finishGate(record, ok)).toContain('제출 기록이 없다');
+    expect(finishGate(submitted, { ...ok, zipSha: '0' })).toContain('zip이 스토어에 올린 것과 다르다');
+    expect(finishGate(submitted, { ...ok, published: '1.0.0' })).toContain('게시 버전이 1.0.0');
+    expect(finishGate(submitted, { ...ok, published: null })).toContain('없음');
+    expect(finishGate(submitted, ok)).toBeNull();
+  });
+  it('태그는 없으면 만들고, 같은 커밋이면 이어 쓰고, 다른 커밋이면 멈춘다', () => {
+    expect(tagPlan({ existingTagCommit: null, recordCommit: 'a' })).toEqual({ action: 'create' });
+    expect(tagPlan({ existingTagCommit: 'a', recordCommit: 'a' })).toEqual({ action: 'reuse' });
+    expect(tagPlan({ existingTagCommit: 'b'.repeat(40), recordCommit: 'a' }).problem).toContain('다른 커밋(bbbbbbb)');
+  });
+});
+
+describe('기록 폴더', () => {
+  it('GMD_RELEASE_DIR가 있으면 그 아래, 없으면 ~/.local/share 아래 버전별', () => {
+    expect(releaseDir({}, '/home/me', '1.1.1')).toBe('/home/me/.local/share/github-md-diff/releases/1.1.1');
+    expect(releaseDir({ GMD_RELEASE_DIR: '/r/' }, '/home/me', '1.1.1')).toBe('/r/1.1.1');
   });
 });
 
@@ -86,7 +120,7 @@ describe('릴리스 노트', () => {
 
 describe('인자', () => {
   it('단계·확인 버전·플래그', () => {
-    expect(parseArgs(['submit', '--confirm', '1.1.1', '--listing-done'])).toEqual({ step: 'submit', confirm: '1.1.1', listingDone: true, e2e: true });
-    expect(parseArgs(['check', '--no-e2e'])).toEqual({ step: 'check', confirm: undefined, listingDone: false, e2e: false });
+    expect(parseArgs(['submit', '--confirm', '1.1.1', '--listing-done'])).toEqual({ step: 'submit', confirm: '1.1.1', listingDone: true, e2e: true, redo: false });
+    expect(parseArgs(['check', '--no-e2e', '--redo'])).toEqual({ step: 'check', confirm: undefined, listingDone: false, e2e: false, redo: true });
   });
 });

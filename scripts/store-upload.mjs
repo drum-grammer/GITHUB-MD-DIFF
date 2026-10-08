@@ -62,8 +62,10 @@ const BASE = since ? `대시보드 초안(${since})` : prevTag;
 let changed = new Set(Object.keys(D));
 let imagesChanged = true;
 if (UPDATE) {
-  ({ changed, imagesChanged } = compareListing(prevTag, D));
-  for (const k of ['privacyUrl', 'home', 'support']) changed.delete(k);
+  let prevRead;
+  ({ changed, imagesChanged, prevRead } = compareListing(prevTag, D));
+  // 지난 글을 못 읽었으면 전부 바뀐 것으로 보여 준다(고정 URL 칸까지)
+  if (prevRead) for (const k of ['privacyUrl', 'home', 'support']) changed.delete(k);
 }
 
 // 3. 입력 도우미
