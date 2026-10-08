@@ -13,7 +13,7 @@ import { t } from './i18n';
 import { fileKey, isPrChangesPage } from './page';
 import { problemsFor, type FileResult } from './problems';
 import { browserOf, showProblemToast } from './report';
-import { fileElements, filePath, isMarkdownPath, isSignedIn, pageVariant, proseBody, viewButton } from './selectors';
+import { fileElements, fileOf, filePath, isMarkdownPath, isSignedIn, pageVariant, proseBody, viewButton } from './selectors';
 
 const LOG = '[github-md-diff]';
 /** 이 상태의 파일이 있으면 화면 변화가 없어도 1초 뒤 다시 본다(시간 판정) */
@@ -35,14 +35,54 @@ const keyOf = (file: HTMLElement): string => fileKey(location.href, file.id);
  */
 let applied = new WeakSet<Element>();
 
+/**
+ * 파일마다 마지막 결과 — 시간이 지나도 바뀌지 않는 상태면 파일 안이 바뀌기 전까지 다시 보지 않는다(md가 아니면 null).
+ * md 334개 PR에서 훑을 때마다 모든 파일의 이름·버튼·뼈대를 다시 찾느라 25초에 확장 CPU 1.2초를 쓰던 것
+ */
+let settled = new WeakMap<Element, FileResult | null>();
+/** 시간이 지나도 저절로 바뀌지 않는 상태 — 누른 뒤 기다림·버튼 기다림·차례 기다림은 1초마다 다시 본다 */
+const STEADY: ReadonlySet<RichStatus> = new Set<RichStatus>([
+  'rich', 'idle', 'lazy', 'notice', 'user-source', 'fallback', 'has-threads', 'no-button', 'timeout',
+]);
+/** 파일 요소 → 경로(같은 요소면 같은 파일이다 — 아이디가 바뀌면 다시 읽는다) */
+const paths = new WeakMap<Element, { id: string; path: string }>();
+
+function pathOf(file: HTMLElement): string | null {
+  const known = paths.get(file);
+  if (known && known.id === file.id) return known.path;
+  const path = filePath(file);
+  if (path) paths.set(file, { id: file.id, path });
+  return path;
+}
+
+/** 확장이 다시 처음부터 보게 한다(켜기·코멘트 준비가 바뀜) */
+function forgetAll(): void {
+  applied = new WeakSet();
+  settled = new WeakMap();
+}
+
 function onMutations(records: MutationRecord[]): void {
+  // PR 변경 화면이 아니면 훑기만 맡긴다(확장은 github.com 모든 페이지에 들어간다)
+  if (!enabled || !isPrChangesPage(location.href)) {
+    schedule();
+    return;
+  }
+  let rendered = false;
   for (const r of records) {
     const el = r.target instanceof Element ? r.target : r.target.parentElement;
-    const body = el?.closest('.markdown-body');
+    if (!el) continue;
+    const body = el.closest('.markdown-body');
     if (body) applied.delete(body);
+    const file = fileOf(el);
+    if (file) settled.delete(file);
+    if (!rendered) rendered = [...r.addedNodes].some((n) => n instanceof Element && (n.matches(PROSE) || n.querySelector(PROSE) !== null));
   }
-  schedule();
+  // GitHub가 렌더링 본문을 막 그렸으면 기다리지 않는다 — 접히기 전 문서 전체가 한두 프레임 보이지 않게
+  schedule(rendered);
 }
+
+/** GitHub의 렌더링 diff 묶음 */
+const PROSE = '.prose-diff';
 
 function warnOnce(key: string, ...args: unknown[]): void {
   if (warned.has(key)) return;
@@ -64,7 +104,7 @@ function report(force = false): void {
  * `comments`(로그인했고 이 PR의 코멘트 요청이 정상)일 때만 코멘트를 붙이고, 스레드가 있는 파일도 렌더링으로 연다.
  */
 function processFile(file: HTMLElement, comments: boolean): FileResult | null {
-  const path = filePath(file);
+  const path = pathOf(file);
   if (!path || !isMarkdownPath(path)) return null;
   const key = keyOf(file);
   const status = ensureRich(file, key, state, Date.now(), comments);
@@ -122,6 +162,7 @@ function byViewport(files: HTMLElement[]): HTMLElement[] {
 
 function scan(): void {
   scheduled = false;
+  lastScan = performance.now();
   if (!enabled || !isPrChangesPage(location.href)) {
     if (problems.size) {
       problems.clear();
@@ -142,9 +183,15 @@ function scan(): void {
   }
   const results: FileResult[] = [];
   for (const file of byViewport(fileElements(document))) {
+    if (settled.has(file)) {
+      const r = settled.get(file);
+      if (r) results.push(r);
+      continue;
+    }
     try {
       const r = processFile(file, comments);
       if (r) results.push(r);
+      if (!r || STEADY.has(r.status)) settled.set(file, r);
     } catch (e) {
       warnOnce(keyOf(file), e);
     }
@@ -180,17 +227,38 @@ function scan(): void {
   if (results.some((r) => RETRY.has(r.status))) retryTimer = setTimeout(schedule, 1000);
 }
 
-function schedule(): void {
-  if (scheduled) return;
+/**
+ * 훑기는 다음 화면 그리기 직전에 — 단 지난 훑기에서 SCAN_GAP_MS가 안 지났으면 그만큼 미룬다.
+ * GitHub가 큰 PR을 그리는 동안에는 DOM이 쉬지 않고 바뀌어 프레임마다 모든 파일을 훑게 된다
+ */
+const SCAN_GAP_MS = 120;
+let lastScan = -Infinity;
+
+let gapTimer: ReturnType<typeof setTimeout> | undefined;
+
+function schedule(urgent = false): void {
+  if (scheduled && !(urgent && gapTimer)) return;
   scheduled = true;
-  requestAnimationFrame(scan);
+  clearTimeout(gapTimer);
+  gapTimer = undefined;
+  const wait = urgent ? 0 : lastScan + SCAN_GAP_MS - performance.now();
+  if (wait > 0) {
+    gapTimer = setTimeout(() => {
+      gapTimer = undefined;
+      requestAnimationFrame(scan);
+    }, wait);
+  } else requestAnimationFrame(scan);
 }
 
 async function start(): Promise<void> {
   const stored = await chrome.storage.local.get({ enabled: true });
   enabled = stored.enabled !== false;
   watchUserViewClicks(document, state, keyOf);
-  onCommentHealthChange(schedule); // PR 데이터를 읽고 나면 스레드가 있는 파일을 렌더링으로 열거나 "!"를 띄운다
+  // PR 데이터를 읽고 나면 스레드가 있는 파일을 렌더링으로 열거나 "!"를 띄운다 — 결과를 기억해 둔 파일도 다시 본다
+  onCommentHealthChange(() => {
+    settled = new WeakMap();
+    schedule();
+  });
   new MutationObserver(onMutations).observe(document.documentElement, { childList: true, subtree: true });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !('enabled' in changes)) return;
@@ -198,7 +266,7 @@ async function start(): Promise<void> {
     if (!enabled) {
       detachAllComments();
       undoAll(document);
-      applied = new WeakSet(); // 다시 켜면 모두 다시 적용한다
+      forgetAll(); // 다시 켜면 모두 다시 적용한다
       problems.clear();
     }
     report(true);
