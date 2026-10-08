@@ -1,6 +1,6 @@
 // 써 보기 하네스의 순수 부분 — 고정 폴더·빌드 번호·개발 매니페스트·폴더 반영
-import { copyFileSync, mkdirSync, readdirSync, rmSync, rmdirSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, rmdirSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 
 export const DEV_NAME = 'Markdown Diff Cat (dev)';
 /** 자기 갱신(src/dev/background.ts)이 읽는 파일 — 맨 마지막에 쓴다 */
@@ -8,7 +8,20 @@ export const BUILD_FILE = 'dev-build.json';
 
 /** 크롬이 읽는 고정 폴더. 압축해제 확장 ID는 경로로 정해지므로 늘 같은 곳. ~/.cache는 저장공간 정리 대상이라 피한다 */
 export function devDir(env, home) {
-  return env.GMD_CHROME_DEV_DIR || join(home, '.local', 'share', 'github-md-diff', 'chrome-dev');
+  // resolve가 끝 슬래시를 떼어 준다 — 스테이징 폴더(<폴더>.next)가 반영할 폴더 안에 생기지 않게
+  return resolve(env.GMD_CHROME_DEV_DIR || join(home, '.local', 'share', 'github-md-diff', 'chrome-dev'));
+}
+
+/** 반영할 폴더가 개발 빌드 폴더인지 — 비어 있지 않은데 빌드 번호 파일도, 개발 매니페스트도 없으면 남의 폴더다(syncDir는 모르는 파일을 지운다) */
+export function devDirProblem(dir) {
+  if (!existsSync(dir) || readdirSync(dir).length === 0) return null;
+  if (existsSync(join(dir, BUILD_FILE))) return null;
+  try {
+    if (JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')).name === DEV_NAME) return null;
+  } catch {
+    // 매니페스트가 없거나 읽을 수 없다
+  }
+  return `${dir}는 비어 있지 않고 개발 빌드 폴더가 아니다 — 안의 파일을 지우게 되므로 멈춘다. GMD_CHROME_DEV_DIR로 빈 폴더나 새 경로를 준다`;
 }
 
 /** 빌드마다 달라지는 번호 — 같은 커밋을 연달아 빌드해도 다르게 밀리초(36진수)를 붙인다 */
@@ -43,12 +56,13 @@ function removeEmptyDirs(dir) {
 }
 
 /**
- * to를 from과 같게 — 새 파일을 먼저 덮어쓰고, from에 없는 옛 파일을 지우고, BUILD_FILE을 맨 마지막에 쓴다
- * (자기 갱신은 BUILD_FILE이 바뀐 것을 보고 시작하므로 그 전에 나머지가 다 있어야 한다)
+ * to를 from과 같게 — BUILD_FILE을 먼저 지우고, 새 파일로 덮어쓰고, from에 없는 옛 파일을 지우고, BUILD_FILE을 맨 마지막에 쓴다.
+ * 자기 갱신은 BUILD_FILE을 보고 시작하므로, 복사 중이거나 중간에 실패한 폴더에서는 다시 로드하지 않는다
  * @param {string} from @param {string} to @param {(rel: string) => void} [onCopy]
  */
 export function syncDir(from, to, onCopy = () => {}) {
   mkdirSync(to, { recursive: true });
+  rmSync(join(to, BUILD_FILE), { force: true });
   const next = filesUnder(from);
   const copy = (rel) => {
     mkdirSync(dirname(join(to, rel)), { recursive: true });

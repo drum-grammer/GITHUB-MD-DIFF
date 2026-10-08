@@ -1,19 +1,19 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RELOAD_GUARD_MS, shouldReload } from '../src/dev/reload-policy';
+import { shouldReload } from '../src/dev/reload-policy';
 
 describe('shouldReload', () => {
   it('디스크 빌드가 없거나 같으면 하지 않는다', () => {
-    expect(shouldReload('a', null, undefined, 0)).toBe(false);
-    expect(shouldReload('a', 'a', undefined, 0)).toBe(false);
+    expect(shouldReload('a', null, undefined)).toBe(false);
+    expect(shouldReload('a', 'a', undefined)).toBe(false);
   });
-  it('다르면 한다', () => expect(shouldReload('a', 'b', undefined, 0)).toBe(true));
-  it('같은 새 빌드로 5분 안에 이미 시도했으면 하지 않는다', () => {
-    expect(shouldReload('a', 'b', { build: 'b', at: 1000 }, 1000 + RELOAD_GUARD_MS - 1)).toBe(false);
+  it('다르면 한다', () => expect(shouldReload('a', 'b', undefined)).toBe(true));
+  it('같은 쌍(a → b)으로 이미 다시 로드했는데 그대로면 시간이 지나도 하지 않는다', () => {
+    expect(shouldReload('a', 'b', { build: 'b', from: 'a', at: 0 })).toBe(false);
   });
-  it('5분이 지났거나 다른 새 빌드면 다시 한다', () => {
-    expect(shouldReload('a', 'b', { build: 'b', at: 1000 }, 1000 + RELOAD_GUARD_MS)).toBe(true);
-    expect(shouldReload('a', 'c', { build: 'b', at: 1000 }, 1001)).toBe(true);
+  it('새 빌드가 나오면 다시 한다', () => {
+    expect(shouldReload('a', 'c', { build: 'b', from: 'a', at: 0 })).toBe(true);
+    expect(shouldReload('b', 'c', { build: 'c', from: 'a', at: 0 })).toBe(true);
   });
 });
 
@@ -63,7 +63,7 @@ describe('개발 background — 자기 갱신', () => {
     expect(await onDevBuild('old', 7, 5000)).toBe(true);
     expect(reload).toHaveBeenCalledOnce();
     expect(stored['dev.reloadTab']).toBe(7);
-    expect(stored['dev.lastReload']).toEqual({ build: 'new', at: 5000 });
+    expect(stored['dev.lastReload']).toEqual({ build: 'new', from: 'old', at: 5000 });
   });
 
   it('같으면 아무것도 하지 않는다', async () => {
@@ -89,6 +89,13 @@ describe('개발 background — 자기 갱신', () => {
     await import('../src/dev/background');
     await vi.waitFor(() => expect(tabReload).toHaveBeenCalledWith(7));
     expect(stored['dev.reloadTab']).toBeUndefined();
+  });
+
+  it('같은 쌍으로 이미 다시 로드했으면 또 하지 않는다(루프 방지)', async () => {
+    const { reload } = installFakeChrome({ 'dev.lastReload': { build: 'new', from: 'old', at: 0 } }, { build: 'new' });
+    const { onDevBuild } = await import('../src/dev/background');
+    expect(await onDevBuild('old', 7, 10 * 60 * 1000)).toBe(false);
+    expect(reload).not.toHaveBeenCalled();
   });
 
   it('content가 보낸 dev-build 메시지로 갱신을 시작한다', async () => {

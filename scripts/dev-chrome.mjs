@@ -7,11 +7,16 @@ import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { DEV_ENTRIES, bundle } from './build-lib.mjs';
-import { BUILD_FILE, devBuildId, devDir, devManifest, syncDir } from './dev-chrome-lib.mjs';
+import { BUILD_FILE, devBuildId, devDir, devDirProblem, devManifest, syncDir } from './dev-chrome-lib.mjs';
 
 const args = new Set(process.argv.slice(2));
 const git = (...a) => execFileSync('git', a, { encoding: 'utf8' }).trim();
 const target = devDir(process.env, homedir());
+const problem = devDirProblem(target);
+if (problem) {
+  console.error(`멈춤: ${problem}`);
+  process.exit(1);
+}
 const next = `${target}.next`;
 const sha = git('rev-parse', '--short', 'HEAD');
 const dirty = git('status', '--porcelain') !== '';

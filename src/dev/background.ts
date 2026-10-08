@@ -22,11 +22,11 @@ async function diskBuild(): Promise<string | null> {
 export async function onDevBuild(running: string, tabId: number, now = Date.now()): Promise<boolean> {
   const disk = await diskBuild();
   const last = (await chrome.storage.local.get(LAST_RELOAD))[LAST_RELOAD] as LastReload | undefined;
-  if (!shouldReload(running, disk, last, now)) {
-    if (disk !== null && disk !== running) console.warn(`[dev] 새 빌드 ${disk}를 방금 올렸는데 아직 ${running}이 돈다 — chrome://extensions에서 ↻`);
+  if (!shouldReload(running, disk, last)) {
+    if (disk !== null && disk !== running) console.warn(`[dev] ${running}에서 ${disk}로 다시 로드했는데 그대로다 — chrome://extensions에서 오류를 보고 ↻`);
     return false;
   }
-  await chrome.storage.local.set({ [RELOAD_TAB]: tabId, [LAST_RELOAD]: { build: disk, at: now } });
+  await chrome.storage.local.set({ [RELOAD_TAB]: tabId, [LAST_RELOAD]: { build: disk, from: running, at: now } });
   chrome.runtime.reload();
   return true;
 }
