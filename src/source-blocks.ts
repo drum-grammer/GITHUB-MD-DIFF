@@ -74,7 +74,7 @@ interface OpenQuote {
   paragraphs: number;
 }
 
-/** GitHub 알림(`> [!NOTE]`) — 표시 줄은 렌더링에서 "Note" 같은 제목 문단이 된다 */
+/** GitHub 알림(`> [!NOTE]`) — 표시 줄은 렌더링에서 "Note" 같은 제목 문단이 된다. 맨 위 인용문만(목록 안 등에 넣으면 GitHub가 글자 그대로 둔다) */
 const ALERT = /^\s*(?:>\s*)+\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/i;
 /** 각주 정의 줄 — GitHub는 문서 끝 각주 목록의 항목으로 그린다 */
 const FOOTNOTE = /^\[\^[^\]\s]+\]:\s?(.*)$/;
@@ -207,7 +207,7 @@ export function sourceBlocks(src: string): SourceBlock[] {
           if (tk.map) top.block.end = Math.max(top.block.end, tk.map[1]);
         } else if (tk.map && footnoteLines.has(tk.map[0] + 1)) {
           // 각주 정의 — 아래에서 항목으로 넣는다
-        } else if (top && top.paragraphs++ === 0 && tk.map && ALERT.test(lines[tk.map[0]] ?? '')) {
+        } else if (top && top.paragraphs++ === 0 && containers.length === 1 && tk.map && ALERT.test(lines[tk.map[0]] ?? '')) {
           // 알림 표시 줄은 제목 문단("Note"), 나머지가 본문 문단
           const [first, end] = tk.map;
           const kind = (lines[first].match(ALERT)?.[1] ?? '').toLowerCase();

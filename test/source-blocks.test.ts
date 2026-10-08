@@ -93,12 +93,14 @@ describe('sourceBlocks — HTML 블록·알림·각주', () => {
   });
 
   it('GitHub 알림 — 표시 줄은 "Note" 제목 문단, 나머지는 본문 문단', () => {
-    const src = ['문단', '', '> [!NOTE]', '> 꼭 읽어 주세요.', '> 두 번째 줄', '', '> 그냥 인용 [!TIP]'].join('\n');
+    const src = ['문단', '', '> [!NOTE]', '> 꼭 읽어 주세요.', '> 두 번째 줄', '', '> 그냥 인용 [!TIP]', '', '1. 항목', '   > [!NOTE]', '   > 목록 안은 알림이 아니다'].join('\n');
     expect(sourceBlocks(src).map((x) => [x.kind, x.start, x.end, x.text])).toEqual([
       ['paragraph', 1, 1, '문단'],
       ['paragraph', 3, 3, 'Note'],
       ['paragraph', 4, 5, '꼭 읽어 주세요. 두 번째 줄'],
       ['paragraph', 7, 7, '그냥 인용 [!TIP]'],
+      ['item', 9, 9, '항목'],
+      ['paragraph', 10, 11, '[!NOTE] 목록 안은 알림이 아니다'],
     ]);
   });
 

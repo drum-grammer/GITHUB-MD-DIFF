@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createAutoRichState, ensureRich, watchUserViewClicks } from '../src/autorich';
+import { MAX_IN_FLIGHT, createAutoRichState, ensureRich, watchUserViewClicks } from '../src/autorich';
 import { viewButton } from '../src/selectors';
 import { addProse, fakeClassicFile, fakeFile } from './helpers';
 
@@ -15,7 +15,7 @@ function pressOnClick(btn: HTMLElement): void {
 }
 
 describe('ensureRich', () => {
-  it('렌더링 버튼을 한 번만 누르고(눌림이 반영되면), 렌더링이 모르는 모양으로 나오면 5초 뒤 timeout', () => {
+  it('렌더링 버튼을 한 번만 누르고(눌림이 반영되면), 렌더링이 모르는 모양으로 3초 넘게 보이면 timeout', () => {
     const file = fakeFile();
     const state = createAutoRichState();
     pressOnClick(viewButton(file, 'rich')!);
@@ -23,7 +23,8 @@ describe('ensureRich', () => {
     expect(ensureRich(file, 'k', state, 0)).toBe('clicked');
     expect(ensureRich(file, 'k', state, 1000)).toBe('waiting');
     file.querySelector('.diff-body')!.innerHTML = '<div class="new-rich-view"><h2>제목</h2><p>글</p></div>';
-    expect(ensureRich(file, 'k', state, 5001)).toBe('timeout');
+    expect(ensureRich(file, 'k', state, 5001)).toBe('waiting'); // 다시 그리는 틈일 수 있어 3초는 더 본다
+    expect(ensureRich(file, 'k', state, 8001)).toBe('timeout');
     expect(ensureRich(file, 'k', state, 20000)).toBe('timeout');
     expect(clicks()).toBe(1);
   });
@@ -55,6 +56,22 @@ describe('ensureRich', () => {
     expect(richClicks()).toBe(1);
     expect(sourceClicks()).toBe(1);
     stop();
+  });
+
+  it('모르는 모양이 잠깐 보였다 사라지면 문제로 세지 않는다', () => {
+    const file = fakeFile();
+    const state = createAutoRichState();
+    pressOnClick(viewButton(file, 'rich')!);
+    ensureRich(file, 'k', state, 0);
+    const box = file.querySelector('.diff-body')!;
+    box.innerHTML = '<p>다시 그리는 중</p>';
+    expect(ensureRich(file, 'k', state, 5001)).toBe('waiting');
+    box.innerHTML = '';
+    expect(ensureRich(file, 'k', state, 6000)).toBe('waiting');
+    box.innerHTML = '<p>또 잠깐</p>';
+    expect(ensureRich(file, 'k', state, 7000)).toBe('waiting');
+    addProse(file);
+    expect(ensureRich(file, 'k', state, 7500)).toBe('rich');
   });
 
   it('되돌린 뒤 사람이 렌더링을 누르면 늦게 나와도 되돌리지 않는다', () => {
@@ -122,12 +139,29 @@ describe('ensureRich', () => {
     expect(ensureRich(file, 'k', state, 60_000)).toBe('lazy');
   });
 
-  it('원문 보기가 줄 대신 안내 글이면(이름만 바뀜·Load Diff) 렌더링을 누르지 않는다', () => {
+  it('이름만 바뀐 파일(원문 보기가 안내 글)은 렌더링을 누르지 않는다', () => {
     const file = fakeFile();
     file.querySelector('.diff-body')!.innerHTML = '<div class="fgColor-muted p-2" data-diff-anchor="diff-abc">File renamed without changes.</div>';
     const clicks = countClicks(viewButton(file, 'rich')!);
     expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('notice');
     expect(clicks()).toBe(0);
+  });
+
+  it('버튼 없이 "Load Diff" 안내만 있는 큰 diff는 no-button이 아니라 notice', () => {
+    const file = fakeFile();
+    file.querySelectorAll('button').forEach((b) => b.remove());
+    file.querySelector('.diff-body')!.innerHTML =
+      '<div class="tmp-px-3 fgColor-muted" data-diff-anchor="diff-abc"><div class="HiddenDiffPatch-module__gridColumnTemplate__x"><button>Load Diff</button>Large diffs are not rendered by default.</div></div>';
+    const state = createAutoRichState();
+    expect(ensureRich(file, 'k', state, 0)).toBe('notice');
+    expect(ensureRich(file, 'k', state, 10_000)).toBe('notice');
+  });
+
+  it('버튼이 있는 큰 diff(Load Diff)는 렌더링을 누른다 — 대개 렌더링되고, 실패하면 되돌린다', () => {
+    const file = fakeFile();
+    file.querySelector('.diff-body')!.innerHTML =
+      '<div class="tmp-px-3 fgColor-muted" data-diff-anchor="diff-abc"><div class="HiddenDiffPatch-module__gridColumnTemplate__x"><button>Load Diff</button></div></div>';
+    expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('clicked');
   });
 
   it('원문 diff 표(data-diff-anchor가 table)는 평소처럼 누른다', () => {
@@ -136,27 +170,27 @@ describe('ensureRich', () => {
     expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('clicked');
   });
 
-  it('렌더링을 기다리는 파일이 6개면 7번째는 차례를 기다리고, 하나가 렌더링되면 누른다', () => {
+  it('렌더링을 기다리는 파일이 한도만큼이면 다음 파일은 차례를 기다리고, 하나가 렌더링되면 누른다', () => {
     const state = createAutoRichState();
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < MAX_IN_FLIGHT; i++) {
       fakeFile();
       expect(ensureRich(document.querySelector<HTMLElement>('#diff-abc')!, `k${i}`, state, 0)).toBe('clicked');
     }
     const file = fakeFile();
     const clicks = countClicks(viewButton(file, 'rich')!);
-    expect(ensureRich(file, 'k6', state, 100)).toBe('queued');
+    expect(ensureRich(file, 'k-next', state, 100)).toBe('queued');
     expect(clicks()).toBe(0);
     const done = fakeFile();
     addProse(done);
     expect(ensureRich(done, 'k0', state, 200)).toBe('rich');
     const again = fakeFile();
-    expect(ensureRich(again, 'k6', state, 300)).toBe('clicked');
+    expect(ensureRich(again, 'k-next', state, 300)).toBe('clicked');
   });
 
   it('되돌릴 때가 지난 기록은 차례를 막지 않는다', () => {
     const state = createAutoRichState();
-    for (let i = 0; i < 6; i++) ensureRich(fakeFile(), `k${i}`, state, 0);
-    expect(ensureRich(fakeFile(), 'k6', state, 16_000)).toBe('clicked');
+    for (let i = 0; i < MAX_IN_FLIGHT; i++) ensureRich(fakeFile(), `k${i}`, state, 0);
+    expect(ensureRich(fakeFile(), 'k-next', state, 16_000)).toBe('clicked');
   });
 
   it('버튼이 나중에 그려지면 문제없이 누른다', () => {

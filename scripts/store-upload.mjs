@@ -2,6 +2,7 @@
 // 대시보드는 확장(Claude in Chrome 포함)·내장 브라우저가 조작할 수 없다 — 사람이 이 도우미를 보며 붙여 넣는다(2026-10-07)
 // 사용: pnpm store:upload  (pnpm package로 ZIP을 먼저 만든다) → release/store-upload/
 //   지난 릴리스 태그(vX.Y.Z)가 있으면 업데이트 화면 — 기존 항목에서 바꿀 칸만 보여 준다. 처음 등록 화면은 `node scripts/store-upload.mjs --first`
+//   대시보드 초안에 이미 다른 커밋의 등록정보가 들어 있으면(심사를 취소하고 다시 내는 경우) `--since <그 커밋>`으로 그것과 비교한다
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -62,7 +63,12 @@ for (const [k, v] of Object.entries(D)) if (!v || v.length < 10) throw new Error
 // 처음 등록인가 업데이트인가 — 이 버전보다 앞선 릴리스 태그가 있으면 업데이트. `--first`면 처음 등록 화면
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 let prevTag = null;
-if (!process.argv.includes('--first')) {
+const sinceAt = process.argv.indexOf('--since');
+const since = sinceAt >= 0 ? process.argv[sinceAt + 1] : null;
+if (since) {
+  git('rev-parse', '--verify', `${since}^{commit}`); // 없는 커밋이면 여기서 멈춘다
+  prevTag = since;
+} else if (!process.argv.includes('--first')) {
   try {
     prevTag = git('describe', '--tags', '--abbrev=0', '--match', 'v*', 'HEAD');
     if (prevTag === `v${version}`) prevTag = git('describe', '--tags', '--abbrev=0', '--match', 'v*', `${prevTag}^`);
@@ -71,6 +77,8 @@ if (!process.argv.includes('--first')) {
   }
 }
 const UPDATE = prevTag !== null;
+/** 화면에 보이는 비교 기준 — 태그, 또는 --since로 준 대시보드 초안의 커밋 */
+const BASE = since ? `대시보드 초안(${since})` : prevTag;
 const changed = new Set(Object.keys(D));
 let imagesChanged = true;
 if (UPDATE) {
@@ -104,7 +112,7 @@ const kv = (...pairs) => `<div class="kv">${pairs.map(([k, v]) => `<span>${k}</s
 const save = '<p class="note"><b>초안 저장</b>.</p>';
 const images = (lang) =>
   UPDATE && !imagesChanged
-    ? `<p class="same-field"><span class="tag same">그대로</span> 아이콘·스크린샷·프로모션 타일 — 다시 올리지 않아요(${esc(prevTag)}와 같음)</p>`
+    ? `<p class="same-field"><span class="tag same">그대로</span> 아이콘·스크린샷·프로모션 타일 — 다시 올리지 않아요(${esc(BASE)}와 같음)</p>`
     : lang === 'en'
       ? `<p>스토어 아이콘</p>${list('01-스토어아이콘-128.png')}<p>스크린샷 — 이 순서대로</p>${shots('en')}<p>작은 프로모션 타일(필수) · 마키 프로모션 타일 — <b>모든 언어 공통</b>(언어별로 못 올려요)</p>${list(...TILES.map(([, to]) => to))}`
       : `<p>스크린샷 — 이 순서대로</p>${shots(lang)}<p class="note">프로모션 타일(작은 타일·마키)은 언어별 칸이 없어요 — 영어 탭에 올린 <code>공통-…</code> 타일이 모든 언어에 쓰여요.</p>`;
@@ -133,7 +141,7 @@ const steps = UPDATE
     ];
 const LABELS = { sumEn: '요약(영어, 자동)', sumKo: '요약(한국어, 자동)', descEn: '설명(영어)', descKo: '설명(한국어)', single: '단일 목적', storage: 'storage 사유', host: '호스트 권한 사유', remote: '원격 코드 사유', tests: '테스트 안내' };
 const updateBanner = UPDATE
-  ? `<div class="banner"><b>업데이트 ${esc(prevTag)} → v${esc(version)}</b> — 기존 항목을 고쳐요(새 항목 아님). 바꿀 칸: ${[...changed].filter((k) => LABELS[k]).map((k) => LABELS[k]).join(' · ') || '없음'}${imagesChanged ? ' · 그림' : ''}. 나머지는 그대로 두면 돼요.</div>`
+  ? `<div class="banner"><b>업데이트 ${esc(BASE)} → v${esc(version)}</b> — 기존 항목을 고쳐요(새 항목 아님). 바꿀 칸: ${[...changed].filter((k) => LABELS[k]).map((k) => LABELS[k]).join(' · ') || '없음'}${imagesChanged ? ' · 그림' : ''}. 나머지는 그대로 두면 돼요.</div>`
   : '';
 const body = steps
   .map(([title, content], i) => `<section><label class="step"><input type="checkbox" data-step="${i}"><span class="n">${i + 1}</span><h2>${esc(title)}</h2></label><div class="content">${content}</div></section>`)

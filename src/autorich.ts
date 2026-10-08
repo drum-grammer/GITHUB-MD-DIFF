@@ -1,5 +1,5 @@
 import {
-  fileOf, hasReviewThreads, hasUnknownRendering, isCollapsed, isLoadingPlaceholder, isPressed, proseBody, showsDiffNotice, viewButton,
+  fileOf, hasReviewThreads, hasUnknownRendering, isCollapsed, isLargeDiffPlaceholder, isLoadingPlaceholder, isPressed, proseBody, showsDiffNotice, viewButton,
 } from './selectors';
 
 export const RICH_TIMEOUT_MS = 5000;
@@ -8,8 +8,10 @@ export const RICH_TIMEOUT_MS = 5000;
  * 원문 보기로 되돌린다 — 그대로 두면 빈 상자만 남아 원문도 못 읽는다. GitHub의 시간 초과(504)는 10초 안팎이다
  */
 export const FALLBACK_MS = 15000;
+/** 렌더링이 모르는 모양으로 보이는 상태가 이만큼 이어져야 문제로 센다 — GitHub가 본문을 다시 그리는 틈에 깜빡 뜨지 않게 */
+export const UNKNOWN_HOLD_MS = 3000;
 /** 렌더링을 기다리는 파일은 이만큼까지만 — md 파일이 수백 개인 PR에서 GitHub에 렌더링 요청을 한꺼번에 보내지 않는다 */
-export const MAX_IN_FLIGHT = 6;
+export const MAX_IN_FLIGHT = 10;
 /** 눌렀는데 눌림이 반영되지 않으면(GitHub가 아직 클릭을 받을 준비 전) 다시 누르는 간격과 최대 횟수 */
 export const RECLICK_MS = 1000;
 export const MAX_CLICKS = 3;
@@ -33,10 +35,20 @@ export interface AutoRichState {
   fellBack: Set<string>;
   /** 확장이 버튼을 누르는 중 — 그 클릭을 사람의 선택으로 기억하지 않는다 */
   selfClick: boolean;
+  /** 파일 키 → 렌더링이 모르는 모양으로 처음 보인 시각 */
+  unknownSince: Map<string, number>;
 }
 
 export function createAutoRichState(): AutoRichState {
-  return { clicks: new Map(), userSource: new Set(), missingSince: new Map(), hadThreads: new Set(), fellBack: new Set(), selfClick: false };
+  return {
+    clicks: new Map(),
+    userSource: new Set(),
+    missingSince: new Map(),
+    hadThreads: new Set(),
+    fellBack: new Set(),
+    selfClick: false,
+    unknownSince: new Map(),
+  };
 }
 
 /** 누르고 렌더링을 기다리는 파일 수(되돌릴 때가 지난 것은 세지 않는다) */
@@ -65,7 +77,7 @@ export type RichStatus =
   | 'fallback' // GitHub가 렌더링을 못 만들어(빈 상자) 원문 보기로 되돌렸다
   | 'pending' // 버튼이 아직 안 그려졌다
   | 'lazy' // GitHub가 파일 내용을 아직 안 채웠다(뼈대) — 스크롤해 오면 채운다
-  | 'notice' // 원문 보기가 줄 대신 안내 글이다(이름만 바뀜·큰 diff의 Load Diff) — 렌더링할 것이 없다
+  | 'notice' // 원문 보기가 줄 대신 안내 글이다 — 이름만 바뀐 파일(렌더링할 것이 없다), 또는 버튼 없이 Load Diff만 있는 큰 diff
   | 'no-button' // 시간이 지나도 버튼이 없다
   | 'idle' // 할 일 없음: 접힌 파일, 또는 렌더링 보기가 이미 골라져 본문만 내려간 상태
   | 'user-source' // 사람이 원문 보기를 골랐다
@@ -81,6 +93,7 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
   if (proseBody(file)) {
     state.clicks.delete(key); // 나중에 GitHub가 원문으로 다시 그리면 한 번 더 누를 수 있게
     state.missingSince.delete(key);
+    state.unknownSince.delete(key);
     return 'rich';
   }
   if (state.userSource.has(key)) return 'user-source';
@@ -93,7 +106,12 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
   const rec = state.clicks.get(key);
   if (rec) {
     const waited = now - rec.first;
-    if (waited > RICH_TIMEOUT_MS && hasUnknownRendering(file)) return 'timeout';
+    if (waited > RICH_TIMEOUT_MS && hasUnknownRendering(file)) {
+      const since = state.unknownSince.get(key) ?? now;
+      state.unknownSince.set(key, since);
+      return now - since >= UNKNOWN_HOLD_MS ? 'timeout' : 'waiting';
+    }
+    state.unknownSince.delete(key);
     if (waited > FALLBACK_MS) {
       state.clicks.delete(key);
       state.fellBack.add(key);
@@ -114,6 +132,11 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
     state.missingSince.delete(key);
     return 'lazy';
   }
+  // 큰 diff는 버튼 없이 "Load Diff" 안내만 그리기도 한다(rust-lang/book#4807) — GitHub 화면이 바뀐 것이 아니다
+  if (!button && showsDiffNotice(file)) {
+    state.missingSince.delete(key);
+    return 'notice';
+  }
   if (!button) {
     const since = state.missingSince.get(key) ?? now;
     state.missingSince.set(key, since);
@@ -121,7 +144,8 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
   }
   state.missingSince.delete(key);
   if (isPressed(button)) return 'idle';
-  if (showsDiffNotice(file)) return 'notice';
+  // 이름만 바뀐 파일 등 — 눌러도 빈 상자다. 큰 diff의 Load Diff는 렌더링이 대개 되므로 누른다(1차 탐험: 70여 개 정상 렌더링)
+  if (showsDiffNotice(file) && !isLargeDiffPlaceholder(file)) return 'notice';
   const threads = hasReviewThreads(file);
   if (threads && !threadsInRich) return 'has-threads';
   if (inFlight(state, now) >= MAX_IN_FLIGHT) return 'queued';

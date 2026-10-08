@@ -42,10 +42,14 @@ const CHANGE_MARK = 'ins, del, .changed, .added, .removed, .moved, .vicinity';
  * 렌더링 결과에 바뀐 곳 표시가 하나도 없으면(문법·링크 주소처럼 화면에 드러나지 않는 변경) 맨 위에 안내와 원문 보기 버튼을 둔다.
  * 그대로 두면 전부 "변경 없음"으로 접혀 무엇이 바뀌었는지 알 수 없다. 표시가 생기면 걷는다
  */
+/** 바뀐 곳 표시가 있다고 확인한 본문 — 표시는 사라지지 않으므로 다시 훑지 않는다(GitHub가 다시 그리면 새 본문이다) */
+const marked = new WeakSet<Element>();
+
 export function noteNoVisibleChange(body: HTMLElement, showSource: () => void): boolean {
+  if (marked.has(body)) return false;
   const old = body.querySelector(`:scope > [${MDF_ATTR}="${NO_CHANGE}"]`);
-  const marked = [...body.querySelectorAll(CHANGE_MARK)].some((el) => !el.closest(`[${MDF_ATTR}]`));
-  if (marked) {
+  if ([...body.querySelectorAll(CHANGE_MARK)].some((el) => !el.closest(`[${MDF_ATTR}]`))) {
+    marked.add(body);
     old?.remove();
     return false;
   }

@@ -1,6 +1,6 @@
 {
   "name": "github-md-diff",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,6 +13,9 @@
     "package": "node scripts/package.mjs",
     "store:upload": "node scripts/store-upload.mjs",
     "canary": "node build.mjs && node scripts/canary.mjs",
+    "explore:pick": "node scripts/explore-pick.mjs",
+    "explore": "node build.mjs && node scripts/explore.mjs",
+    "explore:report": "node scripts/explore-report.mjs",
     "store:assets": "node build.mjs && node store/capture.mjs en && node store/capture.mjs ko && node store/compose.mjs en && node store/compose.mjs ko"
   },
   "devDependencies": {
