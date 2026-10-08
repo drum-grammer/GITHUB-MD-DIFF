@@ -17,6 +17,9 @@
     "explore": "node build.mjs && node scripts/explore.mjs",
     "explore:report": "node scripts/explore-report.mjs",
     "perf": "node build.mjs && node scripts/perf.mjs",
+    "testbed:setup": "node scripts/testbed-setup.mjs",
+    "testbed": "node build.mjs && playwright test -c testbed/playwright.config.ts",
+    "testbed:report": "node scripts/testbed-report.mjs",
     "store:assets": "node build.mjs && node store/capture.mjs en && node store/capture.mjs ko && node store/compose.mjs en && node store/compose.mjs ko"
   },
   "devDependencies": {
