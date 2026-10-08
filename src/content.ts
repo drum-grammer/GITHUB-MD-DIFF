@@ -75,7 +75,10 @@ function onMutations(records: MutationRecord[]): void {
     if (body) applied.delete(body);
     const file = fileOf(el);
     if (file) settled.delete(file);
-    if (!rendered) rendered = [...r.addedNodes].some((n) => n instanceof Element && (n.matches(PROSE) || n.querySelector(PROSE) !== null));
+    // GitHub는 .prose-diff 묶음을 먼저 두고 안에 본문을 넣기도 한다 — 묶음 안에 무언가 들어와도 바로
+    if (!rendered && r.addedNodes.length > 0) {
+      rendered = el.closest(PROSE) !== null || [...r.addedNodes].some((n) => n instanceof Element && (n.matches(PROSE) || n.querySelector(PROSE) !== null));
+    }
   }
   // GitHub가 렌더링 본문을 막 그렸으면 기다리지 않는다 — 접히기 전 문서 전체가 한두 프레임 보이지 않게
   schedule(rendered);
