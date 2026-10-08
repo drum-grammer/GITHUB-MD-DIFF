@@ -81,6 +81,55 @@ export function threads(repo: string, pr: number): Thread[] {
   }));
 }
 
+export interface ThreadAt {
+  path: string;
+  side: 'LEFT' | 'RIGHT';
+  line: number | null;
+  startLine: number | null;
+  pending: boolean;
+}
+
+/**
+ * 본문에 `text`가 든 코멘트의 스레드 자리 — 보류 중인 리뷰의 코멘트도 찾는다
+ * (REST의 리뷰 코멘트 목록은 보류 중인 코멘트에 줄·쪽을 주지 않아 GraphQL로 읽는다)
+ */
+export function threadAt(repo: string, pr: number, text: string): ThreadAt | null {
+  const [owner, name] = repo.split('/');
+  const data = graphql<{
+    repository: {
+      pullRequest: {
+        reviewThreads: {
+          nodes: Array<{
+            path: string;
+            diffSide: 'LEFT' | 'RIGHT';
+            line: number | null;
+            originalLine: number | null;
+            startLine: number | null;
+            originalStartLine: number | null;
+            comments: { nodes: Array<{ body: string; state: string }> };
+          }>;
+        };
+      };
+    };
+  }>(
+    `query($owner:String!,$name:String!,$pr:Int!){repository(owner:$owner,name:$name){pullRequest(number:$pr){reviewThreads(first:100){nodes{path diffSide line originalLine startLine originalStartLine comments(first:20){nodes{body state}}}}}}}`,
+    { owner, name, pr },
+  );
+  for (const t of data.repository.pullRequest.reviewThreads.nodes) {
+    const c = t.comments.nodes.find((x) => x.body.includes(text));
+    if (c) {
+      return {
+        path: t.path,
+        side: t.diffSide,
+        line: t.line ?? t.originalLine,
+        startLine: t.startLine ?? t.originalStartLine,
+        pending: c.state === 'PENDING',
+      };
+    }
+  }
+  return null;
+}
+
 export function setResolved(threadId: string, resolved: boolean): void {
   const m = resolved ? 'resolveReviewThread' : 'unresolveReviewThread';
   graphql(`mutation($id:ID!){${m}(input:{threadId:$id}){thread{id}}}`, { id: threadId });

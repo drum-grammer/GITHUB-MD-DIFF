@@ -10,6 +10,11 @@ export interface SourceBlock {
   start: number;
   end: number;
   text: string;
+  /**
+   * 각주 정의면 렌더링 각주 목록에서의 차례(0부터) — GitHub는 정의를 쓴 자리와 상관없이 본문에서 처음 가리킨 순서로 문서 끝에 모은다.
+   * 가리키지 않은 정의는 그리지 않으므로 -1
+   */
+  footnote?: number;
 }
 
 /** 파서는 처음 쓸 때 만든다 — 확장은 github.com의 모든 페이지에 들어가므로 페이지를 열 때마다 만들지 않는다 */
@@ -79,7 +84,9 @@ interface OpenQuote {
 /** GitHub 알림(`> [!NOTE]`) — 표시 줄은 렌더링에서 "Note" 같은 제목 문단이 된다. 맨 위 인용문만(목록 안 등에 넣으면 GitHub가 글자 그대로 둔다) */
 const ALERT = /^\s*(?:>\s*)+\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/i;
 /** 각주 정의 줄 — GitHub는 문서 끝 각주 목록의 항목으로 그린다 */
-const FOOTNOTE = /^\[\^[^\]\s]+\]:\s?(.*)$/;
+const FOOTNOTE = /^\[\^([^\]\s]+)\]:\s?(.*)$/;
+/** 본문의 각주 참조 `[^이름]` — 정의(`[^이름]:`)는 빼고 */
+const FOOTNOTE_REF = /\[\^([^\]\s]+)\](?!:)/g;
 
 /** HTML 블록 안의 블록 태그 — 렌더링 쪽(dom-blocks)과 같은 종류로 센다 */
 const HTML_TAG = /<(\/?)(tr|li|p|h[1-6]|pre|table|ul|ol)\b[^>]*?(\/?)>/gi;
@@ -136,24 +143,35 @@ export function htmlBlocks(content: string, firstLine: number): SourceBlock[] {
   return out.sort((a, b) => a.start - b.start || a.order - b.order).map(({ order: _, ...b }) => b);
 }
 
-/** 각주 정의를 항목 블록으로 — 정의 줄부터 빈 줄·다음 정의 앞까지. 코드 블록 안의 줄은 뺀다 */
+/**
+ * 각주 정의를 항목 블록으로 — 정의 줄부터 빈 줄·다음 정의 앞까지. 코드 블록 안의 줄은 뺀다.
+ * `footnote`는 렌더링 차례: 본문에서 처음 가리킨 순서, 그다음 각주 글 안에서 가리킨 순서(이름은 대소문자를 가리지 않는다)
+ */
 function footnoteItems(lines: string[], inCode: (line: number) => boolean): SourceBlock[] {
-  const out: SourceBlock[] = [];
-  let cur: SourceBlock | null = null;
+  const out: Array<SourceBlock & { label: string }> = [];
+  const refs = { body: [] as string[], notes: [] as string[] };
+  const collect = (text: string, into: string[]) => {
+    for (const r of text.matchAll(FOOTNOTE_REF)) into.push(r[1].toLowerCase());
+  };
+  let cur: (SourceBlock & { label: string }) | null = null;
   lines.forEach((raw, i) => {
     const n = i + 1;
     const m = inCode(n) ? null : raw.match(FOOTNOTE);
     if (m) {
-      cur = { kind: 'item', start: n, end: n, text: m[1] };
+      cur = { kind: 'item', start: n, end: n, text: m[2], label: m[1].toLowerCase() };
       out.push(cur);
+      collect(m[2], refs.notes);
     } else if (cur && raw.trim() && !inCode(n)) {
       cur.end = n;
       cur.text += ` ${raw.trim()}`;
+      collect(raw, refs.notes);
     } else {
       cur = null;
+      if (!inCode(n)) collect(raw, refs.body);
     }
   });
-  return out;
+  const order = [...new Set([...refs.body, ...refs.notes])];
+  return out.map(({ label, ...b }) => ({ ...b, footnote: order.indexOf(label) }));
 }
 
 /**

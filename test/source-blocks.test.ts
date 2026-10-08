@@ -113,4 +113,14 @@ describe('sourceBlocks — HTML 블록·알림·각주', () => {
       ['code', 7, 9, '[^2]: 코드 안\n'],
     ]);
   });
+
+  it('각주의 렌더링 차례는 본문에서 처음 가리킨 순서, 다음이 각주 글 안의 참조 — 가리키지 않은 정의는 -1', () => {
+    const src = ['[^b]: 둘째로 가리킨 것 [^c]', '', '앞[^A] 뒤[^b].', '', '[^a]: 먼저 가리킨 것', '[^c]: 각주 글에서만', '[^z]: 아무도 안 가리킴'].join('\n');
+    expect(sourceBlocks(src).filter((x) => x.footnote !== undefined).map((x) => [x.start, x.footnote])).toEqual([
+      [1, 1],
+      [5, 0],
+      [6, 2],
+      [7, -1],
+    ]);
+  });
 });

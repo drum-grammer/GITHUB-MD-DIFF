@@ -2,8 +2,8 @@ import { expect, test as base, type BrowserContext, type Locator, type Page, typ
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { launch, launchLoggedOut } from '../e2e/support';
-import { api, cleanRuns, comments, me, reviews, setResolved, threads, type ReviewComment } from './github';
-import { RUN_MARKER, headFiles, lineOf } from './scenarios';
+import { cleanRuns, comments, me, setResolved, threadAt, threads, type ReviewComment, type ThreadAt } from './github';
+import { RUN_MARKER, baseFiles, headFiles, lineOf } from './scenarios';
 
 // 배포 전 시나리오 — 공개 테스트 저장소(testbed)의 PR에서 실제로 코멘트를 달고, 기존 스레드를 보고, 답글·해결을 해 본다.
 // 먼저 `pnpm testbed:setup`(저장소·PR·스레드 맞추기). 쓰는 코멘트는 본문에 RUN_MARKER가 들어가고 테스트마다 앞뒤로 지운다.
@@ -28,6 +28,7 @@ const REPO = S.repo;
 const PR = S.prs.review.number;
 const RUN = process.env.TESTBED_RUN ?? Date.now().toString(36);
 const HEAD = headFiles('review');
+const BASE = baseFiles();
 const LOGIN = me();
 
 const test = base.extend<{ context: BrowserContext; page: Page; worker: Worker }>({
@@ -66,19 +67,19 @@ async function rendered(file: Locator): Promise<void> {
 }
 
 /** 블록에 마우스를 올려 "+"가 나올 때까지(첫 호버는 원문을 받는 동안 기다린다) */
-async function hoverUntilPlus(file: Locator, block: Locator): Promise<Locator> {
+async function hoverUntilPlus(file: Locator, block: Locator, timeout = 30_000): Promise<Locator> {
   const plus = file.locator('[data-mdf="add-comment"]');
   await block.scrollIntoViewIfNeeded();
   await expect(async () => {
     await block.hover({ position: { x: 10, y: 5 } });
     await block.hover({ position: { x: 20, y: 6 } });
     await expect(plus).toBeVisible({ timeout: 1000 });
-  }).toPass({ timeout: 30_000 });
+  }).toPass({ timeout });
   return plus;
 }
 
-async function formFor(file: Locator, block: Locator): Promise<Locator> {
-  await (await hoverUntilPlus(file, block)).click();
+async function formFor(file: Locator, block: Locator, timeout?: number): Promise<Locator> {
+  await (await hoverUntilPlus(file, block, timeout)).click();
   const form = file.locator('[data-mdf="comment-form"]');
   await expect(form).toBeVisible();
   return form;
@@ -98,16 +99,14 @@ async function submit(file: Locator, form: Locator, body: string, mode: 'single'
   await expect(file.locator('[data-mdf="thread"]', { hasText: body })).toBeVisible({ timeout: 20_000 });
 }
 
-function myPending(pr = PR): ReviewComment[] {
-  const r = reviews(REPO, pr).find((x) => x.state === 'PENDING' && x.user.login === LOGIN);
-  return r ? api<ReviewComment[]>(`repos/${REPO}/pulls/${pr}/reviews/${r.id}/comments`) : [];
-}
-
 function posted(body: string): ReviewComment | undefined {
   return comments(REPO, PR).find((c) => c.body.includes(body));
 }
 
-const where = (c: ReviewComment | undefined) => (c ? `${c.path} ${c.side} ${c.start_line ? `${c.start_line}–` : ''}${c.line}` : '없음');
+/** 올라간 코멘트의 자리(보류 중인 것 포함) */
+const placed = (body: string): ThreadAt | null => threadAt(REPO, PR, body);
+
+const where = (t: ThreadAt | null) => (t ? `${t.path} ${t.side} ${t.startLine ? `${t.startLine}–` : ''}${t.line}${t.pending ? ' (보류 중)' : ''}` : '없음');
 
 async function badge(worker: Worker): Promise<string[]> {
   return worker.evaluate(async () => {
@@ -224,16 +223,21 @@ test('T05 블록마다 "+"가 맞는 원문 줄을 고른다(표 행·HTML 표·
   await rendered(hb);
   const body = prose(hb);
   const hbText = HEAD['docs/handbook.md'];
+  const baseText = BASE['docs/handbook.md'];
   const cases: Array<[string, Locator, RegExp]> = [
     ['표 행', body.locator('[data-mdf="table"] tr', { hasText: '$9' }).first(), new RegExp(`\\b${lineOf(hbText, '| Team |')}\\b`)],
     ['HTML 표 행', body.locator('tr', { hasText: 'Link notes to pull requests' }).first(), new RegExp(`\\b${lineOf(hbText, '<tr><td>GitHub')}\\b`)],
     ['목록 항목', body.locator('li', { hasText: 'Connect your calendar' }).first(), new RegExp(`\\b${lineOf(hbText, '- Connect your calendar')}\\b`)],
-    ['알림', body.locator('.markdown-alert').first(), new RegExp(`\\b${lineOf(hbText, '> [!NOTE]')}–${lineOf(hbText, 'or drafts.')}\\b`)],
+    // 고친 알림은 GitHub가 제목 문단과 본문으로 나눠 그린다(.markdown-alert 묶음 없음)
+    ['알림 제목', body.locator('p.markdown-alert-title').first(), new RegExp(`\\b${lineOf(hbText, '> [!NOTE]')}\\b`)],
+    ['알림 본문', body.locator('.changed', { hasText: 'Shared links never include' }).first(), new RegExp(`\\b${lineOf(hbText, 'or drafts.')}\\b`)],
     ['코드 블록', body.locator('pre', { hasText: '--template meeting' }).first(), new RegExp(`\\b${lineOf(hbText, '```bash')}–${lineOf(hbText, '```bash') + 2}\\b`)],
-    ['각주', body.locator('[data-footnotes] li').first(), new RegExp(`\\b${lineOf(hbText, '[^sync]:')}\\b`)],
+    // 문서 중간에 정의한 각주 — 렌더링은 문서 끝에 모은다. 고친 각주는 옛 항목·새 항목이 따로 나온다
+    ['각주(새)', body.locator('[data-footnotes] li.added').first(), new RegExp(`\\b${lineOf(hbText, '[^sync]:')}\\b`)],
+    ['각주(옛)', body.locator('[data-footnotes] li.removed').first(), new RegExp(`\\b${lineOf(baseText, '[^sync]:')}\\b.+·`)],
   ];
   for (const [name, block, want] of cases) {
-    const form = await formFor(hb, block);
+    const form = await formFor(hb, block, 15_000);
     const label = (await form.locator('.mdf-comment-label').textContent()) ?? '';
     metric(`줄 연결 ${name}`, label);
     expect.soft(label, name).toMatch(want);
@@ -252,16 +256,16 @@ test('T06 한 줄 코멘트를 바로 올리면 그 줄의 보통 코멘트가 �
   await expect(form.locator('.mdf-comment-label')).toHaveText(/\b13\b/);
   const body = text('single');
   await submit(hb, form, body, 'single');
-  const c = posted(body);
-  metric('올라간 자리', where(c));
-  expect(c, 'REST에 보인다(보류 중이 아님)').toBeTruthy();
-  expect([c!.path, c!.side, c!.line, c!.start_line]).toEqual(['docs/handbook.md', 'RIGHT', 13, null]);
+  const t = placed(body);
+  metric('올라간 자리', where(t));
+  expect(t).toEqual({ path: 'docs/handbook.md', side: 'RIGHT', line: 13, startLine: null, pending: false });
+  expect(posted(body), 'REST 목록에도 보인다(보류 중이 아님)').toBeTruthy();
   // 다시 열어도 그 블록 아래에 있다(심은 스레드와 같은 줄)
   await page.reload();
   await rendered(hb);
-  const t = hb.locator('[data-mdf="thread"]', { hasText: body });
-  await expect(t).toBeVisible({ timeout: 20_000 });
-  expect(await t.evaluate((el) => el.parentElement?.textContent ?? '')).toContain('or your app store');
+  const box = hb.locator('[data-mdf="thread"]', { hasText: body });
+  await expect(box).toBeVisible({ timeout: 20_000 });
+  expect(await box.evaluate((el) => el.parentElement?.textContent ?? '')).toContain('or your app store');
   clean();
 });
 
@@ -289,9 +293,9 @@ test('T07 끌어서 고른 범위로 리뷰를 시작하면 보류 중인 리뷰
   await submit(f, form, body, 'review');
   await expect(f.locator('[data-mdf="thread"]', { hasText: body }).locator('.mdf-pending')).toBeVisible();
   await expect(f.locator('.mdf-selected')).toHaveCount(0);
-  const c = myPending().find((x) => x.body.includes(body));
-  metric('올라간 자리', where(c));
-  expect([c?.path, c?.side, c?.start_line, c?.line]).toEqual(['docs/new-page.md', 'RIGHT', a, b]);
+  const t = placed(body);
+  metric('올라간 자리', where(t));
+  expect(t).toEqual({ path: 'docs/new-page.md', side: 'RIGHT', line: b, startLine: a, pending: true });
   expect(posted(body), '보류 중이라 남에게는 안 보인다').toBeUndefined();
   clean();
 });
@@ -306,9 +310,9 @@ test('T08 지운 문단에는 원래 파일 쪽 코멘트가 달리고, 보류 �
   await expect(form.locator('.mdf-comment-label')).toHaveText(/\b25\b.+·/); // "25번째 줄 · 원래 파일"
   const body = text('left');
   await submit(hb, form, body, 'review');
-  const c = myPending().find((x) => x.body.includes(body));
-  metric('올라간 자리', where(c));
-  expect([c?.path, c?.side, c?.line]).toEqual(['docs/handbook.md', 'LEFT', 25]);
+  const t = placed(body);
+  metric('올라간 자리', where(t));
+  expect(t).toEqual({ path: 'docs/handbook.md', side: 'LEFT', line: lineOf(BASE['docs/handbook.md'], 'Use two blank lines'), startLine: null, pending: true });
 
   // 보류 중인 리뷰가 생겼으니 다음 상자는 "리뷰에 넣기"만 있다(바로 올리기 없음) — 답글 상자도 같다
   form = await formFor(hb, prose(hb).locator('li', { hasText: 'Connect your calendar' }).first());
@@ -367,9 +371,9 @@ test('T11 이름이 바뀌고 내용도 바뀐 파일에도 새 경로로 코멘
   await expect(form.locator('.mdf-comment-label')).toHaveText(/\b3\b/);
   const body = text('renamed');
   await submit(f, form, body, 'single');
-  const c = posted(body);
-  metric('올라간 자리', where(c));
-  expect([c?.path, c?.side, c?.line]).toEqual(['docs/guides/renamed-edit.md', 'RIGHT', 3]);
+  const t = placed(body);
+  metric('올라간 자리', where(t));
+  expect(t).toEqual({ path: 'docs/guides/renamed-edit.md', side: 'RIGHT', line: 3, startLine: null, pending: false });
   clean();
 });
 
@@ -400,19 +404,24 @@ test('T13 파일 120개(md 100) PR에서 md는 모두 렌더링되고 txt는 그
   await noProblems(page, worker);
 });
 
-test('T14 로그아웃 화면(옛 /files)에서도 렌더링·접기는 되고 "+"는 없다', async () => {
+test('T14 로그아웃 화면(옛 /files) — 스레드 없는 md는 렌더링·접기, 스레드 있는 md는 원문 그대로(스레드가 보이게), "+"는 없다', async () => {
   const context = await launchLoggedOut();
   try {
     const sw = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
     await sw.evaluate(() => chrome.storage.local.set({ enabled: true }));
     const page = context.pages()[0] ?? (await context.newPage());
     await page.goto(`${S.prs.review.url}/files`);
-    const file = page.locator('div.file.js-file', { has: page.locator('.file-header[data-path="docs/handbook.md"]') });
-    await expect(file.locator('.prose-diff .markdown-body')).toBeVisible({ timeout: 30_000 });
-    await expect(file.locator('[data-mdf="fold"]').first()).toBeVisible();
-    await file.locator('.markdown-body p', { hasText: 'or your app store' }).first().hover();
-    await page.waitForTimeout(1000);
+    await expect(page.locator('meta[name="user-login"]')).toHaveAttribute('content', '');
+    const classic = (path: string) => page.locator('div.file.js-file', { has: page.locator(`.file-header[data-path="${path}"]`) });
+    for (const path of ['docs/escape.md', 'docs/widget.mdx']) {
+      await expect(classic(path).locator('.prose-diff .markdown-body')).toBeVisible({ timeout: 30_000 });
+      await expect(classic(path).locator('[data-mdf="fold"]').first()).toBeAttached();
+    }
+    const hb = classic('docs/handbook.md');
+    await expect(hb.locator('tr.inline-comments').first()).toBeAttached({ timeout: 20_000 });
+    await expect(hb.locator('.prose-diff')).toHaveCount(0);
     await expect(page.locator('[data-mdf="add-comment"]')).toHaveCount(0);
+    await expect(page.locator('[data-mdf="problem-toast"]')).toHaveCount(0);
   } finally {
     await context.close();
   }
