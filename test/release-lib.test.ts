@@ -1,0 +1,92 @@
+// @vitest-environment node
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import {
+  NOTES_DRAFT_MARK,
+  compareVersions,
+  finishGate,
+  latestVersionTag,
+  notesDraft,
+  notesProblem,
+  parseArgs,
+  submissionWhat,
+  submitGate,
+  treeProblems,
+  uploadGate,
+  versionProblems,
+} from '../scripts/release-lib.mjs';
+
+const record = { version: '1.1.1', commit: 'a'.repeat(40), zip: 'release/x.zip', sha256: 'f'.repeat(64), e2e: true, listingChanged: false, checkedAt: '' };
+
+describe('버전', () => {
+  it('SemVer를 숫자로 비교한다', () => {
+    expect(compareVersions('1.10.0', '1.9.9')).toBe(1);
+    expect(compareVersions('1.1.1', '1.1.1')).toBe(0);
+    expect(compareVersions('0.9.0', '1.0.0')).toBe(-1);
+    expect(() => compareVersions('1.0', '1.0.0')).toThrow('SemVer');
+  });
+  it('가장 높은 vX.Y.Z 태그를 고르고 다른 태그는 무시한다', () => {
+    expect(latestVersionTag(['v1.9.0', 'v1.10.0', 'demo', 'v2.0'])).toBe('v1.10.0');
+    expect(latestVersionTag([])).toBeNull();
+  });
+  it('매니페스트·package.json이 같고 태그·게시 버전보다 높아야 한다', () => {
+    expect(versionProblems({ manifest: '1.1.1', pkg: '1.1.1', latestTag: 'v1.0.0', published: '1.0.0' })).toEqual([]);
+    expect(versionProblems({ manifest: '1.1.1', pkg: '1.1.0', latestTag: null, published: null })[0]).toContain('package.json 1.1.0');
+    expect(versionProblems({ manifest: '1.0.0', pkg: '1.0.0', latestTag: 'v1.0.0', published: null })[0]).toContain('v1.0.0보다 높아야');
+    expect(versionProblems({ manifest: '1.1.1', pkg: '1.1.1', latestTag: 'v1.0.0', published: '1.1.1' })[0]).toContain('게시 버전 1.1.1');
+  });
+});
+
+describe('관문', () => {
+  it('check는 origin/main의 깨끗한 트리에서만', () => {
+    expect(treeProblems({ head: 'a', originMain: 'a', porcelain: '' })).toEqual([]);
+    expect(treeProblems({ head: 'a', originMain: 'b', porcelain: '' })[0]).toContain('origin/main');
+    expect(treeProblems({ head: 'a', originMain: 'a', porcelain: '?? x' })[0]).toContain('깨끗하지 않다');
+  });
+  it('upload는 기록과 HEAD·zip이 같을 때만', () => {
+    expect(uploadGate(null, { head: 'a', sha256: 'f' })).toContain('release check');
+    expect(uploadGate(record, { head: 'b'.repeat(40), sha256: record.sha256 })).toContain('≠ HEAD');
+    expect(uploadGate(record, { head: record.commit, sha256: '0' })).toContain('zip이 기록과 다르다');
+    expect(uploadGate(record, { head: record.commit, sha256: record.sha256 })).toBeNull();
+  });
+  it('submit은 버전을 직접 적고, 업로드가 끝났고, 바뀐 등록정보는 넣었다고 할 때만', () => {
+    const uploaded = { ...record, upload: { version: '1.1.1', state: 'SUCCEEDED', at: '' } };
+    expect(submitGate(uploaded, { confirm: undefined, listingDone: false })).toContain('--confirm 1.1.1');
+    expect(submitGate(uploaded, { confirm: '1.1.0', listingDone: false })).toContain('--confirm 1.1.1');
+    expect(submitGate(record, { confirm: '1.1.1', listingDone: false })).toContain('release upload');
+    expect(submitGate({ ...uploaded, listingChanged: true }, { confirm: '1.1.1', listingDone: false })).toContain('--listing-done');
+    expect(submitGate({ ...uploaded, listingChanged: true }, { confirm: '1.1.1', listingDone: true })).toBeNull();
+    expect(submitGate(uploaded, { confirm: '1.1.1', listingDone: false })).toBeNull();
+  });
+  it('finish는 게시된 뒤, 태그가 없을 때만', () => {
+    expect(finishGate(record, { confirm: '1.1.1', published: '1.0.0', tags: [] })).toContain('게시 버전이 1.0.0');
+    expect(finishGate(record, { confirm: '1.1.1', published: null, tags: [] })).toContain('없음');
+    expect(finishGate(record, { confirm: '1.1.1', published: '1.1.1', tags: ['v1.1.1'] })).toContain('이미 있다');
+    expect(finishGate(record, { confirm: '1.1', published: '1.1.1', tags: [] })).toContain('--confirm 1.1.1');
+    expect(finishGate(record, { confirm: '1.1.1', published: '1.1.1', tags: ['v1.0.0'] })).toBeNull();
+  });
+});
+
+describe('릴리스 노트', () => {
+  it('store/README 제출 기록에서 그 버전의 What 칸을 읽는다', () => {
+    const readme = readFileSync('store/README.md', 'utf8');
+    expect(submissionWhat(readme, '1.0.0')).toContain('First submission');
+    expect(submissionWhat(readme, '9.9.9')).toBeNull();
+  });
+  it('초안은 표시·설치 링크·SHA를 담고, 표시가 남았거나 SHA가 없으면 막는다', () => {
+    const draft = notesDraft({ version: '1.1.1', what: '고친 것', sha256: 'f'.repeat(64) });
+    expect(draft.startsWith(NOTES_DRAFT_MARK)).toBe(true);
+    expect(draft).toContain('chromewebstore.google.com/detail/');
+    expect(draft).toContain('markdown-diff-cat-for-github-1.1.1.zip');
+    expect(notesProblem(draft, 'f'.repeat(64))).toContain('초안');
+    expect(notesProblem(draft.replace(NOTES_DRAFT_MARK, ''), '0'.repeat(64))).toContain('SHA-256');
+    expect(notesProblem(draft.replace(NOTES_DRAFT_MARK, ''), 'f'.repeat(64))).toBeNull();
+  });
+});
+
+describe('인자', () => {
+  it('단계·확인 버전·플래그', () => {
+    expect(parseArgs(['submit', '--confirm', '1.1.1', '--listing-done'])).toEqual({ step: 'submit', confirm: '1.1.1', listingDone: true, e2e: true });
+    expect(parseArgs(['check', '--no-e2e'])).toEqual({ step: 'check', confirm: undefined, listingDone: false, e2e: false });
+  });
+});
