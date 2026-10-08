@@ -404,7 +404,7 @@ test('T13 파일 120개(md 100) PR에서 md는 모두 렌더링되고 txt는 그
   await noProblems(page, worker);
 });
 
-test('T14 로그아웃 화면(옛 /files) — 스레드 없는 md는 렌더링·접기, 스레드 있는 md는 원문 그대로(스레드가 보이게), "+"는 없다', async () => {
+test('T14 로그아웃 화면(옛 /files)에서 스레드 없는 md는 렌더링·접기, 스레드 있는 md는 원문 그대로(스레드가 보이게), "+"는 없다', async () => {
   const context = await launchLoggedOut();
   try {
     const sw = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
@@ -413,10 +413,10 @@ test('T14 로그아웃 화면(옛 /files) — 스레드 없는 md는 렌더링·
     await page.goto(`${S.prs.review.url}/files`);
     await expect(page.locator('meta[name="user-login"]')).toHaveAttribute('content', '');
     const classic = (path: string) => page.locator('div.file.js-file', { has: page.locator(`.file-header[data-path="${path}"]`) });
-    for (const path of ['docs/escape.md', 'docs/widget.mdx']) {
-      await expect(classic(path).locator('.prose-diff .markdown-body')).toBeVisible({ timeout: 30_000 });
-      await expect(classic(path).locator('[data-mdf="fold"]').first()).toBeAttached();
-    }
+    // 렌더링에 안 드러나는 변경(escape.md)은 옛 화면에서 GitHub가 렌더링 본문을 숨기고 자기 안내를 보인다 — 여기서는 보지 않는다
+    const widget = classic('docs/widget.mdx');
+    await expect(widget.locator('.prose-diff .markdown-body')).toBeVisible({ timeout: 30_000 });
+    await expect(widget.locator('[data-mdf="fold"]').first()).toBeVisible();
     const hb = classic('docs/handbook.md');
     await expect(hb.locator('tr.inline-comments').first()).toBeAttached({ timeout: 20_000 });
     await expect(hb.locator('.prose-diff')).toHaveCount(0);

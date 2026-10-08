@@ -118,13 +118,10 @@ export function threadAt(repo: string, pr: number, text: string): ThreadAt | nul
   for (const t of data.repository.pullRequest.reviewThreads.nodes) {
     const c = t.comments.nodes.find((x) => x.body.includes(text));
     if (c) {
-      return {
-        path: t.path,
-        side: t.diffSide,
-        line: t.line ?? t.originalLine,
-        startLine: t.startLine ?? t.originalStartLine,
-        pending: c.state === 'PENDING',
-      };
+      const line = t.line ?? t.originalLine;
+      const start = t.startLine ?? t.originalStartLine;
+      // 한 줄 코멘트도 GraphQL은 startLine을 같은 줄로 줄 때가 있다(REST는 null) — 같으면 한 줄로 본다
+      return { path: t.path, side: t.diffSide, line, startLine: start === line ? null : start, pending: c.state === 'PENDING' };
     }
   }
   return null;
