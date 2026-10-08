@@ -35,8 +35,15 @@ export function fileOf(el: Element): HTMLElement | null {
   return el.closest<HTMLElement>(FILE);
 }
 
+/** 이름이 바뀐 파일의 화면 낭독기용 글 — "옛 경로 renamed to 새 경로"(보이는 쪽은 새 경로를 "…"로 줄인다, 2026-10-08 확인) */
+const RENAMED_TO = ' renamed to ';
+
 export function filePath(file: Element): string | null {
-  const text = file.querySelector(FILE_NAME)?.textContent ?? file.querySelector(CLASSIC_PATH)?.getAttribute('data-path');
+  const code = file.querySelector(FILE_NAME);
+  const spoken = code?.querySelector('.sr-only')?.textContent ?? '';
+  const text = spoken.includes(RENAMED_TO)
+    ? spoken.split(RENAMED_TO).pop()
+    : (code?.textContent ?? file.querySelector(CLASSIC_PATH)?.getAttribute('data-path'));
   const path = text?.replace(/[\u200e\u200f]/g, '').trim();
   return path || null;
 }
@@ -86,6 +93,41 @@ export function hasReviewThreads(file: Element): boolean {
 
 export function proseBody(file: ParentNode): HTMLElement | null {
   return file.querySelector<HTMLElement>(PROSE_BODY);
+}
+
+/** 파일 내용이 아직 안 왔다 — 큰 PR은 화면에 가까운 파일만 채우고 나머지는 뼈대로 둔다(2026-10-08 확인) */
+const LOADING_SKELETON = '[class*="LoadingSkeleton-module__skeleton"]';
+/** 원문 diff의 본문 — 줄이 있으면 <table>, 줄 대신 안내 글이면 <div>(2026-10-08 확인) */
+const DIFF_ANCHOR = '[data-diff-anchor]';
+/** 큰 diff의 "Load Diff" 자리 — GitHub가 기본으로 그리지 않을 뿐 렌더링 보기는 대개 된다 */
+const LARGE_DIFF = '[class*="HiddenDiffPatch-module"]';
+
+export function isLoadingPlaceholder(file: Element): boolean {
+  return file.querySelector(LOADING_SKELETON) !== null;
+}
+
+/** 원문 보기가 줄 대신 안내 글을 보여 주는가 — "File renamed without changes.", 큰 diff의 "Load Diff" 등 */
+export function showsDiffNotice(file: Element): boolean {
+  const anchor = file.querySelector(DIFF_ANCHOR);
+  return anchor !== null && anchor.tagName !== 'TABLE' && !anchor.closest('.prose-diff');
+}
+
+/** 안내 글이 큰 diff의 "Load Diff"인가 — 렌더링 보기로 바꿔 볼 만하다(실패하면 15초 뒤 원문으로 되돌린다) */
+export function isLargeDiffPlaceholder(file: Element): boolean {
+  return file.querySelector(LARGE_DIFF) !== null;
+}
+
+/** 렌더링된 마크다운에만 있는 요소 — 원문 diff 표·불러오기 표시(스피너)·빈 상자에는 없다 */
+const RENDERED_CONTENT = 'p, li, blockquote, img, iframe, h1, h2, h4, h5, h6';
+
+/**
+ * 렌더링 본문(.prose-diff)은 없는데 파일 머리 밖에 렌더링된 글이 보이는가 — 그러면 GitHub가 렌더링 보기의 구조를 바꾼 것이다.
+ * 없으면(빈 상자·불러오는 중) GitHub가 그 파일의 렌더링을 아직 못 만들었거나 실패한 것이다(큰 파일에서 504, 2026-10-08 확인).
+ */
+export function hasUnknownRendering(file: Element): boolean {
+  if (proseBody(file)) return false;
+  const header = file.querySelector(HEADER);
+  return [...file.querySelectorAll(RENDERED_CONTENT)].some((el) => !header?.contains(el) && !el.closest(`[${MDF_ATTR}]`));
 }
 
 const CHANGE_CLASSES = ['vicinity', 'changed', 'added', 'removed', 'moved'];

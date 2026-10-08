@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { applyBody, undoAll } from '../src/apply';
+import { applyBody, noteNoVisibleChange, undoAll } from '../src/apply';
 import { loadFixture } from './helpers';
 
 describe('applyBody / undoAll', () => {
@@ -98,5 +98,31 @@ describe('applyBody / undoAll — 옛 화면(prose-diff.collapsed)', () => {
     body.querySelector<HTMLElement>('[data-mdf="file-toolbar"] button')!.click();
     undoAll(document);
     expect(prose.outerHTML).toBe(original);
+  });
+});
+
+describe('noteNoVisibleChange', () => {
+  it('바뀐 곳 표시가 없으면 안내와 원문 보기 버튼, 표시가 생기면 걷는다', () => {
+    document.body.innerHTML = '<div class="prose-diff"><div class="markdown-body"><div class="expandable unchanged"><p>같은 글</p></div></div></div>';
+    const body = document.querySelector<HTMLElement>('.markdown-body')!;
+    let clicked = 0;
+    expect(noteNoVisibleChange(body, () => clicked++)).toBe(true);
+    const box = body.querySelector<HTMLElement>('[data-mdf="no-change"]')!;
+    expect(box).not.toBeNull();
+    box.querySelector('button')!.click();
+    expect(clicked).toBe(1);
+    expect(noteNoVisibleChange(body, () => {})).toBe(true);
+    expect(body.querySelectorAll('[data-mdf="no-change"]')).toHaveLength(1);
+    body.insertAdjacentHTML('beforeend', '<p class="changed">바뀜</p>');
+    expect(noteNoVisibleChange(body, () => {})).toBe(false);
+    expect(body.querySelector('[data-mdf="no-change"]')).toBeNull();
+  });
+
+  it('바뀐 곳이 있으면 안내를 두지 않는다 — 확장이 만든 요소 안의 표시는 세지 않는다', () => {
+    document.body.innerHTML = '<div class="markdown-body"><div data-mdf="table"><span class="changed"></span></div><p>x</p></div>';
+    const body = document.querySelector<HTMLElement>('.markdown-body')!;
+    expect(noteNoVisibleChange(body, () => {})).toBe(true);
+    document.body.innerHTML = '<div class="markdown-body"><ins><p>새 문단</p></ins></div>';
+    expect(noteNoVisibleChange(document.querySelector<HTMLElement>('.markdown-body')!, () => {})).toBe(false);
   });
 });

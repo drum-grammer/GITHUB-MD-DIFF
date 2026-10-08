@@ -169,6 +169,8 @@ class FileComments {
   private readonly button: HTMLButtonElement;
   private hovered: HTMLElement | null = null;
   private drag: { side: BlockTarget['side']; from: HTMLElement; to: HTMLElement } | null = null;
+  /** 열린 코멘트 상자 → 그 상자가 가리키는 블록. 상자가 열려 있는 동안 노란 음영을 둔다(GitHub 원문 보기처럼) */
+  private readonly formBlocks = new Map<HTMLElement, HTMLElement[]>();
   private disposed = false;
 
   constructor(
@@ -216,6 +218,7 @@ class FileComments {
     this.body.ownerDocument.removeEventListener('mouseup', this.onUp);
     this.host.removeAttribute(HOST_ATTR);
     this.button.remove();
+    this.formBlocks.clear();
     this.clearSelection();
   }
 
@@ -326,8 +329,8 @@ class FileComments {
   private onUp = this.guard((): void => {
     const d = this.drag;
     this.drag = null;
-    this.clearSelection();
     if (d) this.openForm(d.from, d.to);
+    this.paintSelection();
   });
 
   /** 키보드로 누른 경우(detail 0) — 그 블록 하나 */
@@ -335,22 +338,27 @@ class FileComments {
     if (e.detail === 0 && this.hovered) this.openForm(this.hovered, this.hovered);
   });
 
-  private selectionSpan(): BlockTarget | null {
-    if (!this.drag) return null;
-    const a = this.targetOf(this.drag.from);
-    const b = this.targetOf(this.drag.to);
-    return a && b ? spanOf([a, b]) : null;
+  /** from~to가 덮는 블록 — 합친 표의 행은 보이는 행으로 */
+  private blocksBetween(from: HTMLElement, to: HTMLElement): HTMLElement[] {
+    const a = this.targetOf(from);
+    const b = this.targetOf(to);
+    const span = a && b ? spanOf([a, b]) : null;
+    if (!span) return [];
+    const out = new Set([from, to]);
+    for (const [el, tg] of this.mapping ?? []) {
+      if (tg.side === span.side && tg.start >= span.start && tg.end <= span.end) out.add(this.visible(el));
+    }
+    return [...out];
   }
 
+  /** 끌고 있는 범위와 열린 상자들의 범위를 칠한다 */
   private paintSelection(): void {
     this.clearSelection();
-    const span = this.selectionSpan();
-    if (!span || !this.drag) return;
-    this.drag.from.classList.add(SELECTED);
-    this.drag.to.classList.add(SELECTED);
-    for (const [el, tg] of this.mapping ?? []) {
-      if (tg.side === span.side && tg.start >= span.start && tg.end <= span.end) el.classList.add(SELECTED);
+    for (const [form, blocks] of this.formBlocks) {
+      if (!form.isConnected) this.formBlocks.delete(form);
+      else for (const el of blocks) el.classList.add(SELECTED);
     }
+    if (this.drag) for (const el of this.blocksBetween(this.drag.from, this.drag.to)) el.classList.add(SELECTED);
   }
 
   private clearSelection(): void {
@@ -363,10 +371,17 @@ class FileComments {
       before();
       for (const { block, box } of items) {
         placeBox(block, this.body, box);
-        topLevel(block, this.body)?.setAttribute(PIN_ATTR, '');
-        topLevel(box, this.body)?.setAttribute(PIN_ATTR, '');
+        this.pin(block);
+        this.pin(box);
       }
     });
+  }
+
+  /** 접히지 않게 맨 위 묶음을 고정한다. GitHub가 변경 없는 블록을 하나로 묶은 곳이면 묶음 안의 그 블록도 — 나머지는 묶음 안에서 다시 접힌다 */
+  private pin(node: Element): void {
+    const top = topLevel(node, this.body);
+    top?.setAttribute(PIN_ATTR, '');
+    if (top && top !== node && top.classList.contains('expandable')) topLevel(node, top as HTMLElement)?.setAttribute(PIN_ATTR, '');
   }
 
   private openForm(from: HTMLElement, to: HTMLElement): void {
@@ -392,12 +407,18 @@ class FileComments {
         onSubmit: async (text, mode) => {
           await this.post((d) => commentPayload({ path: this.path, ...span }, text, d.pendingReviewId ? 'review' : mode, d));
           form.remove();
+          this.paintSelection();
         },
-        onCancel: () => form.remove(),
+        onCancel: () => {
+          form.remove();
+          this.paintSelection();
+        },
       },
     );
     form.dataset.span = key;
+    this.formBlocks.set(form, this.blocksBetween(from, to));
     this.insertBoxes([{ block: last, box: form }]);
+    this.paintSelection();
     form.querySelector('textarea')?.focus();
   }
 

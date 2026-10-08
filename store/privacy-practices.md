@@ -21,7 +21,7 @@ Review Markdown file changes in GitHub pull requests as rendered diffs: it opens
 
 Collected data types: **none** (leave every category unchecked). The extension reads the open GitHub page inside the browser to change how it is displayed. When the signed-in user writes a review comment, the text goes straight from the browser to GitHub — the site the user is using — to post it there, exactly as GitHub's own comment box would. The developer receives no data, and nothing goes to any third party.
 
-> Review before 1.1.0: if Chrome Web Store asks to declare data that the extension sends to the site the user is on, check **Website content** with the same explanation. Mihiraki, which also posts GitHub review comments from the rendered view, declares no data collection on its store page (checked 2026-10-08).
+> Review before submitting a version with commenting (1.1.x): if Chrome Web Store asks to declare data that the extension sends to the site the user is on, check **Website content** with the same explanation. Mihiraki, which also posts GitHub review comments from the rendered view, declares no data collection on its store page (checked 2026-10-08).
 
 Certify all three statements:
 - I do not sell or transfer user data to third parties, outside of the approved use cases

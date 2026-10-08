@@ -53,3 +53,64 @@ describe('sourceBlocks', () => {
     ]);
   });
 });
+
+describe('sourceBlocks — HTML 블록·알림·각주', () => {
+  it('HTML 표는 행이 블록, 칸 안 목록 항목도 블록 — 표 안 문단은 세지 않는다', () => {
+    const src = [
+      '# 정책', // 1
+      '', // 2
+      '<table>', // 3
+      '  <tr>', // 4
+      '    <td>Host Namespaces</td>', // 5
+      '    <td>', // 6
+      '      <p>Sharing must be <strong>disallowed</strong>.</p>', // 7
+      '      <ul>', // 8
+      '        <li><code>spec.hostNetwork</code></li>', // 9
+      '        <li>Undefined/nil &amp; false</li>', // 10
+      '      </ul>', // 11
+      '    </td>', // 12
+      '  </tr>', // 13
+      '</table>', // 14
+    ].join('\n');
+    const b = sourceBlocks(src);
+    expect(b.map((x) => [x.kind, x.start, x.end])).toEqual([
+      ['heading', 1, 1],
+      ['row', 4, 13],
+      ['item', 9, 9],
+      ['item', 10, 10],
+    ]);
+    expect(normalizeText(b[1].text)).toBe(normalizeText('Host Namespaces Sharing must be disallowed. spec.hostNetwork Undefined/nil false'));
+    expect(b[3].text).not.toContain('&amp;');
+  });
+
+  it('<p align="center"> 같은 HTML 문단과 닫는 태그를 생략한 항목', () => {
+    const src = ['<p align="center">', '  <a href="x">Node.js</a> Website', '</p>', '', '<ul>', '<li>하나', '<li>둘', '</ul>'].join('\n');
+    expect(sourceBlocks(src).map((x) => [x.kind, x.start, x.end, normalizeText(x.text)])).toEqual([
+      ['paragraph', 1, 3, 'nodejswebsite'],
+      ['item', 6, 7, '하나'],
+      ['item', 7, 8, '둘'],
+    ]);
+  });
+
+  it('GitHub 알림 — 표시 줄은 "Note" 제목 문단, 나머지는 본문 문단', () => {
+    const src = ['문단', '', '> [!NOTE]', '> 꼭 읽어 주세요.', '> 두 번째 줄', '', '> 그냥 인용 [!TIP]', '', '1. 항목', '   > [!NOTE]', '   > 목록 안은 알림이 아니다'].join('\n');
+    expect(sourceBlocks(src).map((x) => [x.kind, x.start, x.end, x.text])).toEqual([
+      ['paragraph', 1, 1, '문단'],
+      ['paragraph', 3, 3, 'Note'],
+      ['paragraph', 4, 5, '꼭 읽어 주세요. 두 번째 줄'],
+      ['paragraph', 7, 7, '그냥 인용 [!TIP]'],
+      ['item', 9, 9, '항목'],
+      ['paragraph', 10, 11, '[!NOTE] 목록 안은 알림이 아니다'],
+    ]);
+  });
+
+  it('각주 정의는 항목 블록 — 붙어 있는 정의도 하나씩, 이어지는 줄은 앞 정의에', () => {
+    const src = ['본문[^1]과 다른 것[^note].', '', '[^1]: 첫 각주', '[^note]: 둘째 각주', '  이어지는 줄', '', '```', '[^2]: 코드 안', '```'].join('\n');
+    expect(sourceBlocks(src).map((x) => [x.kind, x.start, x.end, x.text])).toEqual([
+      ['paragraph', 1, 1, '본문[^1]과 다른 것[^note].'],
+      ['item', 3, 3, '첫 각주'],
+      ['item', 4, 5, '둘째 각주 이어지는 줄'],
+      ['code', 7, 9, '[^2]: 코드 안\n'],
+    ]);
+  });
+});

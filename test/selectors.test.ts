@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  fileElements, fileOf, filePath, hasReviewThreads, isCollapsed, isFoldable, isMarkdownPath, isPressed, proseBody, setHidden, tablePairs, viewButton,
+  fileElements, fileOf, filePath, hasReviewThreads, hasUnknownRendering, isCollapsed, isFoldable, isMarkdownPath, isPressed, proseBody, setHidden, tablePairs, viewButton,
 } from '../src/selectors';
 import { addProse, fakeClassicFile, fakeFile, loadFixture } from './helpers';
 
@@ -119,5 +119,46 @@ describe('옛 화면(로그아웃)', () => {
     const file = fakeFile();
     expect(isPressed(viewButton(file, 'source')!)).toBe(true);
     expect(isPressed(viewButton(file, 'rich')!)).toBe(false);
+  });
+});
+
+describe('hasUnknownRendering', () => {
+  it('빈 상자·불러오기 표시·원문 diff 표는 렌더링이 아니다', () => {
+    const file = fakeFile();
+    const body = file.querySelector('.diff-body')!;
+    expect(hasUnknownRendering(file)).toBe(false);
+    body.innerHTML = '<div><svg class="spinner"></svg><span class="sr-only">Loading</span></div>';
+    expect(hasUnknownRendering(file)).toBe(false);
+    body.innerHTML = '<table><tr><td class="blob-code">+ 줄</td></tr></table>';
+    expect(hasUnknownRendering(file)).toBe(false);
+  });
+
+  it('머리의 파일 이름(h3)은 세지 않고, 렌더링된 글이 .prose-diff 밖에 있으면 모르는 모양', () => {
+    const file = fakeFile();
+    expect(file.querySelector('h3')).not.toBeNull();
+    file.querySelector('.diff-body')!.innerHTML = '<article class="markdown-body-v2"><p>글</p></article>';
+    expect(hasUnknownRendering(file)).toBe(true);
+  });
+
+  it('.prose-diff가 있으면 아는 모양', () => {
+    const file = fakeFile();
+    addProse(file);
+    expect(hasUnknownRendering(file)).toBe(false);
+  });
+});
+
+describe('filePath — 이름이 바뀐 파일', () => {
+  it('화면 낭독기용 "옛 경로 renamed to 새 경로"에서 새 경로를 쓴다(보이는 쪽은 줄여 쓴다)', () => {
+    const file = fakeFile();
+    file.querySelector('h3 code')!.innerHTML =
+      '<span aria-hidden="true">\u200electure/2nd/docker-cli-example.md\u200e <svg class="octicon octicon-arrow-right"></svg> \u200e…e/2nd/test_example/docker-cli-example.md\u200e</span>' +
+      '<span class="sr-only">lecture/2nd/docker-cli-example.md renamed to lecture/2nd/test_example/docker-cli-example.md</span>';
+    expect(filePath(file)).toBe('lecture/2nd/test_example/docker-cli-example.md');
+  });
+
+  it('공백이 든 경로는 그대로', () => {
+    const file = fakeFile('docs/api 기능 정의서 초안.md');
+    expect(filePath(file)).toBe('docs/api 기능 정의서 초안.md');
+    expect(isMarkdownPath(filePath(file)!)).toBe(true);
   });
 });
