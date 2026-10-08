@@ -51,12 +51,12 @@ The developer dashboard cannot be automated: Chrome blocks every extension from 
 3. Merge to `main`.
 4. Dashboard → Package → Upload new package (`release/markdown-diff-cat-for-github-<version>.zip`) → Submit for review. Re-enter listing text or images only when they change (`pnpm store:upload` for the helper). Add a row to the submission log.
    - If a review was cancelled and the draft already holds a newer listing than the last tag, compare against the commit that listing came from: `node scripts/store-upload.mjs --since <commit>`
-5. Once the store publishes it, tag the commit the package was built from, and publish a GitHub Release with that same zip. The notes say what changed for people, any permission change, the store link, and the zip's SHA-256. Then update the row's status.
+5. Once the store publishes it, tag the commit the package was built from, and publish a GitHub Release with that same zip. The notes live in `docs/releases/vX.Y.Z.md` (written before submission, kept in the repo) and say what changed for people, any permission change, how it was tested, the store link, and the zip's SHA-256. A release with substantial testing also gets a report in `docs/reports/`. Then update the row's status.
 
    ```bash
    git tag -a vX.Y.Z <commit> -m "Markdown Diff Cat for GitHub X.Y.Z"
    git push origin vX.Y.Z
-   gh release create vX.Y.Z release/markdown-diff-cat-for-github-X.Y.Z.zip --title "X.Y.Z" --notes-file <notes.md>
+   gh release create vX.Y.Z release/markdown-diff-cat-for-github-X.Y.Z.zip --title "X.Y.Z" --notes-file docs/releases/vX.Y.Z.md
    ```
 
 ## Submission log
