@@ -44,11 +44,13 @@ If Enhanced Safe Browsing is on, Chrome may say "Proceed with caution" because t
 
 Release notes: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases)
 
-**From source (developer mode)**
+**Try a build before it reaches the store (developer mode)**
 
-1. `pnpm install && pnpm build`
-2. Chrome → `chrome://extensions` → turn on **Developer mode** → **Load unpacked** → choose `dist/`
-3. To update: `git pull && pnpm build`, click ↻ on the extension card, then reload open GitHub tabs
+1. `pnpm install && pnpm dev:chrome` — builds a development copy into `~/.local/share/github-md-diff/chrome-dev` (set `GMD_CHROME_DEV_DIR` to change it) and, on macOS, copies that path to the clipboard. `--open` also opens `chrome://extensions`
+2. First time only: `chrome://extensions` → turn on **Developer mode** → **Load unpacked** → choose that folder (`Cmd+Shift+G` and paste on macOS). Turn off the store version while you test, or both will change the same page
+3. After that, run `pnpm dev:chrome` from any branch and reload a GitHub tab. The development copy notices the new build, reloads itself, and reloads that tab. It shows as **Markdown Diff Cat (dev)**, with the commit in its version
+
+The self-reload lives in `src/dev/` and is only in this development copy, never in `pnpm build` or `pnpm package`.
 
 ## Privacy
 
@@ -76,6 +78,7 @@ No data collected and no remote code. The extension reads the open GitHub page i
 - `pnpm perf [--reps 2] [--window 20] [pull request URL…]` — how much the extension slows GitHub down: opens each pull request with the extension off and on, and records the extension's own CPU time (from a CPU profile, with its busiest functions), long tasks and total blocking time, page script and layout time, how long Markdown files take to render, the delay from GitHub's rendered diff to folding, and how long the first **+** takes on the largest file. Without URLs it uses eight public pull requests from 1 to 334 Markdown files. Read-only
 - `pnpm icons` — regenerate `static/icons/icon{16,32,48,128}.png` from `icon.svg` and `icon{16,32}-off.png` from `icon-off.svg` (commit the PNGs)
 - `pnpm package` — build and zip `dist/` into `release/` for the Chrome Web Store
+- `pnpm release <check|upload|submit|status|finish>` — publish an update to the Chrome Web Store through its API. See [store/README.md](store/README.md#releasing-an-update)
 - `pnpm store:assets` — regenerate the store screenshots, promo tiles, and `docs/demo.gif`. See [store/README.md](store/README.md)
 - GitHub page assumptions live only in `src/selectors.ts`, and GitHub request assumptions only in `src/github-api.ts`
 - Test fixtures must come from public repositories or be handmade; the first line records the source and `test/fixtures.test.ts` checks it
@@ -132,7 +135,7 @@ Markdown Diff Cat은 두 장점을 합쳤어요. 렌더링된 문서를 보면�
 
 릴리스 노트: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases)
 
-소스에서 설치하는 방법은 위 [Install](#install)에 있어요.
+스토어 심사 전 빌드를 개발자 모드로 써 보는 방법(`pnpm dev:chrome`)은 위 [Install](#install)에 있어요.
 
 ### 개인정보
 
