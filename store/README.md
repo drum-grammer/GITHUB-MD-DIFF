@@ -47,11 +47,11 @@ The developer dashboard cannot be automated: Chrome blocks every extension from 
 ## Releasing an update
 
 1. Bump `version` in `static/manifest.json` and `package.json` following [Versioning](#versioning).
-2. `pnpm test && pnpm e2e && pnpm package`.
+2. `pnpm test && pnpm e2e`, then the release scenarios on the public test repository: `pnpm testbed:setup && pnpm testbed` (all must pass, see [testbed/README.md](../testbed/README.md)), then `pnpm package`.
 3. Merge to `main`.
 4. Dashboard → Package → Upload new package (`release/markdown-diff-cat-for-github-<version>.zip`) → Submit for review. Re-enter listing text or images only when they change (`pnpm store:upload` for the helper). Add a row to the submission log.
    - If a review was cancelled and the draft already holds a newer listing than the last tag, compare against the commit that listing came from: `node scripts/store-upload.mjs --since <commit>`
-5. Once the store publishes it, tag the commit the package was built from, and publish a GitHub Release with that same zip. The notes live in `docs/releases/vX.Y.Z.md` (written before submission, kept in the repo) and say what changed for people, any permission change, how it was tested, the store link, and the zip's SHA-256. A release with substantial testing also gets a report in `docs/reports/`. Then update the row's status.
+5. Once the store publishes it, tag the commit the package was built from, and publish a GitHub Release with that same zip. The notes live in `docs/releases/vX.Y.Z.md` (written before submission, kept in the repo) and say what changed for people, any permission change, how it was tested (include the line `pnpm testbed:report` prints), the store link, and the zip's SHA-256. A release with substantial testing also gets a report in `docs/reports/`. Then update the row's status.
 
    ```bash
    git tag -a vX.Y.Z <commit> -m "Markdown Diff Cat for GitHub X.Y.Z"
