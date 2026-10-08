@@ -1,0 +1,279 @@
+// 테스트 저장소(testbed)의 내용 — 기준 파일, 시나리오 브랜치(=PR), 미리 심어 두는 리뷰 스레드.
+// scripts/testbed-setup.mjs가 이걸로 저장소·PR·스레드를 만들고, testbed/testbed.spec.ts가 같은 데이터로 기대값을 계산한다.
+// 내용을 바꾸면 FIXTURE_VERSION을 올린다 — 설정이 브랜치를 다시 밀고 PR을 새로 연다.
+// 공개 저장소다: 지어낸 제품(Lantern) 문서만 넣는다.
+
+export const REPO = process.env.TESTBED_REPO ?? 'drum-grammer/markdown-diff-cat-testbed';
+export const FIXTURE_VERSION = '1';
+
+export type Files = Record<string, string>;
+
+const lines = (...xs: string[]): string => xs.join('\n') + '\n';
+
+const handbookBase = lines(
+  '---',
+  'title: Lantern handbook',
+  'owner: docs-team',
+  'updated: 2026-09-01',
+  '---',
+  '',
+  '# Lantern handbook',
+  '',
+  'Lantern is a small note-taking app for teams that want plain Markdown files.',
+  '',
+  '## Getting started',
+  '',
+  'Install Lantern from the downloads page and sign in with your work email.',
+  '',
+  'Lantern keeps every note as a Markdown file in your workspace folder.',
+  '',
+  '- Create a workspace',
+  '- Invite your teammates',
+  '- Pick a default template',
+  '',
+  '## Writing notes',
+  '',
+  'Notes support headings, lists, tables, and fenced code blocks.',
+  '',
+  'Use two blank lines to start a new section in long notes.',
+  '',
+  '```bash',
+  'lantern new "Weekly sync"',
+  '```',
+  '',
+  '## Plans',
+  '',
+  '| Plan | Notes per workspace | Price |',
+  '| --- | --- | --- |',
+  '| Free | 100 | $0 |',
+  '| Team | 10,000 | $8 |',
+  '| Business | Unlimited | $15 |',
+  '',
+  '## Sharing',
+  '',
+  'Share a note with a link that expires after seven days.',
+  '',
+  '> [!NOTE]',
+  '> Shared links never include private comments.',
+  '',
+  '## Offline mode',
+  '',
+  'Lantern works offline and syncs when you reconnect.[^sync]',
+  '',
+  '[^sync]: Sync keeps the newest edit when two people change the same line.',
+  '',
+  '## Integrations',
+  '',
+  '<table>',
+  '  <tr><td>Slack</td><td>Post a note to a channel</td></tr>',
+  '  <tr><td>Calendar</td><td>Attach notes to meetings</td></tr>',
+  '</table>',
+  '',
+  '## Security',
+  '',
+  'All notes are encrypted at rest.',
+  '',
+  'Admins can require single sign-on for every member.',
+  '',
+  '## Troubleshooting',
+  '',
+  'If sync stops, sign out and sign back in.',
+  '',
+  'Clear the local cache from Settings when search results look stale.',
+  '',
+  '## Glossary',
+  '',
+  'Workspace: a folder of notes shared by a team.',
+  '',
+  'Template: a note that new notes start from.',
+  '',
+  '## Support',
+  '',
+  'Write to the support team from the Help menu.',
+);
+
+const handbookHead = handbookBase
+  .replace('updated: 2026-09-01', 'updated: 2026-10-08')
+  .replace(
+    'Install Lantern from the downloads page and sign in with your work email.',
+    'Install Lantern from the downloads page or your app store, then sign in with your work email.',
+  )
+  .replace('- Invite your teammates\n', '- Invite your teammates\n- Connect your calendar\n')
+  .replace('Use two blank lines to start a new section in long notes.\n\n', '')
+  .replace('lantern new "Weekly sync"', 'lantern new "Weekly sync" --template meeting')
+  .replace('| Team | 10,000 | $8 |', '| Team | 10,000 | $9 |')
+  .replace('> Shared links never include private comments.', '> Shared links never include private comments or drafts.')
+  .replace(
+    '[^sync]: Sync keeps the newest edit when two people change the same line.',
+    '[^sync]: Sync keeps both edits and marks the conflict when two people change the same line.',
+  )
+  .replace(
+    '  <tr><td>Calendar</td><td>Attach notes to meetings</td></tr>\n',
+    '  <tr><td>Calendar</td><td>Attach notes to meetings</td></tr>\n  <tr><td>GitHub</td><td>Link notes to pull requests</td></tr>\n',
+  );
+
+const pricingBase = lines(
+  '# Pricing details',
+  '',
+  '| Region | Currency | Team | Business |',
+  '| --- | --- | --- | --- |',
+  '| United States | USD | 8 | 15 |',
+  '| European Union | EUR | 8 | 14 |',
+  '| United Kingdom | GBP | 7 | 12 |',
+  '| Japan | JPY | 1,200 | 2,200 |',
+  '| Korea | KRW | 11,000 | 20,000 |',
+  '| Canada | CAD | 11 | 20 |',
+  '| Australia | AUD | 12 | 22 |',
+  '| Brazil | BRL | 40 | 75 |',
+  '',
+  'Prices exclude tax.',
+);
+
+const renamedEditBase = lines(
+  '# Keyboard shortcuts',
+  '',
+  'Press Cmd+K to search notes.',
+  '',
+  'Press Cmd+N to create a note.',
+  '',
+  'Press Cmd+Shift+P to open the command palette.',
+);
+
+const largeBase = Array.from({ length: 2400 }, (_, i) => `Entry ${String(i + 1).padStart(4, '0')}: the archive keeps this line so the file stays large.`).join('\n\n') + '\n';
+const largeHead = largeBase.replace(/the archive keeps this line/g, 'the archive now keeps this line');
+
+/** 기준(main) 파일 */
+export function baseFiles(): Files {
+  const f: Files = {
+    'README.md': lines(
+      '# Markdown Diff Cat testbed',
+      '',
+      'Pull requests and review threads that the [Markdown Diff Cat for GitHub](https://github.com/drum-grammer/GITHUB-MD-DIFF) release harness runs against (`pnpm testbed`).',
+      '',
+      'Everything here is generated by `scripts/testbed-setup.mjs` in that repository. Do not edit by hand.',
+    ),
+    TESTBED_VERSION: FIXTURE_VERSION + '\n',
+    'docs/handbook.md': handbookBase,
+    'docs/pricing.md': pricingBase,
+    'docs/legacy.md': lines('# Legacy import', '', 'The legacy importer reads exports from version 1.', '', 'It will be removed in the next release.'),
+    'docs/moved.md': lines('# Moved page', '', 'This page moves to the archive folder without changes.'),
+    'docs/renamed-edit.md': renamedEditBase,
+    'docs/escape.md': lines('# Table syntax', '', 'Use the Plan | Price columns when you compare offers.'),
+    'docs/widget.mdx': lines("import { Callout } from '../components/callout'", '', '# Widget', '', '<Callout>Widgets refresh every minute.</Callout>', '', 'The widget shows the five most recent notes.'),
+    'docs/large.md': largeBase,
+  };
+  for (let i = 1; i <= 100; i++) f[`many/page-${String(i).padStart(3, '0')}.md`] = lines(`# Page ${i}`, '', `Page ${i} lists the notes for week ${i}.`, '', 'It stays the same in every release.');
+  for (let i = 1; i <= 20; i++) f[`many/data-${String(i).padStart(3, '0')}.txt`] = `item ${i}: 1\n`;
+  return f;
+}
+
+export type Op =
+  | { write: string; content: string }
+  | { remove: string }
+  | { move: string; to: string; content?: string };
+
+export interface Scenario {
+  key: 'review' | 'large' | 'many';
+  branch: string;
+  title: string;
+  body: string;
+  ops: Op[];
+}
+
+export const SCENARIOS: Scenario[] = [
+  {
+    key: 'review',
+    branch: 'scenario/review',
+    title: 'Testbed: review scenarios',
+    body: 'Paragraph, list, table, front matter, alert, footnote, HTML table, and code edits; an added, a deleted, a renamed-only, and a renamed-and-edited file; an edit that renders the same; MDX. Seeded review threads cover a single line, a range, a removed line, a resolved thread, a thread with a reply, and a renamed file.',
+    ops: [
+      { write: 'docs/handbook.md', content: handbookHead },
+      { write: 'docs/pricing.md', content: pricingBase.replace('| Korea | KRW | 11,000 | 20,000 |', '| Korea | KRW | 12,000 | 20,000 |') },
+      { write: 'docs/new-page.md', content: lines('# Release checklist', '', 'Run the test suite before tagging a release.', '', 'Update the changelog with every user-facing change.', '', 'Post the release notes in the team channel.') },
+      { remove: 'docs/legacy.md' },
+      { move: 'docs/moved.md', to: 'docs/archive/moved.md' },
+      { move: 'docs/renamed-edit.md', to: 'docs/guides/renamed-edit.md', content: renamedEditBase.replace('Press Cmd+K to search notes.', 'Press Cmd+K to search notes and commands.') },
+      { write: 'docs/escape.md', content: lines('# Table syntax', '', 'Use the Plan \\| Price columns when you compare offers.') },
+      { write: 'docs/widget.mdx', content: lines("import { Callout } from '../components/callout'", '', '# Widget', '', '<Callout>Widgets refresh every minute.</Callout>', '', 'The widget shows the ten most recent notes.') },
+    ],
+  },
+  {
+    key: 'large',
+    branch: 'scenario/large',
+    title: 'Testbed: large diff',
+    body: 'A Markdown file large enough that GitHub hides its diff behind Load Diff.',
+    ops: [{ write: 'docs/large.md', content: largeHead }],
+  },
+  {
+    key: 'many',
+    branch: 'scenario/many-files',
+    title: 'Testbed: many files',
+    body: '100 Markdown files and 20 text files, so GitHub loads files lazily as you scroll.',
+    ops: [
+      ...Array.from({ length: 100 }, (_, i) => {
+        const n = i + 1;
+        return { write: `many/page-${String(n).padStart(3, '0')}.md`, content: lines(`# Page ${n}`, '', `Page ${n} lists the notes for week ${n} and the owner of each.`, '', 'It stays the same in every release.') };
+      }),
+      ...Array.from({ length: 20 }, (_, i) => ({ write: `many/data-${String(i + 1).padStart(3, '0')}.txt`, content: `item ${i + 1}: 2\n` })),
+    ],
+  },
+];
+
+/** 시나리오를 적용한 뒤의 파일 */
+export function headFiles(key: Scenario['key']): Files {
+  const f = baseFiles();
+  for (const op of SCENARIOS.find((s) => s.key === key)!.ops) {
+    if ('write' in op) f[op.write] = op.content;
+    else if ('remove' in op) delete f[op.remove];
+    else {
+      f[op.to] = op.content ?? f[op.move];
+      delete f[op.move];
+    }
+  }
+  return f;
+}
+
+/** needle이 든 첫 줄 번호(1부터) */
+export function lineOf(text: string, needle: string): number {
+  const i = text.split('\n').findIndex((l) => l.includes(needle));
+  if (i < 0) throw new Error(`줄을 찾지 못함: ${needle}`);
+  return i + 1;
+}
+
+export interface Seed {
+  key: string;
+  scenario: Scenario['key'];
+  path: string;
+  side: 'LEFT' | 'RIGHT';
+  /** 이 글이 든 줄(LEFT면 기준 파일, RIGHT면 바뀐 파일) */
+  anchor: string;
+  /** 범위의 첫 줄 */
+  startAnchor?: string;
+  body: string;
+  reply?: string;
+  resolved?: boolean;
+}
+
+/** 심은 코멘트 본문 끝의 숨은 표시 — GitHub가 렌더링할 때 빠진다 */
+export const SEED_TAG = (key: string): string => `<!-- seed:${key} -->`;
+
+/** 테스트가 쓰는 코멘트의 표시 — 끝나면(또는 다음 설정 때) 이 글이 든 코멘트를 지운다 */
+export const RUN_MARKER = 'testbed-run';
+
+export const SEEDS: Seed[] = [
+  { key: 'para', scenario: 'review', path: 'docs/handbook.md', side: 'RIGHT', anchor: 'or your app store', body: 'Should we name the app stores here?' },
+  { key: 'range', scenario: 'review', path: 'docs/handbook.md', side: 'RIGHT', startAnchor: '- Create a workspace', anchor: '- Pick a default template', body: 'Can this list match the onboarding screens?' },
+  { key: 'left', scenario: 'review', path: 'docs/handbook.md', side: 'LEFT', anchor: 'Use two blank lines', body: 'Why did we drop this tip?' },
+  { key: 'resolved', scenario: 'review', path: 'docs/pricing.md', side: 'RIGHT', anchor: '| Korea | KRW |', body: 'Is the new Korea price final?', resolved: true },
+  { key: 'reply', scenario: 'review', path: 'docs/new-page.md', side: 'RIGHT', anchor: 'Update the changelog', body: 'Should this link to the changelog template?', reply: 'Yes, I will add the link.' },
+  { key: 'renamed', scenario: 'review', path: 'docs/guides/renamed-edit.md', side: 'RIGHT', anchor: 'search notes and commands', body: 'Does Cmd+K search commands on Windows too?' },
+];
+
+/** 심은 스레드의 줄(설정·테스트가 같이 쓴다) */
+export function seedLines(s: Seed): { line: number; startLine?: number } {
+  const base = baseFiles();
+  const head = headFiles(s.scenario);
+  const text = s.side === 'LEFT' ? base[s.path] : head[s.path];
+  if (text === undefined) throw new Error(`파일 없음: ${s.path}`);
+  return { line: lineOf(text, s.anchor), startLine: s.startAnchor ? lineOf(text, s.startAnchor) : undefined };
+}

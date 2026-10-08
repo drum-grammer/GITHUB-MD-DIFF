@@ -98,3 +98,32 @@ describe('mapBlocks — 알림·각주·HTML 표(크롤에서 빠지던 것)', (
     expect(map.size).toBe(blocks.length);
   });
 });
+
+describe('mapBlocks — 문서 중간에 정의한 각주', () => {
+  it('렌더링은 각주를 문서 끝에 모아도 원문 정의 줄에 붙는다 — 고친 각주는 옛 항목이 원래 파일, 새 항목이 새 파일 쪽', () => {
+    const head = ['# 오프라인', '', '다시 연결하면 맞춘다.[^sync]', '', '[^sync]: 두 편집을 모두 남기고 충돌을 표시한다.', '', '## 연동', '', '슬랙에 노트를 올린다.'].join('\n');
+    const base = ['# 오프라인', '', '다시 연결하면 맞춘다.[^sync]', '', '[^sync]: 나중 편집을 남긴다.', '', '## 연동', '', '슬랙에 노트를 올린다.'].join('\n');
+    const b = body(
+      '<h1>오프라인</h1><p>다시 연결하면 맞춘다.<sup><a href="#fn-sync">1</a></sup></p><h2>연동</h2><p>슬랙에 노트를 올린다.</p>' +
+        '<section data-footnotes class="footnotes changed"><h2 class="sr-only">Footnotes</h2><div class="changed"><ol>' +
+        '<li id="fn-old" class="removed"><p>나중 편집을 남긴다. <a class="data-footnote-backref">↩</a></p></li>' +
+        '<li id="fn-new" class="added"><p>두 편집을 모두 남기고 충돌을 표시한다. <a class="data-footnote-backref">↩</a></p></li>' +
+        '</ol></div></section>',
+    );
+    const map = mapBlocks(domBlocks(b), sourceBlocks(head), sourceBlocks(base));
+    expect(map.get(b.querySelector<HTMLElement>('#fn-new')!)).toEqual({ side: 'right', start: 5, end: 5 });
+    expect(map.get(b.querySelector<HTMLElement>('#fn-old')!)).toEqual({ side: 'left', start: 5, end: 5 });
+    expect(map.get(b.querySelector<HTMLElement>('h2:not(.sr-only)')!)?.start).toBe(7);
+  });
+
+  it('정의 순서가 참조 순서와 달라도 렌더링 차례(처음 가리킨 순서)대로 맞춘다', () => {
+    const src = ['[^b]: 비 각주', '[^a]: 에이 각주', '', '오프라인에서도 노트를 쓰고 다시 연결하면 맞춘다[^a] 충돌은 표시한다[^b].'].join('\n');
+    const b = body(
+      '<p>오프라인에서도 노트를 쓰고 다시 연결하면 맞춘다<sup>1</sup> 충돌은 표시한다<sup>2</sup>.</p><section data-footnotes><ol><li id="fn-a"><p>에이 각주</p></li><li id="fn-b"><p>비 각주</p></li></ol></section>',
+    );
+    const map = mapBlocks(domBlocks(b), sourceBlocks(src), null);
+    expect(map.get(b.querySelector<HTMLElement>('#fn-a')!)?.start).toBe(2);
+    expect(map.get(b.querySelector<HTMLElement>('#fn-b')!)?.start).toBe(1);
+    expect(map.get(b.querySelector<HTMLElement>('p')!)?.start).toBe(4);
+  });
+});
