@@ -190,7 +190,7 @@ async function plusCheck(page, md) {
   for (const f of md.filter((x) => x.prose && !x.noChange).slice(0, 3)) {
     const file = page.locator(`[id="${f.id}"]`);
     // 확장이 만든 행(접기 막대 등)은 코멘트 블록이 아니다
-    const blocks = file.locator('.prose-diff .markdown-body').locator('p:not([data-mdf]), li:not([data-mdf]), h1, h2, h3, h4, tr:not([data-mdf])').filter({ visible: true });
+    const blocks = file.locator('.prose-diff .markdown-body').locator('p:not([data-mdf]), li:not([data-mdf]), h1, h2, h3, h4, tr:not([data-mdf]):not(.mdf-fold-row)').filter({ visible: true });
     const block = (await blocks.count()) > 1 ? blocks.nth(1) : blocks.first();
     const plus = file.locator('[data-mdf="add-comment"]');
     let ok = false;
