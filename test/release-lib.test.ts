@@ -111,6 +111,8 @@ describe('릴리스 노트', () => {
     expect(draft).toContain('chromewebstore.google.com/detail/');
     expect(draft).toContain('`markdown-diff-cat-for-github-1.2.0.zip`');
     expect(draft).toContain('built from `abcdef0`');
+    expect(draft).toContain('## How it was tested');
+    expect(draft).toContain('`pnpm testbed:report`');
     expect(notesProblem(draft, 'f'.repeat(64))).toContain('초안');
     expect(notesProblem(draft.replace(NOTES_DRAFT_MARK, ''), '0'.repeat(64))).toContain('SHA-256');
     expect(notesProblem(draft.replace(NOTES_DRAFT_MARK, ''), 'f'.repeat(64))).toBeNull();

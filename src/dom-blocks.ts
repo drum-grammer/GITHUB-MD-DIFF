@@ -8,6 +8,8 @@ export interface DomBlock {
   kind: BlockKind;
   side: Side;
   text: string;
+  /** 문서 끝 각주 목록(`[data-footnotes]`)의 항목 — 원문의 각주 정의와 따로 맞춘다 */
+  footnote?: boolean;
 }
 
 /** 블록이 가리키는 원문 줄(1부터, 끝 포함) */
@@ -70,12 +72,17 @@ export function domBlocks(body: HTMLElement): DomBlock[] {
     if (!kind) continue;
     const removed = el.closest(REMOVED_BLOCK);
     const side: Side = removed && body.contains(removed) ? 'left' : 'right';
-    out.push({ el, kind, side, text: ownText(el, side) });
+    const block: DomBlock = { el, kind, side, text: ownText(el, side) };
+    if (el.closest('[data-footnotes]')) block.footnote = true;
+    out.push(block);
   }
   return out;
 }
 
-/** 렌더링 블록마다 원문 줄을 찾는다. 원문이 없는 쪽(null)이나 맞는 짝이 없는 블록은 빠진다 */
+/**
+ * 렌더링 블록마다 원문 줄을 찾는다. 원문이 없는 쪽(null)이나 맞는 짝이 없는 블록은 빠진다.
+ * 각주는 따로 맞춘다 — 렌더링에서는 문서 끝에 모이지만 원문 정의는 아무 데나 있을 수 있어 순서대로 맞추면 짝을 잃는다
+ */
 export function mapBlocks(
   blocks: DomBlock[],
   head: SourceBlock[] | null,
@@ -88,9 +95,15 @@ export function mapBlocks(
   ] as const) {
     if (!src) continue;
     const dom = blocks.filter((b) => b.side === side);
-    alignBlocks(dom, src).forEach((j, i) => {
-      if (j >= 0) map.set(dom[i].el, { side, start: src[j].start, end: src[j].end });
-    });
+    const notes = src.filter((s) => s.footnote !== undefined && s.footnote >= 0).sort((a, b) => a.footnote! - b.footnote!);
+    for (const [d, s] of [
+      [dom.filter((b) => !b.footnote), src.filter((s) => s.footnote === undefined)],
+      [dom.filter((b) => b.footnote), notes],
+    ] as const) {
+      alignBlocks(d, s).forEach((j, i) => {
+        if (j >= 0) map.set(d[i].el, { side, start: s[j].start, end: s[j].end });
+      });
+    }
   }
   return map;
 }

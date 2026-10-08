@@ -96,6 +96,10 @@ What changed in ${version}, in one or two sentences.
 
 ## Fixed
 
+## How it was tested
+
+Paste the line \`pnpm testbed:report\` prints.
+
 ## Package
 
 \`${zipName(version)}\` is the exact package uploaded to the Chrome Web Store, built from \`${commit.slice(0, 7)}\`. A rebuild from this tag has the same contents.
