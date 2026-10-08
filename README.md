@@ -78,7 +78,7 @@ No data collected and no remote code. The extension reads the open GitHub page i
 - `pnpm perf [--reps 2] [--window 20] [pull request URL…]` — how much the extension slows GitHub down: opens each pull request with the extension off and on, and records the extension's own CPU time (from a CPU profile, with its busiest functions), long tasks and total blocking time, page script and layout time, how long Markdown files take to render, the delay from GitHub's rendered diff to folding, and how long the first **+** takes on the largest file. Without URLs it uses eight public pull requests from 1 to 334 Markdown files. Read-only
 - `pnpm icons` — regenerate `static/icons/icon{16,32,48,128}.png` from `icon.svg` and `icon{16,32}-off.png` from `icon-off.svg` (commit the PNGs)
 - `pnpm package` — build and zip `dist/` into `release/` for the Chrome Web Store
-- `pnpm release <check|upload|submit|status|notes|finish>` — publish an update to the Chrome Web Store through its API. See [store/README.md](store/README.md#releasing-an-update)
+- `pnpm release <check|notes|upload|submit|status|finish>` — publish an update to the Chrome Web Store through its API. See [store/README.md](store/README.md#releasing-an-update)
 - `pnpm store:assets` — regenerate the store screenshots, promo tiles, and `docs/demo.gif`. See [store/README.md](store/README.md)
 - GitHub page assumptions live only in `src/selectors.ts`, and GitHub request assumptions only in `src/github-api.ts`
 - Test fixtures must come from public repositories or be handmade; the first line records the source and `test/fixtures.test.ts` checks it

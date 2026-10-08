@@ -3,6 +3,8 @@ import { join, resolve } from 'node:path';
 import { LISTING_URL } from './cws.mjs';
 
 export const zipName = (version) => `markdown-diff-cat-for-github-${version}.zip`;
+/** 릴리스 노트 — 제출 전에 쓰고 저장소에 둔다(docs/releases/). finish는 origin/main의 이 파일로 GitHub Release를 만든다 */
+export const releaseNotesPath = (version) => `docs/releases/v${version}.md`;
 
 /**
  * 버전마다 기록(record.json)·스토어에 올린 zip·릴리스 노트(notes.md)를 두는 폴더. 심사는 며칠~몇 주라 finish는 다른 세션에서 돈다 —
@@ -11,7 +13,7 @@ export const zipName = (version) => `markdown-diff-cat-for-github-${version}.zip
 export function releaseDir(env, home, version) {
   return resolve(env.GMD_RELEASE_DIR || join(home, '.local', 'share', 'github-md-diff', 'releases'), version);
 }
-export const NOTES_DRAFT_MARK = '<!-- 초안: 사람이 읽을 글로 고쳐 쓰고(v1.0.0 노트처럼 영어 + 한국어) 이 줄을 지운 뒤 finish -->';
+export const NOTES_DRAFT_MARK = '<!-- 초안: 사람이 읽을 글로 고쳐 쓰고(v1.1.1 노트처럼 영어 + 한국어) 이 줄을 지운 뒤 main에 병합 -->';
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
 
 export function compareVersions(a, b) {
@@ -83,21 +85,20 @@ export function tagPlan({ existingTagCommit, recordCommit }) {
   return { problem: `태그가 이미 다른 커밋(${existingTagCommit.slice(0, 7)})에 있다 — 건드리지 않고 멈춘다` };
 }
 
-/** store/README 제출 기록에서 그 버전 행의 What 칸 */
-export function submissionWhat(readme, version) {
-  const row = readme.split('\n').find((l) => l.startsWith(`| ${version} |`));
-  return row ? row.split(' | ')[2].trim() : null;
-}
-
-export function notesDraft({ version, what, sha256 }) {
+/** 노트 뼈대 — 설치 링크와 패키지 절(커밋·zip SHA-256)만 채운다. 바뀐 것·시험한 것은 사람이 쓴다 */
+export function notesDraft({ version, commit, sha256 }) {
   return `${NOTES_DRAFT_MARK}
-${what}
+What changed in ${version}, in one or two sentences.
 
-**Install:** [Chrome Web Store](${LISTING_URL})
+**Install or update:** [Chrome Web Store](${LISTING_URL})
+
+## New
+
+## Fixed
 
 ## Package
 
-\`${zipName(version)}\` is the exact package uploaded to the Chrome Web Store.
+\`${zipName(version)}\` is the exact package uploaded to the Chrome Web Store, built from \`${commit.slice(0, 7)}\`. A rebuild from this tag has the same contents.
 
 SHA-256: \`${sha256}\`
 
@@ -107,8 +108,8 @@ SHA-256: \`${sha256}\`
 }
 
 export function notesProblem(notes, sha256) {
-  if (notes.includes(NOTES_DRAFT_MARK)) return '릴리스 노트가 아직 초안이다 — 고쳐 쓰고 첫 줄 표시를 지운다';
-  if (!notes.includes(sha256)) return '릴리스 노트에 zip SHA-256이 없다';
+  if (notes.includes(NOTES_DRAFT_MARK)) return '릴리스 노트가 아직 초안이다 — 고쳐 쓰고 첫 줄 표시를 지워 main에 병합한다';
+  if (!notes.includes(sha256)) return '릴리스 노트에 이 기록의 zip SHA-256이 없다 — 패키지를 다시 만들었으면 노트의 Package 절을 고친다';
   return null;
 }
 

@@ -1,8 +1,8 @@
 // 스토어 업데이트 하네스 — pnpm release <check|upload|submit|status|notes|finish>
-// check(점검·패키지·기록) → upload(초안, 비공개) → submit --confirm X.Y.Z(심사 제출, 승인되면 자동 게시) → status
-// → notes(릴리스 노트 초안) → finish --confirm X.Y.Z(태그·GitHub Release)
-// 기록·올린 zip·노트는 저장소 밖 ~/.local/share/github-md-diff/releases/<버전>/ — 심사가 끝난 뒤 다른 세션의 finish가 그대로 쓴다
-// 키: CWS_SERVICE_ACCOUNT_KEY(서비스 계정 JSON 키 전체). 없으면 check·status는 스토어 부분을 미확인으로 두고, upload·submit·finish는 멈춘다
+// check(점검·패키지·기록) → notes(docs/releases/vX.Y.Z.md 뼈대 — 고쳐 써서 main에 병합) → upload(초안, 비공개)
+// → submit --confirm X.Y.Z(심사 제출, 승인되면 자동 게시) → status → finish --confirm X.Y.Z(태그·GitHub Release)
+// 기록·올린 zip은 저장소 밖 ~/.local/share/github-md-diff/releases/<버전>/ — 심사가 끝난 뒤 다른 세션의 finish가 그대로 쓴다
+// 키: CWS_SERVICE_ACCOUNT_KEY(서비스 계정 JSON 키 전체). 없으면 check·status는 스토어 부분을 미확인으로 두고, upload·submit·finish는 멈춘다(notes는 키가 필요 없다)
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
@@ -17,7 +17,7 @@ import {
   notesProblem,
   parseArgs,
   releaseDir,
-  submissionWhat,
+  releaseNotesPath,
   submitGate,
   tagPlan,
   treeProblems,
@@ -139,7 +139,7 @@ async function check({ e2e, redo }) {
   console.log(`
 점검 통과 — ${describeRecord(record)}
 등록정보: ${listingChanged ? `바뀜(${latestTag ?? '태그 없음'}와 다름) — pnpm store:upload 도우미로 대시보드 초안에 먼저 넣는다` : '그대로'}
-다음: pnpm release upload`);
+다음: pnpm release notes(노트를 고쳐 써서 main에 병합) → pnpm release upload`);
 }
 
 async function upload() {
@@ -170,7 +170,7 @@ async function submit({ confirm, listingDone }) {
   for (const w of res.warningInfo?.warnings ?? []) console.log(`⚠️ ${w.reason}: ${w.description}`);
   console.log(`심사 제출 — 상태 ${res.state ?? '미확인'}. 승인되면 자동 게시된다
 ${describeRecord(record)}
-다음: store/README 제출 기록에 행 추가(main에 병합) · 게시 확인 pnpm release status · 게시 뒤 pnpm release notes → finish --confirm ${version}`);
+다음: store/README 제출 기록에 행 추가 · 게시 확인 pnpm release status · 게시 뒤 pnpm release finish --confirm ${version}`);
 }
 
 async function status() {
@@ -180,21 +180,20 @@ async function status() {
   if (cws) printStatus(summarizeStatus(await cws.fetchStatus()));
 }
 
-/** 릴리스 노트 초안 — origin/main의 store/README 제출 기록 행에서. 이미 있으면 덮지 않는다 */
+/** 릴리스 노트 뼈대를 작업 트리의 docs/releases/vX.Y.Z.md에 — 이미 있으면 덮지 않고 이 기록의 SHA를 담는지만 본다 */
 async function notes() {
   const version = currentVersion();
   const record = readRecord(version);
-  if (!record?.submit) fail(`${version} 제출 기록이 없다 — 노트는 제출한 뒤에`);
-  const file = paths(version).notes;
+  if (!record) fail('release check를 먼저 돌린다(기록 없음) — 노트의 패키지 절에 커밋·SHA가 필요하다');
+  const file = releaseNotesPath(version);
   if (existsSync(file)) {
-    console.log(`릴리스 노트가 이미 있다: ${file}`);
+    const problem = notesProblem(readFileSync(file, 'utf8'), record.sha256);
+    console.log(`릴리스 노트가 이미 있다: ${file}${problem ? ` — ${problem}` : ' — 이 기록의 SHA를 담고 있다'}`);
     return;
   }
-  git('fetch', 'origin', '--quiet');
-  const what = submissionWhat(git('show', 'origin/main:store/README.md'), version);
-  if (!what) fail(`origin/main의 store/README 제출 기록에 ${version} 행이 없다 — 행 PR을 먼저 병합한다`);
-  writeFileSync(file, notesDraft({ version, what, sha256: record.sha256 }));
-  console.log(`릴리스 노트 초안: ${file}\n고쳐 쓰고(v1.0.0 노트처럼 영어 + 한국어) 첫 줄 표시를 지운 뒤 finish --confirm ${version}`);
+  mkdirSync('docs/releases', { recursive: true });
+  writeFileSync(file, notesDraft({ version, commit: record.commit, sha256: record.sha256 }));
+  console.log(`릴리스 노트 뼈대: ${file}\n바뀐 것·권한·시험한 것을 쓰고(v1.1.1 노트처럼 영어 + 한국어) 첫 줄 표시를 지운 뒤 main에 병합한다`);
 }
 
 async function finish({ confirm }) {
@@ -205,10 +204,16 @@ async function finish({ confirm }) {
   const gate = finishGate(record, { confirm, published: publishedVersion(summarizeStatus(await cws.fetchStatus())), zipSha: zipSha(version) });
   if (gate) fail(gate);
   const p = paths(version);
-  // finish는 초안을 만들지 않는다 — 노트가 없으면 notes 단계부터
-  if (!existsSync(p.notes)) fail(`릴리스 노트가 없다 — pnpm release notes로 초안을 만들고 고쳐 쓴 뒤`);
-  const problem = notesProblem(readFileSync(p.notes, 'utf8'), record.sha256);
+  // 노트는 main에 병합된 그대로 쓴다 — finish는 노트를 만들거나 고치지 않는다
+  let releaseNotes;
+  try {
+    releaseNotes = git('show', `origin/main:${releaseNotesPath(version)}`);
+  } catch {
+    fail(`origin/main에 ${releaseNotesPath(version)}가 없다 — pnpm release notes로 만들고 고쳐 써서 병합한 뒤`);
+  }
+  const problem = notesProblem(releaseNotes, record.sha256);
   if (problem) fail(problem);
+  writeFileSync(p.notes, `${releaseNotes}\n`);
   const tag = `v${version}`;
   const plan = tagPlan({ existingTagCommit: tags().includes(tag) ? git('rev-list', '-n', '1', tag) : null, recordCommit: record.commit });
   if (plan.problem) fail(plan.problem);
@@ -229,9 +234,9 @@ async function finish({ confirm }) {
 }
 
 const opts = parseArgs(process.argv.slice(2));
-const steps = { check, upload, submit, status, notes, finish };
+const steps = { check, notes, upload, submit, status, finish };
 const step = steps[opts.step];
-if (!step) fail('단계: check [--no-e2e] [--redo] | upload | submit --confirm X.Y.Z [--listing-done] | status | notes | finish --confirm X.Y.Z');
+if (!step) fail('단계: check [--no-e2e] [--redo] | notes | upload | submit --confirm X.Y.Z [--listing-done] | status | finish --confirm X.Y.Z');
 try {
   await step(opts);
 } catch (e) {

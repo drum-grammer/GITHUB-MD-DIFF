@@ -11,7 +11,7 @@ import {
   notesProblem,
   parseArgs,
   releaseDir,
-  submissionWhat,
+  releaseNotesPath,
   submitGate,
   tagPlan,
   treeProblems,
@@ -102,19 +102,24 @@ describe('기록 폴더', () => {
 });
 
 describe('릴리스 노트', () => {
-  it('store/README 제출 기록에서 그 버전의 What 칸을 읽는다', () => {
-    const readme = readFileSync('store/README.md', 'utf8');
-    expect(submissionWhat(readme, '1.0.0')).toContain('First submission');
-    expect(submissionWhat(readme, '9.9.9')).toBeNull();
+  it('노트는 저장소 docs/releases/vX.Y.Z.md에 둔다', () => {
+    expect(releaseNotesPath('1.1.1')).toBe('docs/releases/v1.1.1.md');
   });
-  it('초안은 표시·설치 링크·SHA를 담고, 표시가 남았거나 SHA가 없으면 막는다', () => {
-    const draft = notesDraft({ version: '1.1.1', what: '고친 것', sha256: 'f'.repeat(64) });
+  it('뼈대는 표시·설치 링크·커밋·SHA를 담고, 표시가 남았거나 SHA가 없으면 막는다', () => {
+    const draft = notesDraft({ version: '1.2.0', commit: 'abcdef0123456789', sha256: 'f'.repeat(64) });
     expect(draft.startsWith(NOTES_DRAFT_MARK)).toBe(true);
     expect(draft).toContain('chromewebstore.google.com/detail/');
-    expect(draft).toContain('markdown-diff-cat-for-github-1.1.1.zip');
+    expect(draft).toContain('`markdown-diff-cat-for-github-1.2.0.zip`');
+    expect(draft).toContain('built from `abcdef0`');
     expect(notesProblem(draft, 'f'.repeat(64))).toContain('초안');
     expect(notesProblem(draft.replace(NOTES_DRAFT_MARK, ''), '0'.repeat(64))).toContain('SHA-256');
     expect(notesProblem(draft.replace(NOTES_DRAFT_MARK, ''), 'f'.repeat(64))).toBeNull();
+  });
+  it('저장소에 있는 v1.1.1 노트는 최종본이다(표시 없음, 자기 패키지 SHA를 담음)', () => {
+    const notes = readFileSync('docs/releases/v1.1.1.md', 'utf8');
+    const sha = /SHA-256: `([0-9a-f]{64})`/.exec(notes)?.[1] ?? '';
+    expect(sha).toHaveLength(64);
+    expect(notesProblem(notes, sha)).toBeNull();
   });
 });
 
