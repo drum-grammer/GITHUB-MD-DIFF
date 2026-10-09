@@ -64,5 +64,15 @@
   "navLastThread": {"message": "아래로 더 스레드가 없어요"},
   "navFirstThread": {"message": "위로 더 스레드가 없어요"},
   "navNoChanges": {"message": "렌더링 보기에 바뀐 곳이 없어요"},
-  "navNoThreads": {"message": "렌더링 보기에 스레드가 없어요"}
+  "navNoThreads": {"message": "렌더링 보기에 스레드가 없어요"},
+  "wholeFile": {"message": "파일 전체"},
+  "threadsFile": {"message": "파일 전체 코멘트"},
+  "tabWrite": {"message": "쓰기"},
+  "tabPreview": {"message": "미리보기"},
+  "previewEmpty": {"message": "미리 볼 글이 없어요"},
+  "previewLoading": {"message": "미리보기를 불러오는 중…"},
+  "edit": {"message": "편집"},
+  "delete": {"message": "삭제"},
+  "deleteConfirm": {"message": "정말 삭제"},
+  "save": {"message": "저장"}
 }

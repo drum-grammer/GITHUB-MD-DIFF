@@ -2,11 +2,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   RequestError,
   commentPayload,
+  deleteComment,
   findRawLines,
   parsePrData,
   postComment,
   prRef,
+  previewMarkdown,
   replyPayload,
+  updateComment,
   type ReviewThread,
 } from '../src/github-api';
 
@@ -35,6 +38,7 @@ const route = {
             R20: { threads: [{ id: 12, start: 'R15' }] },
             L4: { threads: [{ id: 13 }] },
             R30: { threads: [{ id: 14 }] },
+            FILE: { threads: [{ id: 15 }] },
           },
         },
         { path: 'docs/plain.md', changeType: 'MODIFIED', markersMap: {} },
@@ -45,6 +49,11 @@ const route = {
           12: { id: 'PRRT_12', subjectType: 'LINE', isResolved: true, commentsData: { comments: [comment(102), comment(103, { state: 'pending' })] } },
           13: { id: 'PRRT_13', subjectType: 'LINE', commentsData: { comments: [comment(104)] } },
           14: { id: 'PRRT_14', subjectType: 'FILE', commentsData: { comments: [comment(105)] } },
+          15: {
+            id: 'PRRT_15',
+            subjectType: 'FILE',
+            commentsData: { comments: [comment(106, { bodyVersion: 'v6', viewerCanUpdate: true, viewerCanDelete: true })] },
+          },
         },
       },
     },
@@ -61,17 +70,24 @@ describe('parsePrData', () => {
     expect(d.files.get('docs/plain.md')?.threads).toEqual([]);
   });
 
-  it('스레드 위치는 markersMap 키에서 — 범위는 start부터, 파일 코멘트는 뺀다', () => {
+  it('스레드 위치는 markersMap 키에서 — 범위는 start부터, 파일 전체 코멘트는 FILE 키(줄 키에 붙은 FILE 스레드는 뺀다)', () => {
     const threads = parsePrData(route).files.get('docs/new.md')!.threads;
-    expect(threads.map((t) => [t.id, t.side, t.start, t.end, t.resolved])).toEqual([
-      ['PRRT_13', 'left', 4, 4, false],
-      ['PRRT_11', 'right', 12, 12, false],
-      ['PRRT_12', 'right', 15, 20, true],
+    expect(threads.map((t) => [t.id, t.subject, t.side, t.start, t.end, t.resolved])).toEqual([
+      ['PRRT_15', 'file', 'right', 0, 0, false],
+      ['PRRT_13', 'line', 'left', 4, 4, false],
+      ['PRRT_11', 'line', 'right', 12, 12, false],
+      ['PRRT_12', 'line', 'right', 15, 20, true],
     ]);
-    expect(threads[2].comments.map((c) => [c.id, c.pending])).toEqual([
+    expect(threads[3].comments.map((c) => [c.id, c.pending])).toEqual([
       ['102', false],
       ['103', true],
     ]);
+  });
+
+  it('코멘트의 본문 버전과 편집·삭제 권한 — GitHub가 주지 않으면 못 고친다', () => {
+    const threads = parsePrData(route).files.get('docs/new.md')!.threads;
+    expect(threads[0].comments[0]).toMatchObject({ id: '106', bodyVersion: 'v6', canEdit: true, canDelete: true });
+    expect(threads[1].comments[0]).toMatchObject({ id: '104', bodyVersion: '', canEdit: false, canDelete: false });
   });
 
   it('모양이 다르면 RequestError', () => {
@@ -155,5 +171,29 @@ describe('그 밖', () => {
     const err = await postComment({ owner: 'o', repo: 'r', number: 1 }, {}).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(RequestError);
     expect((err as RequestError).lineNotResolved).toBe(true);
+  });
+
+  it('updateComment·deleteComment — GitHub 화면과 같은 요청(2026-10-09 확인)', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(reply(200, { bodyVersion: 'v2' })).mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await updateComment({ owner: 'o', repo: 'r', number: 1 }, '42', 'v1/+', '고친 글');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/o/r/pull/1/page_data/update_review_comment?body_version=v1%2F%2B');
+    expect(init.method).toBe('PUT');
+    expect(JSON.parse(init.body)).toEqual({ body: '고친 글', commentId: '42' });
+    await deleteComment({ owner: 'o', repo: 'r', number: 1 }, '42');
+    expect(fetchMock.mock.calls[1][0]).toBe('/o/r/pull/1/page_data/review_comments/42');
+    expect(fetchMock.mock.calls[1][1].method).toBe('DELETE');
+  });
+
+  it('previewMarkdown — POST /preview 여러 부분 폼, HTML을 돌려준다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('<p><strong>b</strong></p>', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await previewMarkdown('**b**', { repositoryId: '7', pullRequestId: '9' })).toBe('<p><strong>b</strong></p>');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/preview');
+    const form = init.body as FormData;
+    expect([form.get('text'), form.get('repository'), form.get('issue')]).toEqual(['**b**', '7', '9']);
+    expect(init.headers['GitHub-Verified-Fetch']).toBe('true');
   });
 });

@@ -54,14 +54,15 @@ describe('입력 상자', () => {
   it('다시 그린 스레드는 쓰다 만 답글을 열어 둔다', () => {
     const thread: ReviewThread = {
       id: 'T',
+      subject: 'line',
       side: 'right',
       start: 1,
       end: 1,
       resolved: true,
       canReply: true,
-      comments: [{ id: '1', author: 'a', body: 'x', bodyHTML: '', url: '', pending: false }],
+      comments: [{ id: '1', author: 'a', body: 'x', bodyHTML: '', url: '', pending: false, bodyVersion: '', canEdit: false, canDelete: false }],
     };
-    const box = threadBox(document, thread, false, { onReply: vi.fn(), onResolve: vi.fn() }, '쓰던 글');
+    const box = threadBox(document, thread, false, { onReply: vi.fn(), onResolve: vi.fn(), onEdit: vi.fn(), onDelete: vi.fn() }, '쓰던 글');
     expect(box.querySelector('textarea')?.value).toBe('쓰던 글');
     expect(box.querySelector<HTMLElement>('.mdf-thread-body')!.hidden).toBe(false);
   });

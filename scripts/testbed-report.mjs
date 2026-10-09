@@ -24,7 +24,7 @@ const walk = (suite) => {
       rows.push({
         id,
         project: t.projectName ?? 'split',
-        title: rest.join(' ').replace(/\s*@layout\b/, ''),
+        title: rest.join(' ').replace(/\s*@(layout|quick)\b/g, ''),
         layout: /@layout\b/.test(spec.title),
         status: r.status ?? t.status,
         ms: r.duration ?? 0,

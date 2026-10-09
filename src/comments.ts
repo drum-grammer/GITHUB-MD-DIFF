@@ -6,21 +6,41 @@ import { refold } from './fold';
 import {
   RequestError,
   commentPayload,
+  deleteComment,
   fetchFileText,
   fetchPrData,
   isCommitRangeView,
   isGitHubChange,
   postComment,
   prKey,
+  previewMarkdown,
   prRef,
   replyPayload,
   setThreadResolved,
+  updateComment,
   type PrData,
   type PrRef,
+  type ReviewComment,
   type ReviewThread,
 } from './github-api';
 import { domBlocks, mapBlocks, spanOf, type BlockTarget } from './dom-blocks';
-import { FORM, NOTICE, THREAD, UNPLACED, addButton, commentForm, lineLabel, noticeBox, placeBox, replyDraft, threadBox, topLevel, unplacedBox } from './comment-ui';
+import {
+  FILE_THREADS,
+  FORM,
+  NOTICE,
+  THREAD,
+  UNPLACED,
+  addButton,
+  commentForm,
+  fileThreadsBox,
+  lineLabel,
+  noticeBox,
+  placeBox,
+  replyDraft,
+  threadBox,
+  topLevel,
+  unplacedBox,
+} from './comment-ui';
 import { t } from './i18n';
 import { MDF_ATTR, PIN_ATTR, viewButton } from './selectors';
 import { sourceBlocks } from './source-blocks';
@@ -125,6 +145,14 @@ function userError(e: unknown, pr: PrRef, step: string): Error {
     setHealth(prKey(pr), 'broken', describe(step, e));
     return new Error(t('errorChanged'));
   }
+  return new Error(t('errorPost', [e instanceof Error ? e.message : String(e)]));
+}
+
+/**
+ * 편집·삭제·미리보기 실패 — 그 자리에 이유만 보인다. 이 요청들이 바뀌어도 코멘트 달기(별도 요청)는 살아 있을 수 있으니
+ * 코멘트 기능 전체를 끄지는 않는다(코멘트 달기·스레드 읽기가 실패할 때만 끈다)
+ */
+function softError(e: unknown): Error {
   return new Error(t('errorPost', [e instanceof Error ? e.message : String(e)]));
 }
 
@@ -402,7 +430,7 @@ class FileComments {
     const last = from.compareDocumentPosition(to) & Node.DOCUMENT_POSITION_FOLLOWING ? to : from;
     const form = commentForm(
       this.body.ownerDocument,
-      { label: lineLabel(span), pendingReview: Boolean(this.data?.pendingReviewId), singleLabel: t('commentSingle') },
+      { label: lineLabel(span), pendingReview: Boolean(this.data?.pendingReviewId), singleLabel: t('commentSingle'), preview: this.preview },
       {
         onSubmit: async (text, mode) => {
           await this.post((d) => commentPayload({ path: this.path, ...span }, text, d.pendingReviewId ? 'review' : mode, d));
@@ -439,6 +467,15 @@ class FileComments {
     await this.refresh();
   }
 
+  /** 코멘트 상자의 미리보기 — GitHub에 렌더링을 맡긴다 */
+  private preview = async (text: string): Promise<string> => {
+    try {
+      return await previewMarkdown(text, { repositoryId: this.data?.repositoryId ?? null, pullRequestId: this.data?.pullRequestId ?? null });
+    } catch (e) {
+      throw softError(e);
+    }
+  };
+
   private async refresh(): Promise<void> {
     try {
       await this.showThreads(await loadPr(this.pr, true));
@@ -465,7 +502,7 @@ class FileComments {
   private async showThreads(d: PrData): Promise<void> {
     this.data = d;
     const threads = d.files.get(this.path)?.threads ?? [];
-    const old = [...this.body.querySelectorAll(`[${MDF_ATTR}="${THREAD}"], [${MDF_ATTR}="${UNPLACED}"], [${MDF_ATTR}="${NOTICE}"]`)];
+    const old = [...this.body.querySelectorAll(`[${MDF_ATTR}="${THREAD}"], [${MDF_ATTR}="${UNPLACED}"], [${MDF_ATTR}="${FILE_THREADS}"], [${MDF_ATTR}="${NOTICE}"]`)];
     // 열어 둔 답글 상자의 글은 다시 그려도 남긴다
     const drafts = new Map<string, string>();
     for (const box of this.body.querySelectorAll<HTMLElement>(`[${MDF_ATTR}="${THREAD}"]`)) {
@@ -494,18 +531,47 @@ class FileComments {
         }
         await this.refresh();
       },
+      onEdit: async (c: ReviewComment, text: string) => {
+        try {
+          await updateComment(this.pr, c.id, c.bodyVersion, text);
+        } catch (e) {
+          throw softError(e);
+        }
+        await this.refresh();
+      },
+      onDelete: async (c: ReviewComment) => {
+        try {
+          await deleteComment(this.pr, c.id);
+        } catch (e) {
+          throw softError(e);
+        }
+        await this.refresh();
+      },
+      preview: this.preview,
     };
     const placed: Array<{ block: HTMLElement; box: HTMLElement }> = [];
     const unplaced: HTMLElement[] = [];
+    const wholeFile: HTMLElement[] = [];
     for (const th of threads) {
       const box = threadBox(doc, th, Boolean(d.pendingReviewId), handlers, drafts.get(th.id) ?? null);
+      if (th.subject === 'file') {
+        wholeFile.push(box);
+        continue;
+      }
       const block = this.anchorFor(th);
       if (block) placed.push({ block, box });
       else unplaced.push(box);
     }
     this.insertBoxes(placed, () => {
       for (const n of old) n.remove();
-      if (unplaced.length) this.body.prepend(unplacedBox(doc, unplaced));
+      // 파일 툴바 바로 아래 — 파일 전체 코멘트, 그다음 자리를 못 찾은 스레드
+      const top = (box: HTMLElement) => {
+        const bar = this.body.querySelector(`:scope > [${MDF_ATTR}="file-toolbar"]`);
+        if (bar) bar.after(box);
+        else this.body.prepend(box);
+      };
+      if (unplaced.length) top(unplacedBox(doc, unplaced));
+      if (wholeFile.length) top(fileThreadsBox(doc, wholeFile));
     });
   }
 

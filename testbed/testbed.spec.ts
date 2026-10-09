@@ -2,7 +2,7 @@ import { expect, test as base, type BrowserContext, type Locator, type Page, typ
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { launch, launchLoggedOut } from '../e2e/support';
-import { cleanRuns, comments, me, setResolved, threadAt, threads, type ReviewComment, type ThreadAt } from './github';
+import { api, cleanRuns, comments, me, setResolved, threadAt, threads, type ReviewComment, type ThreadAt } from './github';
 import { ORIGINAL_FILE, QUERY, applyPrefs, restorePrefs, type Layout } from './layout';
 import { RUN_MARKER, baseFiles, headFiles, lineOf } from './scenarios';
 
@@ -164,7 +164,7 @@ test.afterAll(() => {
   if (range && threads(REPO, PR).find((t) => t.id === range)?.isResolved) setResolved(range, false);
 });
 
-test('T01 바뀐 md 파일은 렌더링 보기로 열리고, 렌더링이 없는 파일은 그대로 둔다 @layout', async ({ page, worker }) => {
+test('T01 바뀐 md 파일은 렌더링 보기로 열리고, 렌더링이 없는 파일은 그대로 둔다 @layout @quick', async ({ page, worker }) => {
   const t0 = await open(page, 'review');
   for (const path of ['docs/handbook.md', 'docs/pricing.md', 'docs/new-page.md', 'docs/guides/renamed-edit.md', 'docs/escape.md', 'docs/widget.mdx']) {
     await rendered(fileOf(page, path));
@@ -215,7 +215,7 @@ test('T03 렌더링에 드러나지 않는 변경은 알리고, 버튼으로 원
   await expect(prose(f)).toHaveCount(0);
 });
 
-test('T04 기존 리뷰 스레드가 가리키는 블록 바로 아래에 붙는다 @layout', async ({ page }) => {
+test('T04 기존 리뷰 스레드가 가리키는 블록 바로 아래에 붙는다 @layout @quick', async ({ page }) => {
   await open(page, 'review');
   const hb = fileOf(page, 'docs/handbook.md');
   await rendered(hb);
@@ -253,7 +253,7 @@ test('T04 기존 리뷰 스레드가 가리키는 블록 바로 아래에 붙는
   await expect(page.locator('[data-mdf="unplaced"]')).toHaveCount(0);
 });
 
-test('T05 블록마다 "+"가 맞는 원문 줄을 고른다(표 행·HTML 표·알림·코드·목록·각주) @layout', async ({ page }) => {
+test('T05 블록마다 "+"가 맞는 원문 줄을 고른다(표 행·HTML 표·알림·코드·목록·각주) @layout @quick', async ({ page }) => {
   await open(page, 'review');
   const hb = fileOf(page, 'docs/handbook.md');
   await rendered(hb);
@@ -467,7 +467,7 @@ test('T14 로그아웃 화면(옛 /files)에서 스레드 없는 md는 렌더링
   }
 });
 
-test('T15 파일 툴바 요약과 ] [ } { 이동 — 바뀐 곳·스레드를 페이지 순서로, 글을 쓰는 중에는 가로채지 않는다 @layout', async ({ page }) => {
+test('T15 파일 툴바 요약과 ] [ } { 이동 — 바뀐 곳·스레드를 페이지 순서로, 글을 쓰는 중에는 가로채지 않는다 @layout @quick', async ({ page }) => {
   await open(page, 'review');
   for (const path of ['docs/guides/renamed-edit.md', 'docs/handbook.md', 'docs/new-page.md', 'docs/pricing.md', 'docs/widget.mdx', 'docs/escape.md']) {
     await rendered(fileOf(page, path));
@@ -640,4 +640,78 @@ test('T21 합친 표의 바뀐 행에 단 코멘트는 그 행의 원문 줄에 
   await expect(box).toBeVisible({ timeout: 20_000 });
   expect(await box.evaluate((el) => el.previousElementSibling?.matches('[data-mdf="table"], ins, del') ?? false)).toBe(true);
   clean();
+});
+
+// ── 내 코멘트 편집·삭제·미리보기(1.3.0) ────────────────────────────────────────────────────────────────
+
+/** REST로 내 코멘트 하나를 달아 둔다(화면에서 고치고 지울 대상) */
+function seedMine(body: string, anchor = 'Lantern keeps every note'): ReviewComment {
+  return api<ReviewComment>(`repos/${REPO}/pulls/${PR}/comments`, 'POST', {
+    body, commit_id: S.prs.review.head, path: 'docs/handbook.md', side: 'RIGHT', line: lineOf(HEAD['docs/handbook.md'], anchor),
+  });
+}
+
+const tool = (t: Locator, name: RegExp) => t.locator('.mdf-comment-tools button').filter({ hasText: name });
+
+test('T22 내 코멘트를 렌더링 보기에서 고치면(미리보기 포함) GitHub 코멘트가 바뀐다', async ({ page }) => {
+  clean();
+  const before = text('edit-before');
+  const c = seedMine(before);
+  await open(page, 'review');
+  const hb = fileOf(page, 'docs/handbook.md');
+  await rendered(hb);
+  const t = hb.locator('[data-mdf="thread"]', { hasText: before });
+  await expect(t).toBeVisible({ timeout: 20_000 });
+  await tool(t, /^(편집|Edit)$/).click();
+  const area = t.locator('.mdf-comment-edit textarea');
+  await expect(area).toHaveValue(before);
+  const after = `${text('edit-after')} **굵게**`;
+  await area.fill(after);
+  await t.locator('.mdf-comment-edit .mdf-tab').nth(1).click(); // 미리보기
+  await expect(t.locator('.mdf-comment-edit .mdf-preview strong')).toHaveText('굵게', { timeout: 15_000 });
+  await t.locator('.mdf-comment-edit .mdf-tab').nth(0).click();
+  await t.locator('.mdf-comment-edit .mdf-btn-primary').click(); // 저장
+  const box = hb.locator('[data-mdf="thread"]', { hasText: 'edit-after' });
+  await expect(box.locator('.mdf-comment-body strong')).toHaveText('굵게', { timeout: 20_000 });
+  const now = api<ReviewComment>(`repos/${REPO}/pulls/comments/${c.id}`);
+  metric('GitHub 본문', now.body.slice(0, 60));
+  expect(now.body).toBe(after);
+  clean();
+});
+
+test('T23 내 코멘트를 두 번 눌러 지우면 스레드가 사라지고 GitHub에서도 없어진다', async ({ page }) => {
+  clean();
+  const body = text('delete-me');
+  const c = seedMine(body, 'Notes support headings');
+  await open(page, 'review');
+  const hb = fileOf(page, 'docs/handbook.md');
+  await rendered(hb);
+  const t = hb.locator('[data-mdf="thread"]', { hasText: body });
+  await expect(t).toBeVisible({ timeout: 20_000 });
+  const del = tool(t, /^(삭제|Delete)$/);
+  await del.click();
+  await expect(t.locator('.mdf-comment-tools .mdf-danger')).toBeVisible(); // "정말 삭제"
+  expect(comments(REPO, PR).some((x) => x.id === c.id), '한 번 눌러서는 지우지 않는다').toBe(true);
+  await t.locator('.mdf-comment-tools .mdf-danger').click();
+  await expect(hb.locator('[data-mdf="thread"]', { hasText: body })).toHaveCount(0, { timeout: 20_000 });
+  expect(comments(REPO, PR).some((x) => x.id === c.id)).toBe(false);
+  clean();
+});
+
+test('T24 새 코멘트 상자의 미리보기는 GitHub와 같게 렌더링한다(굵게·코드·멘션) — 올리지 않고 닫는다', async ({ page }) => {
+  clean();
+  await open(page, 'review');
+  const hb = fileOf(page, 'docs/handbook.md');
+  await rendered(hb);
+  const form = await formFor(hb, prose(hb).locator('li', { hasText: 'Connect your calendar' }).first());
+  await form.locator('textarea').fill(`**굵게** \`code\` @${LOGIN}`);
+  await form.locator('.mdf-tab').nth(1).click();
+  const pane = form.locator('.mdf-preview');
+  await expect(pane.locator('strong')).toHaveText('굵게', { timeout: 15_000 });
+  await expect(pane.locator('code')).toHaveText('code');
+  await expect(pane.locator('a.user-mention')).toHaveText(`@${LOGIN}`);
+  await form.locator('.mdf-tab').nth(0).click();
+  await expect(form.locator('textarea')).toBeVisible();
+  await buttons(form).first().click(); // 취소
+  await expect(form).toHaveCount(0);
 });

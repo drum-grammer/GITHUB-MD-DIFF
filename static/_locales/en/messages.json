@@ -64,5 +64,15 @@
   "navLastThread": {"message": "No more threads below"},
   "navFirstThread": {"message": "No more threads above"},
   "navNoChanges": {"message": "No changes in the rendered view"},
-  "navNoThreads": {"message": "No review threads in the rendered view"}
+  "navNoThreads": {"message": "No review threads in the rendered view"},
+  "wholeFile": {"message": "Whole file"},
+  "threadsFile": {"message": "Comments on the whole file"},
+  "tabWrite": {"message": "Write"},
+  "tabPreview": {"message": "Preview"},
+  "previewEmpty": {"message": "Nothing to preview"},
+  "previewLoading": {"message": "Loading preview…"},
+  "edit": {"message": "Edit"},
+  "delete": {"message": "Delete"},
+  "deleteConfirm": {"message": "Delete for real?"},
+  "save": {"message": "Save"}
 }
