@@ -133,6 +133,41 @@ describe('commentForm', () => {
     f.remove();
   });
 
+  it('단축키 — 맥은 ⌘만(Ctrl+E는 줄 끝 이동이라 둔다), 한글 조합 중이면 무시, 한글 자판이면 자판 위치로', () => {
+    const f = commentForm(document, opt, { onSubmit: vi.fn(), onCancel: vi.fn() });
+    document.body.append(f);
+    const area = type(f, 'ab');
+    const press = (init: KeyboardEventInit) => {
+      area.setSelectionRange(0, 2);
+      area.dispatchEvent(new KeyboardEvent('keydown', { cancelable: true, ...init }));
+      return area.value;
+    };
+    const platform = vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel');
+    try {
+      expect(press({ key: 'e', ctrlKey: true })).toBe('ab');
+      expect(press({ key: 'b', metaKey: true, isComposing: true })).toBe('ab');
+      expect(press({ key: 'ㅠ', code: 'KeyB', metaKey: true })).toBe('**ab**');
+    } finally {
+      platform.mockRestore();
+    }
+    expect(press({ key: 'b', metaKey: true })).toBe('**ab**'); // 맥이 아니면 ⌘는 무시
+    f.remove();
+  });
+
+  it('도구 막대는 Tab 한 칸 — 안에서는 화살표·Home·End로 옮긴다', () => {
+    const f = commentForm(document, opt, { onSubmit: vi.fn(), onCancel: vi.fn() });
+    document.body.append(f);
+    const tools = [...f.querySelectorAll<HTMLButtonElement>('.mdf-md-tool')];
+    expect(tools.map((b) => b.tabIndex)).toEqual([0, ...Array(9).fill(-1)]);
+    tools[0].focus();
+    tools[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(document.activeElement).toBe(tools[9]);
+    tools[9].dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+    expect(document.activeElement).toBe(tools[0]);
+    expect(tools[1].getAttribute('aria-keyshortcuts')).toBe('Control+B');
+    f.remove();
+  });
+
   it('미리보기 탭에서는 도구 막대를 감춘다', () => {
     const f = commentForm(document, { ...opt, preview: vi.fn().mockResolvedValue('<p>x</p>') }, { onSubmit: vi.fn(), onCancel: vi.fn() });
     const [, show] = [...f.querySelectorAll<HTMLButtonElement>('.mdf-tab')];

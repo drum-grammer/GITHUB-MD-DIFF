@@ -49,4 +49,23 @@ describe('formatEdit', () => {
   it('멘션 — @를 넣고 커서를 뒤에', () => {
     expect(run('hi []', 'mention')).toBe('hi @[]');
   });
+
+  it('리뷰에서 나온 경계 — 첫 줄이 빈 줄, 줄 가운데서 끝난 여러 줄 코드, 끝 공백', () => {
+    expect(run('[]\nabc', 'heading')).toBe('### []\nabc');
+    expect(formatEdit('\nabc', 0, 0, 'ul')).toEqual({ from: 0, to: 0, insert: '- ', selStart: 2, selEnd: 2 });
+    expect(run('ab[c\nde]f', 'code')).toBe('ab\n```\n[c\nde]\n```\nf');
+    expect(run('[word ]x', 'bold')).toBe('**[word]** x');
+    expect(run('a[ 글 ]b', 'italic')).toBe('a _[글]_ b');
+    expect(run('[  ]', 'bold')).toBe('**[  ]**');
+  });
+
+  it('줄 앞머리 섞임 — 번호는 다시 매기고, 할 일 줄은 글머리 목록이 아니고, 다른 제목 수준은 바꾼다', () => {
+    expect(run('[1. a\nb]', 'ol')).toBe('[1. a\n2. b]');
+    expect(run('[3. a\nb]', 'ol')).toBe('[1. a\n2. b]');
+    // 할 일 줄은 [ ]가 선택 표시와 겹쳐서 formatEdit를 바로 본다
+    expect(formatEdit('- [ ] x', 0, 7, 'ul').insert).toBe('- - [ ] x');
+    expect(formatEdit('- [ ] x', 0, 7, 'task').insert).toBe('x');
+    expect(run('## 제[]목', 'heading')).toBe('제[]목');
+    expect(run('[## a\nb]', 'heading')).toBe('[### a\n### b]');
+  });
 });

@@ -112,6 +112,17 @@ const TOOLS: Array<Array<[Format, Octicon, string, string?]>> = [
   [['mention', 'mention', 'fmtMention']],
 ];
 const SHORTCUT = new Map(TOOLS.flat().flatMap(([f, , , key]) => (key ? [[key, f] as const] : [])));
+/** 맥은 ⌘, 그 밖은 Ctrl — 맥의 Ctrl+B·E·K는 입력란의 커서 이동 키라 건드리지 않는다 */
+const isMac = () => /Mac|iP(hone|ad|od)/.test(globalThis.navigator?.platform ?? '');
+
+/** 단축키(⌘/Ctrl+B·I·E·K)가 고르는 서식. 한글 조합 중이면 없다 */
+function shortcut(e: KeyboardEvent): Format | undefined {
+  if (e.isComposing || e.keyCode === 229 || e.shiftKey || e.altKey) return undefined;
+  if (isMac() ? !e.metaKey || e.ctrlKey : !e.ctrlKey || e.metaKey) return undefined;
+  // 한글 자판이면 e.key가 'ㅠ' 같은 글자라 자판 위치(KeyB)로도 본다
+  const key = /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : /^Key([A-Z])$/.exec(e.code)?.[1].toLowerCase();
+  return key ? SHORTCUT.get(key) : undefined;
+}
 
 function icon(doc: Document, name: Octicon): SVGSVGElement {
   const svg = doc.createElementNS(SVG_NS, 'svg');
@@ -149,18 +160,30 @@ function toolbar(doc: Document, area: HTMLTextAreaElement): HTMLElement {
   const bar = el(doc, 'div', 'mdf-md-toolbar');
   bar.setAttribute('role', 'toolbar');
   bar.setAttribute('aria-label', t('fmtTools'));
-  const mod = /Mac|iP(hone|ad|od)/.test(globalThis.navigator?.platform ?? '') ? '⌘' : 'Ctrl+';
+  const mac = isMac();
   TOOLS.forEach((group, g) => {
     if (g) bar.append(el(doc, 'span', 'mdf-md-divider'));
     for (const [kind, name, label, key] of group) {
       const b = button(doc, '', 'mdf-md-tool');
       b.append(icon(doc, name));
       b.setAttribute('aria-label', t(label));
-      b.title = key ? `${t(label)} (${mod}${key.toUpperCase()})` : t(label);
+      b.title = key ? `${t(label)} (${mac ? '⌘' : 'Ctrl+'}${key.toUpperCase()})` : t(label);
+      if (key) b.setAttribute('aria-keyshortcuts', `${mac ? 'Meta' : 'Control'}+${key.toUpperCase()}`);
+      b.tabIndex = bar.querySelector('.mdf-md-tool') ? -1 : 0; // 도구 막대는 한 칸만 Tab으로 — 안에서는 화살표로 옮긴다
       b.addEventListener('mousedown', (e) => e.preventDefault()); // 입력란의 선택을 지킨다
       b.addEventListener('click', () => applyFormat(area, kind));
       bar.append(b);
     }
+  });
+  bar.addEventListener('keydown', (e) => {
+    const all = [...bar.querySelectorAll<HTMLButtonElement>('.mdf-md-tool')];
+    const at = all.indexOf(e.target as HTMLButtonElement);
+    const to = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: all.length - 1 }[e.key];
+    if (at < 0 || to === undefined) return;
+    e.preventDefault();
+    const next = all[(to + all.length) % all.length];
+    for (const x of all) x.tabIndex = x === next ? 0 : -1;
+    next.focus();
   });
   return bar;
 }
@@ -176,7 +199,7 @@ function editor(doc: Document, initial: string, preview?: Preview): Editor {
   area.rows = 4;
   area.value = initial;
   area.addEventListener('keydown', (e) => {
-    const kind = (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey ? SHORTCUT.get(e.key.toLowerCase()) : undefined;
+    const kind = shortcut(e);
     if (!kind) return;
     e.preventDefault();
     e.stopPropagation(); // GitHub 단축키(⌘K 명령 팔레트 등)로 새지 않게
