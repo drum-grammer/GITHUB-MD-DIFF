@@ -75,8 +75,8 @@ const lines = [
     : []),
   '### 릴리스 노트에 넣을 줄',
   '',
-  `- How it was tested: release scenarios on a public test repository ([${state.repo}](https://github.com/${state.repo}), \`pnpm testbed\`) in ${projects.length} GitHub diff layouts: ${passed}/${rows.length} passed — real comments (single, range, removed line, reply, renamed file), resolve and unresolve, seeded threads in place, a 2,400-line diff, and a 120-file pull request`,
-  `- 검증: 공개 테스트 저장소 시나리오 ${passed}/${rows.length} 통과(\`pnpm testbed\`)`,
+  `- How it was tested: release scenarios on a public test repository ([${state.repo}](https://github.com/${state.repo}), \`pnpm testbed\`) in ${projects.length} GitHub diff layouts: ${passed}/${rows.length} passed — real comments (single, range, removed line, reply, renamed file, table row, ⌘Enter, pending-review reply), edit, delete, and preview, resolve and unresolve, seeded threads in place (whole-file, outdated, suggestion, formatted), a 2,400-line diff, and a 120-file pull request`,
+  `- 검증: 공개 테스트 저장소 시나리오 ${passed}/${rows.length} 통과(\`pnpm testbed\`, GitHub 화면 모양 ${projects.length}가지)`,
   '',
 ];
 const md = lines.join('\n');

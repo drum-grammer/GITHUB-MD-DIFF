@@ -179,7 +179,7 @@ test('T01 바뀐 md 파일은 렌더링 보기로 열리고, 렌더링이 없는
   for (const path of ['docs/handbook.md', 'docs/pricing.md', 'docs/new-page.md', 'docs/guides/renamed-edit.md', 'docs/escape.md', 'docs/widget.mdx']) {
     await rendered(fileOf(page, path));
   }
-  metric('PR #1 렌더링 6개까지(ms)', Date.now() - t0);
+  metric(`PR #${S.prs.review.number} 렌더링 6개까지(ms)`, Date.now() - t0);
   // 이름만 바뀐 파일·지운 파일(GitHub가 Load diff 뒤에 둔다)은 렌더링 보기가 없다 — "+"도 경고도 없어야 한다
   for (const path of ['docs/archive/moved.md', 'docs/legacy.md']) {
     const f = fileOf(page, path);
