@@ -59,7 +59,19 @@ function writeTree(dir, files) {
   }
 }
 
-/** 기준 커밋(main)과 시나리오마다 브랜치 하나를 만든다 */
+function applyOps(dir, ops) {
+  for (const op of ops) {
+    if ('write' in op) writeTree(dir, { [op.write]: op.content });
+    else if ('remove' in op) git(dir, ['rm', '-q', op.remove]);
+    else {
+      mkdirSync(dirname(join(dir, op.to)), { recursive: true });
+      git(dir, ['mv', op.move, op.to]);
+      if (op.content !== undefined) writeFileSync(join(dir, op.to), op.content);
+    }
+  }
+}
+
+/** 기준 커밋(main)과 시나리오마다 브랜치 하나를 만든다(따라온 커밋이 있으면 그 위에 하나 더) */
 function buildLocal() {
   const dir = join(OUT, 'repo');
   rmSync(dir, { recursive: true, force: true });
@@ -80,17 +92,16 @@ function buildLocal() {
   git(dir, ['commit', '-q', '-m', `Testbed fixtures v${FIXTURE_VERSION}`], env);
   for (const s of SCENARIOS) {
     git(dir, ['checkout', '-q', '-B', s.branch, 'main']);
-    for (const op of s.ops) {
-      if ('write' in op) writeTree(dir, { [op.write]: op.content });
-      else if ('remove' in op) git(dir, ['rm', '-q', op.remove]);
-      else {
-        mkdirSync(dirname(join(dir, op.to)), { recursive: true });
-        git(dir, ['mv', op.move, op.to]);
-        if (op.content !== undefined) writeFileSync(join(dir, op.to), op.content);
-      }
-    }
+    applyOps(dir, s.ops);
     git(dir, ['add', '-A']);
     git(dir, ['commit', '-q', '-m', s.title], env);
+    if (s.followup) {
+      // 리뷰 뒤 작성자가 올린 커밋 — 첫 커밋에 단 스레드가 낡는다. 시각을 1분 늦춰 순서를 고정한다
+      applyOps(dir, s.followup);
+      git(dir, ['add', '-A']);
+      const later = { ...env, GIT_AUTHOR_DATE: '2026-10-08T00:01:00Z', GIT_COMMITTER_DATE: '2026-10-08T00:01:00Z' };
+      git(dir, ['commit', '-q', '-m', `${s.title} — follow-up after review`], later);
+    }
   }
   return dir;
 }
@@ -112,13 +123,17 @@ function seed(pr, sha, key) {
   const list = SEEDS.filter((s) => s.scenario === key);
   if (!list.length) return {};
   const existing = comments(REPO, pr);
+  const firstSha = list.some((s) => s.commit === 'first') ? api(`repos/${REPO}/pulls/${pr}/commits`)[0].sha : null;
   const out = {};
   for (const s of list) {
     const { line, startLine } = seedLines(s);
     let c = existing.find((x) => x.body.includes(SEED_TAG(s.key)));
     if (!c) {
-      log(`스레드 심기: ${s.key} (${s.path} ${s.side} ${startLine ? `${startLine}–` : ''}${line})`);
-      const body = { body: `${s.body}\n\n${SEED_TAG(s.key)}`, commit_id: sha, path: s.path, side: s.side, line };
+      const commit = s.commit === 'first' ? firstSha : sha;
+      log(`스레드 심기: ${s.key} (${s.path} ${s.subject === 'file' ? '파일 전체' : `${s.side} ${startLine ? `${startLine}–` : ''}${line}`}${s.commit === 'first' ? ' · 첫 커밋' : ''})`);
+      const body = s.subject === 'file'
+        ? { body: `${s.body}\n\n${SEED_TAG(s.key)}`, commit_id: commit, path: s.path, subject_type: 'file' }
+        : { body: `${s.body}\n\n${SEED_TAG(s.key)}`, commit_id: commit, path: s.path, side: s.side, line };
       if (startLine && startLine !== line) Object.assign(body, { start_line: startLine, start_side: s.side });
       c = retry(() => api(`repos/${REPO}/pulls/${pr}/comments`, 'POST', body), `스레드 ${s.key}`);
     }
