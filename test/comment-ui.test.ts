@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { commentForm, placeBox, safeFragment, threadBox } from '../src/comment-ui';
-import type { ReviewThread } from '../src/github-api';
+import { commentForm, fileThreadsBox, lineLabel, placeBox, safeFragment, threadBox, type ThreadHandlers } from '../src/comment-ui';
+import type { ReviewComment, ReviewThread } from '../src/github-api';
 
 function body(html: string): HTMLElement {
   document.body.innerHTML = `<div class="prose-diff"><div><div class="markdown-body">${html}</div></div></div>`;
@@ -82,16 +82,18 @@ describe('commentForm', () => {
 describe('threadBox', () => {
   const thread: ReviewThread = {
     id: 'T1',
+    subject: 'line',
     side: 'right',
     start: 3,
     end: 3,
     resolved: true,
     canReply: true,
-    comments: [{ id: '1', author: 'me', body: '본문', bodyHTML: '<p>본문</p>', url: 'https://github.com/x', pending: true }],
+    comments: [{ id: '1', author: 'me', body: '본문', bodyHTML: '<p>본문</p>', url: 'https://github.com/x', pending: true, bodyVersion: 'v', canEdit: false, canDelete: false }],
   };
+  const handlers = (extra: Partial<ThreadHandlers> = {}): ThreadHandlers => ({ onReply: vi.fn(), onResolve: vi.fn(), onEdit: vi.fn(), onDelete: vi.fn(), ...extra });
 
   it('해결된 스레드는 접어 두고, 머리를 누르면 펼친다', () => {
-    const b = threadBox(document, thread, false, { onReply: vi.fn(), onResolve: vi.fn() });
+    const b = threadBox(document, thread, false, handlers());
     const inner = b.querySelector<HTMLElement>('.mdf-thread-body')!;
     expect(inner.hidden).toBe(true);
     b.querySelector<HTMLButtonElement>('.mdf-thread-head')!.click();
@@ -101,8 +103,96 @@ describe('threadBox', () => {
 
   it('해결 취소 버튼은 반대 상태로 부른다', async () => {
     const onResolve = vi.fn().mockResolvedValue(undefined);
-    const b = threadBox(document, thread, false, { onReply: vi.fn(), onResolve });
+    const b = threadBox(document, thread, false, handlers({ onResolve }));
     [...b.querySelectorAll('button')].find((x) => x.textContent === 'unresolve')!.click();
     await vi.waitFor(() => expect(onResolve).toHaveBeenCalledWith(thread, false));
+  });
+});
+
+describe('내 코멘트 편집·삭제 · 미리보기(1.3.0)', () => {
+  const mine = (extra: Partial<ReviewComment> = {}): ReviewComment => ({
+    id: '9', author: 'me', body: '옛 **글**', bodyHTML: '<p>옛 <strong>글</strong></p>', url: '', pending: false,
+    bodyVersion: 'v9', canEdit: true, canDelete: true, ...extra,
+  });
+  const thread = (c: ReviewComment): ReviewThread => ({ id: 'T9', subject: 'line', side: 'right', start: 2, end: 2, resolved: false, canReply: true, comments: [c] });
+  const handlers = (extra: Partial<ThreadHandlers> = {}): ThreadHandlers => ({ onReply: vi.fn(), onResolve: vi.fn(), onEdit: vi.fn().mockResolvedValue(undefined), onDelete: vi.fn().mockResolvedValue(undefined), ...extra });
+  const tool = (b: HTMLElement, name: string) => [...b.querySelectorAll<HTMLButtonElement>('.mdf-comment-tools button')].find((x) => x.textContent === name);
+
+  it('고칠 수 있는 코멘트만 편집·삭제가 보인다', () => {
+    expect(tool(threadBox(document, thread(mine()), false, handlers()), 'edit')).toBeTruthy();
+    const other = threadBox(document, thread(mine({ canEdit: false, canDelete: false })), false, handlers());
+    expect(other.querySelector('.mdf-comment-tools')).toBeNull();
+  });
+
+  it('편집 — 원래 글(마크다운)로 열고, 저장하면 onEdit(코멘트, 새 글)', async () => {
+    const h = handlers();
+    const b = threadBox(document, thread(mine()), false, h);
+    tool(b, 'edit')!.click();
+    const area = b.querySelector<HTMLTextAreaElement>('.mdf-comment-edit textarea')!;
+    expect(area.value).toBe('옛 **글**');
+    expect(b.querySelector<HTMLElement>('.mdf-comment-body')!.hidden).toBe(true);
+    area.value = '새 글';
+    [...b.querySelectorAll<HTMLButtonElement>('.mdf-comment-edit button')].find((x) => x.textContent === 'save')!.click();
+    await vi.waitFor(() => expect(h.onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: '9', bodyVersion: 'v9' }), '새 글'));
+  });
+
+  it('삭제는 두 번 눌러야 — 처음엔 확인 문구로 바뀌고 4초 뒤 되돌아간다', async () => {
+    vi.useFakeTimers();
+    const h = handlers();
+    const b = threadBox(document, thread(mine()), false, h);
+    const del = tool(b, 'delete')!;
+    del.click();
+    expect(del.textContent).toBe('deleteConfirm');
+    expect(h.onDelete).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(4100);
+    expect(del.textContent).toBe('delete');
+    del.click();
+    del.click();
+    expect(h.onDelete).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('실패하면 그 코멘트 아래에 이유를 보이고 버튼을 되살린다', async () => {
+    const h = handlers({ onDelete: vi.fn().mockRejectedValue(new Error('안 됨')) });
+    const b = threadBox(document, thread(mine()), false, h);
+    const del = tool(b, 'delete')!;
+    del.click();
+    del.click();
+    await vi.waitFor(() => expect(b.querySelector<HTMLElement>('.mdf-comment > .mdf-comment-error')!.hidden).toBe(false));
+    expect(b.querySelector('.mdf-comment > .mdf-comment-error')!.textContent).toBe('안 됨');
+    expect(del.disabled).toBe(false);
+  });
+
+  it('미리보기 탭 — GitHub가 렌더링한 HTML을 걸러 보여 주고, 빈 글이면 안내만', async () => {
+    const preview = vi.fn().mockResolvedValue('<p><strong>굵게</strong><img src="x" onerror="alert(1)"></p>');
+    const form = commentForm(document, { label: 'L', pendingReview: false, singleLabel: 's', preview }, { onSubmit: vi.fn(), onCancel: vi.fn() });
+    const [write, show] = [...form.querySelectorAll<HTMLButtonElement>('.mdf-tab')];
+    const area = form.querySelector('textarea')!;
+    const pane = form.querySelector<HTMLElement>('.mdf-preview')!;
+    show.click();
+    expect(pane.textContent).toBe('previewEmpty');
+    expect(preview).not.toHaveBeenCalled();
+    write.click();
+    area.value = '**굵게**';
+    show.click();
+    await vi.waitFor(() => expect(pane.querySelector('strong')?.textContent).toBe('굵게'));
+    expect(pane.querySelector('img')?.hasAttribute('onerror')).toBe(false);
+    expect(area.hidden).toBe(true);
+    write.click();
+    expect(area.hidden).toBe(false);
+  });
+
+  it('미리보기가 없으면 탭도 없다(이전처럼 입력란만)', () => {
+    const form = commentForm(document, { label: 'L', pendingReview: false, singleLabel: 's' }, { onSubmit: vi.fn(), onCancel: vi.fn() });
+    expect(form.querySelector('.mdf-tabs')).toBeNull();
+  });
+
+  it('파일 전체 스레드 — 머리는 "파일 전체", 묶음은 파일 맨 위 상자', () => {
+    expect(lineLabel({ subject: 'file', side: 'right', start: 0, end: 0 })).toBe('wholeFile');
+    const box = threadBox(document, { ...thread(mine()), subject: 'file', start: 0, end: 0 }, false, handlers());
+    expect(box.querySelector('.mdf-thread-head')?.textContent).toContain('wholeFile');
+    const wrap = fileThreadsBox(document, [box]);
+    expect(wrap.getAttribute('data-mdf')).toBe('threads-file');
+    expect(wrap.firstElementChild?.textContent).toBe('threadsFile');
   });
 });

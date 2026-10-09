@@ -1,6 +1,6 @@
 {
   "name": "github-md-diff",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.10.1",
@@ -23,6 +23,7 @@
     "testbed:setup": "node scripts/testbed-setup.mjs",
     "testbed": "node build.mjs && playwright test -c testbed/playwright.config.ts",
     "testbed:report": "node scripts/testbed-report.mjs",
+    "verify": "node scripts/verify.mjs",
     "store:assets": "node build.mjs && node store/capture.mjs en && node store/capture.mjs ko && node store/compose.mjs en && node store/compose.mjs ko"
   },
   "devDependencies": {

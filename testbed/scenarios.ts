@@ -4,7 +4,7 @@
 // 공개 저장소다: 지어낸 제품(Lantern) 문서만 넣는다.
 
 export const REPO = process.env.TESTBED_REPO ?? 'drum-grammer/markdown-diff-cat-testbed';
-export const FIXTURE_VERSION = '1';
+export const FIXTURE_VERSION = '2';
 
 export type Files = Record<string, string>;
 
@@ -139,6 +139,33 @@ const renamedEditBase = lines(
   'Press Cmd+Shift+P to open the command palette.',
 );
 
+const roadmapBase = lines(
+  '# Lantern roadmap',
+  '',
+  '## Now',
+  '',
+  '- Faster sync for large workspaces',
+  '- Offline search',
+  '- Shared templates',
+  '',
+  '## Next',
+  '',
+  'Calendar integration ships after the sync rewrite.',
+  '',
+  'Mobile apps get the same editor as the desktop.',
+  '',
+  '## Later',
+  '',
+  'Plugins and a public API.',
+);
+/** 리뷰를 받은 첫 커밋 */
+const roadmapFirst = roadmapBase
+  .replace('- Offline search\n', '- Offline search with filters\n')
+  .replace('- Shared templates\n', '- Shared templates\n- Keyboard shortcuts for every command\n')
+  .replace('Calendar integration ships after the sync rewrite.', 'Calendar integration ships in the spring release.');
+/** 리뷰 뒤 작성자가 고친 커밋 — 첫 커밋에 단 스레드 하나가 낡는다(outdated) */
+const roadmapFollowup = roadmapFirst.replace('Calendar integration ships in the spring release.', 'Calendar integration ships in the summer release.');
+
 const largeBase = Array.from({ length: 2400 }, (_, i) => `Entry ${String(i + 1).padStart(4, '0')}: the archive keeps this line so the file stays large.`).join('\n\n') + '\n';
 const largeHead = largeBase.replace(/the archive keeps this line/g, 'the archive now keeps this line');
 
@@ -161,6 +188,7 @@ export function baseFiles(): Files {
     'docs/escape.md': lines('# Table syntax', '', 'Use the Plan | Price columns when you compare offers.'),
     'docs/widget.mdx': lines("import { Callout } from '../components/callout'", '', '# Widget', '', '<Callout>Widgets refresh every minute.</Callout>', '', 'The widget shows the five most recent notes.'),
     'docs/large.md': largeBase,
+    'docs/roadmap.md': roadmapBase,
   };
   for (let i = 1; i <= 100; i++) f[`many/page-${String(i).padStart(3, '0')}.md`] = lines(`# Page ${i}`, '', `Page ${i} lists the notes for week ${i}.`, '', 'It stays the same in every release.');
   for (let i = 1; i <= 20; i++) f[`many/data-${String(i).padStart(3, '0')}.txt`] = `item ${i}: 1\n`;
@@ -173,11 +201,13 @@ export type Op =
   | { move: string; to: string; content?: string };
 
 export interface Scenario {
-  key: 'review' | 'large' | 'many';
+  key: 'review' | 'large' | 'many' | 'followup';
   branch: string;
   title: string;
   body: string;
   ops: Op[];
+  /** 리뷰 뒤 작성자가 올린 두 번째 커밋 — 첫 커밋에 단 스레드가 낡게 된다 */
+  followup?: Op[];
 }
 
 export const SCENARIOS: Scenario[] = [
@@ -217,12 +247,18 @@ export const SCENARIOS: Scenario[] = [
       ...Array.from({ length: 20 }, (_, i) => ({ write: `many/data-${String(i + 1).padStart(3, '0')}.txt`, content: `item ${i + 1}: 2\n` })),
     ],
   },
+  {
+    key: 'followup',
+    branch: 'scenario/followup',
+    title: 'Testbed: review follow-up',
+    body: 'A review on the first commit, then a follow-up commit from the author. Seeded threads cover an outdated line, a line that stays current, a whole-file comment, a suggestion, and a comment with code, a list, and a link.',
+    ops: [{ write: 'docs/roadmap.md', content: roadmapFirst }],
+    followup: [{ write: 'docs/roadmap.md', content: roadmapFollowup }],
+  },
 ];
 
-/** 시나리오를 적용한 뒤의 파일 */
-export function headFiles(key: Scenario['key']): Files {
-  const f = baseFiles();
-  for (const op of SCENARIOS.find((s) => s.key === key)!.ops) {
+function apply(f: Files, ops: Op[]): Files {
+  for (const op of ops) {
     if ('write' in op) f[op.write] = op.content;
     else if ('remove' in op) delete f[op.remove];
     else {
@@ -231,6 +267,17 @@ export function headFiles(key: Scenario['key']): Files {
     }
   }
   return f;
+}
+
+/** 시나리오를 적용한 뒤의 파일(따라온 커밋까지) */
+export function headFiles(key: Scenario['key']): Files {
+  const s = SCENARIOS.find((x) => x.key === key)!;
+  return apply(apply(baseFiles(), s.ops), s.followup ?? []);
+}
+
+/** 첫 커밋까지만 적용한 파일 — 낡은 스레드는 이 내용의 줄에 달았다 */
+export function firstFiles(key: Scenario['key']): Files {
+  return apply(baseFiles(), SCENARIOS.find((x) => x.key === key)!.ops);
 }
 
 /** needle이 든 첫 줄 번호(1부터) */
@@ -252,6 +299,10 @@ export interface Seed {
   body: string;
   reply?: string;
   resolved?: boolean;
+  /** 'first'면 첫 커밋에 단다(따라온 커밋이 그 줄을 바꾸면 낡은 스레드가 된다) */
+  commit?: 'first';
+  /** 'file'이면 줄이 아니라 파일 전체에 단다(anchor는 쓰지 않는다) */
+  subject?: 'file';
 }
 
 /** 심은 코멘트 본문 끝의 숨은 표시 — GitHub가 렌더링할 때 빠진다 */
@@ -267,12 +318,25 @@ export const SEEDS: Seed[] = [
   { key: 'resolved', scenario: 'review', path: 'docs/pricing.md', side: 'RIGHT', anchor: '| Korea | KRW |', body: 'Is the new Korea price final?', resolved: true },
   { key: 'reply', scenario: 'review', path: 'docs/new-page.md', side: 'RIGHT', anchor: 'Update the changelog', body: 'Should this link to the changelog template?', reply: 'Yes, I will add the link.' },
   { key: 'renamed', scenario: 'review', path: 'docs/guides/renamed-edit.md', side: 'RIGHT', anchor: 'search notes and commands', body: 'Does Cmd+K search commands on Windows too?' },
+  { key: 'outdated', scenario: 'followup', path: 'docs/roadmap.md', side: 'RIGHT', anchor: 'ships in the spring release', commit: 'first', body: 'Is spring still realistic?' },
+  { key: 'current', scenario: 'followup', path: 'docs/roadmap.md', side: 'RIGHT', anchor: 'Offline search with filters', body: 'Which filters come first?' },
+  { key: 'file', scenario: 'followup', path: 'docs/roadmap.md', side: 'RIGHT', anchor: '', subject: 'file', body: 'Please add an owner for each item.' },
+  { key: 'suggest', scenario: 'followup', path: 'docs/roadmap.md', side: 'RIGHT', anchor: 'Keyboard shortcuts for every command', body: 'Shorter wording?\n\n```suggestion\n- Shortcuts for every command\n```' },
+  {
+    key: 'rich',
+    scenario: 'followup',
+    path: 'docs/roadmap.md',
+    side: 'RIGHT',
+    anchor: 'Mobile apps get the same editor',
+    body: 'Two notes:\n\n1. Check the **tablet** layout\n2. Keep `editor.js` shared\n\nSee [the testbed README](https://github.com/drum-grammer/markdown-diff-cat-testbed/blob/main/README.md).\n\n```js\nconst shared = true;\n```',
+  },
 ];
 
 /** 심은 스레드의 줄(설정·테스트가 같이 쓴다) */
 export function seedLines(s: Seed): { line: number; startLine?: number } {
+  if (s.subject === 'file') return { line: 0 };
   const base = baseFiles();
-  const head = headFiles(s.scenario);
+  const head = s.commit === 'first' ? firstFiles(s.scenario) : headFiles(s.scenario);
   const text = s.side === 'LEFT' ? base[s.path] : head[s.path];
   if (text === undefined) throw new Error(`파일 없음: ${s.path}`);
   return { line: lineOf(text, s.anchor), startLine: s.startAnchor ? lineOf(text, s.startAnchor) : undefined };

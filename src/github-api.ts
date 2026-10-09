@@ -25,10 +25,17 @@ export interface ReviewComment {
   bodyHTML: string;
   url: string;
   pending: boolean;
+  /** 고칠 때 함께 보내는 본문 버전(동시에 고친 것을 GitHub가 거른다) */
+  bodyVersion: string;
+  /** 내가 고치거나 지울 수 있는가(GitHub가 알려 준다 — 보통 내가 쓴 코멘트) */
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
 export interface ReviewThread {
   id: string;
+  /** line = 줄(범위)에 단 것, file = 파일 전체에 단 것(줄 없음 — start·end는 0) */
+  subject: 'line' | 'file';
   side: Side;
   /** 1부터, 끝 포함 */
   start: number;
@@ -50,6 +57,9 @@ export interface PrData {
   baseOid: string;
   headOid: string;
   pendingReviewId: string | null;
+  /** 미리보기 요청에 함께 보내는 저장소·PR 번호(GitHub 내부 ID). 모르면 null */
+  repositoryId: string | null;
+  pullRequestId: string | null;
   files: Map<string, FileInfo>;
 }
 
@@ -159,12 +169,16 @@ function toComment(raw: unknown): ReviewComment | null {
     bodyHTML: str(c.bodyHTML) ?? '',
     url: str(c.url) ?? '',
     pending: c.state === 'pending',
+    bodyVersion: str(c.bodyVersion) ?? '',
+    canEdit: c.viewerCanUpdate === true,
+    canDelete: c.viewerCanDelete === true,
   };
 }
 
 /**
  * `GET /pull/:n/changes`(JSON)을 읽는다. 스레드 위치는 파일 요약의 `markersMap` 키에만 있다 —
  * `R12`는 새 파일 12번째 줄, `L4`는 원래 파일 4번째 줄. 범위 코멘트는 끝 줄이 키이고 `start`에 첫 줄이 있다.
+ * 파일 전체에 단 코멘트는 키가 `FILE`이다. 낡은(outdated) 스레드는 GitHub 화면처럼 키가 없어 빠진다(2026-10-09 확인).
  */
 export function parsePrData(json: unknown): PrData {
   const route = rec(rec(rec(json)?.payload)?.pullRequestsChangesRoute);
@@ -186,17 +200,19 @@ export function parsePrData(json: unknown): PrData {
     if (!sum || !path) continue;
     const threads: ReviewThread[] = [];
     for (const [key, marker] of Object.entries(rec(sum.markersMap) ?? {})) {
-      const end = lineKey(key);
+      const file = key === 'FILE';
+      const end = file ? { side: 'right' as Side, line: 0 } : lineKey(key);
       if (!end) continue;
       for (const ref of arr(rec(marker)?.threads)) {
         const id = str(rec(ref)?.id);
         const t = rec(id ? threadData[id] : null);
-        if (!id || !t || t.subjectType === 'FILE') continue;
+        if (!id || !t || (t.subjectType === 'FILE') !== file) continue;
         const start = lineKey(str(rec(ref)?.start));
         const comments = arr(rec(t.commentsData)?.comments).flatMap((c) => toComment(c) ?? []);
         if (comments.length === 0) continue;
         threads.push({
           id: str(t.id) ?? id,
+          subject: file ? 'file' : 'line',
           side: end.side,
           start: start && start.side === end.side && start.line <= end.line ? start.line : end.line,
           end: end.line,
@@ -209,7 +225,15 @@ export function parsePrData(json: unknown): PrData {
     threads.sort((a, b) => a.end - b.end);
     files.set(path, { path, oldPath: oldPaths.get(path) ?? null, changeType: str(sum.changeType) ?? 'MODIFIED', threads });
   }
-  return { baseOid, headOid, pendingReviewId: str(rec(route.viewerPendingReview)?.id), files };
+  const pull = rec(route.pullRequest);
+  return {
+    baseOid,
+    headOid,
+    pendingReviewId: str(rec(route.viewerPendingReview)?.id),
+    repositoryId: str(rec(route.repository)?.id) ?? str(pull?.repositoryId),
+    pullRequestId: str(pull?.id),
+    files,
+  };
 }
 
 export async function fetchPrData(pr: PrRef): Promise<PrData> {
@@ -298,6 +322,39 @@ export async function postComment(pr: PrRef, payload: Json): Promise<void> {
     if (!(e instanceof RequestError) || e.status !== 422 || e.lineNotResolved) throw e;
     await sleep(400);
     await request(url, { method: 'POST', body: payload });
+  }
+}
+
+/** 내 코멘트 고치기 — 본문 버전이 다르면(그 사이 누가 고침) GitHub가 거절한다. 새 본문 HTML을 돌려준다 */
+export async function updateComment(pr: PrRef, commentId: string, bodyVersion: string, text: string): Promise<void> {
+  await request(prUrl(pr, `page_data/update_review_comment?body_version=${encodeURIComponent(bodyVersion)}`), {
+    method: 'PUT',
+    body: { body: text, commentId },
+  });
+}
+
+/** 내 코멘트 지우기 */
+export async function deleteComment(pr: PrRef, commentId: string): Promise<void> {
+  await request(prUrl(pr, `page_data/review_comments/${encodeURIComponent(commentId)}`), { method: 'DELETE' });
+}
+
+/**
+ * 코멘트 미리보기 — GitHub 코멘트 상자의 Preview 탭과 같은 요청(`POST /preview`, 여러 부분 폼). 렌더링한 HTML을 돌려준다.
+ * 저장소·PR ID는 멘션·이슈 번호 링크에 쓰인다 — 모르면 글만 보낸다
+ */
+export async function previewMarkdown(text: string, ids: { repositoryId: string | null; pullRequestId: string | null }): Promise<string> {
+  const form = new FormData();
+  form.append('text', text);
+  if (ids.pullRequestId) form.append('issue', ids.pullRequestId);
+  if (ids.repositoryId) form.append('repository', ids.repositoryId);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch('/preview', { method: 'POST', credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest', 'GitHub-Verified-Fetch': 'true' }, body: form, signal: ctrl.signal });
+    if (!res.ok) throw new RequestError(res.status, `HTTP ${res.status}`);
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
   }
 }
 

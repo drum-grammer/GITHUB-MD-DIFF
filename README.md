@@ -26,7 +26,8 @@ Markdown Diff Cat gives you both: the rendered document, with only the changes i
 - **Comment right in the rendered view** (signed in to GitHub)
   - Hover over a block and click **+**, or drag from **+** to another block to comment on a range
   - The comment lands on the right source line as an ordinary GitHub review comment: add a single comment, or start or add to your review
-  - Existing review threads show under the block they refer to, where you can reply and resolve them
+  - Existing review threads show under the block they refer to, where you can reply and resolve them. Comments on the whole file show at the top of the file
+  - **Preview** your comment the way GitHub will show it, and **edit** or **delete** your own comments in place (delete asks for a second click)
 
   ![A review thread under a paragraph and a comment box under the next one, in the rendered diff](store/images/en/screenshot-2.png)
 - **Stays out of your way**
@@ -77,13 +78,25 @@ No data collected and no remote code. The extension reads the open GitHub page i
 - `node scripts/mapping-report.mjs <pull request URL>…` (after `pnpm build`) — how many rendered blocks of each Markdown file match their source lines, and how long matching takes. Read-only
 - `pnpm explore:pick` then `pnpm explore` — open recent Markdown pull requests from the public repositories in `scripts/explore-repos.txt` (up to 3 per repository) with the extension, and record per file whether it rendered, folded, went back to the source view, showed a note, got **+**, and how many blocks match their source lines, with screenshots of files that look wrong. Read-only (it only hovers), resumable, results in `.scratch/explore/<date>/`. `pnpm explore:report` summarizes them. Run it before a release that touches page handling
 - `pnpm perf [--reps 2] [--window 20] [pull request URL…]` — how much the extension slows GitHub down: opens each pull request with the extension off and on, and records the extension's own CPU time (from a CPU profile, with its busiest functions), long tasks and total blocking time, page script and layout time, how long Markdown files take to render, the delay from GitHub's rendered diff to folding, and how long the first **+** takes on the largest file. Without URLs it uses eight public pull requests from 1 to 334 Markdown files. Read-only
-- `pnpm testbed:setup` then `pnpm testbed` — release scenarios on the public test repository [markdown-diff-cat-testbed](https://github.com/drum-grammer/markdown-diff-cat-testbed): post real comments from the rendered view (single line, range, removed line, reply, renamed file), resolve and unresolve threads, check that existing threads land under the right blocks, and open a large diff and a 120-file pull request. Every comment is read back through the GitHub API (path, side, line) and deleted afterwards. `testbed:setup` creates or repairs the repository, its pull requests, and seeded threads, and is safe to run again. `pnpm testbed:report` prints the results table and a line for the release notes. Needs `gh` signed in as the repository owner. See [testbed/README.md](testbed/README.md). Run it before every release
+- `pnpm testbed:setup` then `pnpm testbed` — release scenarios on the public test repository [markdown-diff-cat-testbed](https://github.com/drum-grammer/markdown-diff-cat-testbed): post real comments from the rendered view (single line, range, removed line, reply, renamed file), resolve and unresolve threads, check that existing threads land under the right blocks, and open a large diff and a 120-file pull request. Every comment is read back through the GitHub API (path, side, line) and deleted afterwards. `testbed:setup` creates or repairs the repository, its pull requests, and seeded threads, and is safe to run again. `pnpm testbed:report` prints the results table and a line for the release notes. Needs `gh` signed in as the repository owner. See [testbed/README.md](testbed/README.md). It runs as part of `pnpm verify pr` (Split) and `pnpm verify release` (all five diff layouts)
 - `pnpm icons` — regenerate `static/icons/icon{16,32,48,128}.png` from `icon.svg` and `icon{16,32}-off.png` from `icon-off.svg` (commit the PNGs)
 - `pnpm package` — build and zip `dist/` into `release/` for the Chrome Web Store
 - `pnpm release <check|notes|upload|submit|status|finish>` — publish an update to the Chrome Web Store through its API. See [store/README.md](store/README.md#releasing-an-update)
 - `pnpm store:assets` — regenerate the store screenshots, promo tiles, and `docs/demo.gif`. See [store/README.md](store/README.md)
 - GitHub page assumptions live only in `src/selectors.ts`, and GitHub request assumptions only in `src/github-api.ts`
 - Test fixtures must come from public repositories or be handmade; the first line records the source and `test/fixtures.test.ts` checks it
+
+### Verification tiers
+
+One command per tier. Each runs its steps in order, keeps going after a failure, and writes a formatted report (steps, results, time, and the scenario tables) to `.scratch/verify/<date-time>-<tier>/report.md`. The exit code is 1 when anything failed.
+
+| Tier | When | Steps | Time (2026-10-09) |
+|---|---|---|---|
+| `pnpm verify quick` | While you work | typecheck, unit tests, build, test repository setup, the `@quick` scenarios (read-only: rendering, existing threads, **+** lines, change navigation) | about 45 seconds |
+| `pnpm verify pr` | Before merging a pull request | typecheck, unit tests, build, end-to-end tests with writes, canary, every test repository scenario in the Split layout | about 6 minutes |
+| `pnpm verify release` | Before asking the Chrome Web Store for review | everything in `pr`, the layout-sensitive scenarios in all five GitHub diff layouts (Split, Unified, Hide whitespace, Minimize comments, Compact line height), a re-exploration of 16 public pull requests (`scripts/explore-regress.jsonl`), performance with the extension off and on, and the store package | about 16 minutes |
+
+`pnpm verify --list` prints the steps. `--bail` stops at the first failure and `--skip step,…` leaves steps out. `pr` and `release` post real comments to the test repository and need `gh` and the signed-in test profile (see [testbed/README.md](testbed/README.md)). The Minimize comments and Compact line height layouts exist only as GitHub account settings, so `release` turns them on for its run and restores them afterwards.
 
 ## Thanks
 
@@ -119,7 +132,8 @@ Markdown Diff Cat은 두 장점을 합쳤어요. 렌더링된 문서를 보면�
 - **렌더링 보기에서 바로 코멘트** (GitHub에 로그인한 경우)
   - 블록에 마우스를 올리고 **+**를 누르거나, **+**에서 다른 블록까지 끌면 그 범위에 달아요
   - 코멘트는 맞는 원문 줄에 붙는 보통의 GitHub 리뷰 코멘트예요. 단일 코멘트로 달거나 리뷰를 시작·추가할 수 있어요
-  - 이미 달린 리뷰 스레드는 그 블록 아래에 보이고, 답글과 해결도 그 자리에서 해요
+  - 이미 달린 리뷰 스레드는 그 블록 아래에 보이고, 답글과 해결도 그 자리에서 해요. 파일 전체에 단 코멘트는 파일 맨 위에 보여요
+  - 쓰는 중에 **미리보기**로 GitHub에 보일 모양을 확인하고, 내가 쓴 코멘트는 그 자리에서 **편집**·**삭제**해요(삭제는 한 번 더 눌러야 해요)
 
   ![렌더링 보기에서 문단 아래 리뷰 스레드와 다음 문단의 코멘트 입력 상자](store/images/ko/screenshot-2.png)
 - **방해하지 않아요**
