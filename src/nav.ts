@@ -67,8 +67,20 @@ function targets(root: ParentNode, kind: NavKind): HTMLElement[] {
   return list.filter(visible);
 }
 
-/** 이동한 블록이 화면 위에서 이만큼 아래에 오게 한다 — CSS의 scroll-margin-top과 같은 값(GitHub의 고정 머리 아래) */
+/** 이동한 블록이 화면 위에서 이만큼 아래에 오게 한다(GitHub의 고정 머리 아래) */
 const TOP_RATIO = 0.3;
+
+/**
+ * 그 블록에만 잠깐 scroll-margin-top을 주고 맞춘다. 모든 블록에 CSS로 주면 다른 스크롤(찾기·테스트 도구의 자동 스크롤)까지
+ * 30% 내려 맞춰져, 범위를 끌 때 끝 블록이 화면 밖으로 밀렸다(테스트 저장소 T07이 가끔 실패)
+ */
+function scrollToRef(el: HTMLElement): void {
+  const old = el.style.scrollMarginTop;
+  el.style.scrollMarginTop = `${TOP_RATIO * 100}vh`;
+  el.scrollIntoView({ block: 'start' });
+  el.style.scrollMarginTop = old;
+  if (!el.getAttribute('style')) el.removeAttribute('style');
+}
 let cursor: { el: Element; top: number } | null = null;
 
 /** 감싼 <del>/<ins>는 줄 단위 상자라 테두리가 어색하다 — 안의 첫 블록을 비춘다 */
@@ -106,7 +118,7 @@ export function jump(doc: Document, kind: NavKind, dir: 1 | -1, scope: ParentNod
     return false;
   }
   const el = list[i];
-  el.scrollIntoView({ block: 'start' });
+  scrollToRef(el);
   cursor = { el, top: el.getBoundingClientRect().top };
   flash(shown(el));
   status(doc, t(kind === 'change' ? 'navAtChange' : 'navAtThread', [i + 1, list.length]));

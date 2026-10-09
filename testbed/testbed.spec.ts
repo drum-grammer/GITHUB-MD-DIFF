@@ -69,7 +69,8 @@ async function rendered(file: Locator): Promise<void> {
 /** 블록에 마우스를 올려 "+"가 나올 때까지(첫 호버는 원문을 받는 동안 기다린다) */
 async function hoverUntilPlus(file: Locator, block: Locator, timeout = 30_000): Promise<Locator> {
   const plus = file.locator('[data-mdf="add-comment"]');
-  await block.scrollIntoViewIfNeeded();
+  // 가운데로 — 그냥 두면 Playwright가 블록을 화면 맨 아래 끝에 겨우 걸치게 두어, 범위를 끌 때 끝 블록이 화면 밖에 남는다(T07이 가끔 실패)
+  await block.evaluate((el) => el.scrollIntoView({ block: 'center' }));
   await expect(async () => {
     await block.hover({ position: { x: 10, y: 5 } });
     await block.hover({ position: { x: 20, y: 6 } });
@@ -276,9 +277,13 @@ test('T07 끌어서 고른 범위로 리뷰를 시작하면 보류 중인 리뷰
   await rendered(f);
   const first = prose(f).locator('p', { hasText: 'Run the test suite' });
   const last = prose(f).locator('p', { hasText: 'Post the release notes' });
+  await hoverUntilPlus(f, first);
+  // 첫 호버는 원문을 받는 동안 1초쯤 걸리고, 그사이 위쪽 파일에 스레드·툴바가 들어오면 크롬이 화면을 옮긴다(스크롤 고정).
+  // 원문을 받은 뒤 다시 가운데로 맞추고 곧바로 재서 끈다 — 잰 좌표가 낡아 끝 블록이 화면 밖이던 것(T07이 가끔 실패)
   const plus = await hoverUntilPlus(f, first);
   const p = (await plus.boundingBox())!;
   const end = (await last.boundingBox())!;
+  expect(end.y + end.height, '끌 범위가 화면 안에 있어야 한다').toBeLessThan(page.viewportSize()?.height ?? 720);
   await page.mouse.move(p.x + p.width / 2, p.y + p.height / 2);
   await page.mouse.down();
   await page.mouse.move(end.x + 30, end.y + end.height / 2, { steps: 8 });

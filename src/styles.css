@@ -96,8 +96,7 @@ li > .mdf-comment-form, li > .mdf-thread { margin: 8px 0; }
 .mdf-toast a { white-space: nowrap; font-weight: 600; }
 .mdf-toast-close { padding: 0 4px; border: 0; background: none; color: inherit; font-size: 16px; cursor: pointer; }
 
-/* 변경·스레드 이동(] [ } {) — 간 곳이 GitHub 고정 머리 아래(화면 위 30%)에 오게 */
-.prose-diff .markdown-body > *, [data-mdf="thread"] { scroll-margin-top: 30vh; }
+/* 변경·스레드 이동(] [ } {) — 간 곳을 잠깐 비춘다(위치는 nav.ts가 그 블록에만 잠깐 scroll-margin을 줘서 맞춘다) */
 .mdf-flash { outline: 2px solid var(--fgColor-accent, #0969da); outline-offset: 4px; border-radius: 6px; animation: mdf-flash 1.2s ease-out forwards; }
 @keyframes mdf-flash { 0%, 60% { outline-color: var(--fgColor-accent, #0969da); } 100% { outline-color: transparent; } }
 .mdf-nav-status {
