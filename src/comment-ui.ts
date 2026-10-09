@@ -175,6 +175,7 @@ export function threadBox(doc: Document, thread: ReviewThread, pendingReview: bo
   const box = el(doc, 'div', 'mdf-thread');
   box.setAttribute(MDF_ATTR, THREAD);
   box.dataset.threadId = thread.id;
+  box.dataset.resolved = String(thread.resolved); // 파일 툴바 요약의 미해결 수
   const head = button(doc, '', 'mdf-thread-head');
   const n = thread.comments.length;
   head.textContent = [n === 1 ? t('commentsOne') : t('commentsMany', [n]), lineLabel(thread), ...(thread.resolved ? [t('resolved')] : [])].join(' · ');

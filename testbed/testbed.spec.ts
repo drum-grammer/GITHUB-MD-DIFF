@@ -69,7 +69,8 @@ async function rendered(file: Locator): Promise<void> {
 /** 블록에 마우스를 올려 "+"가 나올 때까지(첫 호버는 원문을 받는 동안 기다린다) */
 async function hoverUntilPlus(file: Locator, block: Locator, timeout = 30_000): Promise<Locator> {
   const plus = file.locator('[data-mdf="add-comment"]');
-  await block.scrollIntoViewIfNeeded();
+  // 가운데로 — 그냥 두면 Playwright가 블록을 화면 맨 아래 끝에 겨우 걸치게 두어, 범위를 끌 때 끝 블록이 화면 밖에 남는다(T07이 가끔 실패)
+  await block.evaluate((el) => el.scrollIntoView({ block: 'center' }));
   await expect(async () => {
     await block.hover({ position: { x: 10, y: 5 } });
     await block.hover({ position: { x: 20, y: 6 } });
@@ -276,9 +277,13 @@ test('T07 끌어서 고른 범위로 리뷰를 시작하면 보류 중인 리뷰
   await rendered(f);
   const first = prose(f).locator('p', { hasText: 'Run the test suite' });
   const last = prose(f).locator('p', { hasText: 'Post the release notes' });
+  await hoverUntilPlus(f, first);
+  // 첫 호버는 원문을 받는 동안 1초쯤 걸리고, 그사이 위쪽 파일에 스레드·툴바가 들어오면 크롬이 화면을 옮긴다(스크롤 고정).
+  // 원문을 받은 뒤 다시 가운데로 맞추고 곧바로 재서 끈다 — 잰 좌표가 낡아 끝 블록이 화면 밖이던 것(T07이 가끔 실패)
   const plus = await hoverUntilPlus(f, first);
   const p = (await plus.boundingBox())!;
   const end = (await last.boundingBox())!;
+  expect(end.y + end.height, '끌 범위가 화면 안에 있어야 한다').toBeLessThan(page.viewportSize()?.height ?? 720);
   await page.mouse.move(p.x + p.width / 2, p.y + p.height / 2);
   await page.mouse.down();
   await page.mouse.move(end.x + 30, end.y + end.height / 2, { steps: 8 });
@@ -425,4 +430,61 @@ test('T14 로그아웃 화면(옛 /files)에서 스레드 없는 md는 렌더링
   } finally {
     await context.close();
   }
+});
+
+test('T15 파일 툴바 요약과 ] [ } { 이동 — 바뀐 곳·스레드를 페이지 순서로, 글을 쓰는 중에는 가로채지 않는다', async ({ page }) => {
+  await open(page, 'review');
+  for (const path of ['docs/guides/renamed-edit.md', 'docs/handbook.md', 'docs/new-page.md', 'docs/pricing.md', 'docs/widget.mdx', 'docs/escape.md']) {
+    await rendered(fileOf(page, path));
+  }
+  const summary = (path: string) => fileOf(page, path).locator('[data-mdf="file-toolbar"] .mdf-summary');
+  // 내용 v1 기준: handbook은 바뀐 곳 8(머리말 표·문단·목록·지운 문단+코드·Plans 표·알림·HTML 표·각주), 심은 스레드 3
+  await expect(summary('docs/handbook.md')).toHaveText(/\b8\b.*\b3\b.*\b3\b/, { timeout: 20_000 });
+  await expect(summary('docs/pricing.md')).toHaveText(/\b1\b.*\b1\b.*\b0\b/); // 해결된 스레드는 미해결에 세지 않는다
+  await expect(summary('docs/widget.mdx')).toHaveText(/^\D*1\D*$/);
+  await expect(summary('docs/escape.md')).toHaveCount(0); // 렌더링에 안 드러나는 변경 — 요약 대신 안내
+  metric('handbook 요약', (await summary('docs/handbook.md').textContent()) ?? '');
+
+  const status = page.locator('[data-mdf="nav-status"]');
+  const press = async (key: string) => {
+    await page.keyboard.press(key);
+    return (await status.textContent()) ?? '';
+  };
+  const flashedTop = () => page.evaluate(() => [Math.round(document.querySelector('.mdf-flash')?.getBoundingClientRect().top ?? -1), Math.round(innerHeight * 0.3)]);
+  await page.evaluate(() => {
+    (document.activeElement as HTMLElement | null)?.blur();
+    window.scrollTo(0, 0);
+  });
+  const changes: string[] = [];
+  for (let i = 0; i < 13; i++) changes.push(await press(']'));
+  metric('] 차례', changes.join(' → '));
+  expect(changes.slice(0, 12)).toEqual(Array.from({ length: 12 }, (_, i) => expect.stringMatching(new RegExp(`\\b${i + 1}\\D+12\\b`))));
+  expect(changes[12]).not.toMatch(/\d/); // 끝 안내
+  expect(await press('[')).toMatch(/\b11\D+12\b/);
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(1300); // 앞의 비춤(1.2초)이 사라진 뒤에 잰다
+  const first = await press('}');
+  expect(first).toMatch(/\b1\D+6\b/);
+  const [top, ref] = await flashedTop();
+  expect(Math.abs(top - ref)).toBeLessThan(12); // GitHub 고정 머리 아래, 화면 위 30%
+  for (let i = 2; i <= 6; i++) expect(await press('}')).toMatch(new RegExp(`\\b${i}\\D+6\\b`));
+  expect(await press('{')).toMatch(/\b5\D+6\b/);
+
+  // 코멘트 상자에 쓰는 중에는 ]가 글자로 들어간다
+  const hb = fileOf(page, 'docs/handbook.md');
+  const form = await formFor(hb, prose(hb).locator('li', { hasText: 'Connect your calendar' }).first());
+  const before = await status.textContent();
+  await form.locator('textarea').click();
+  await page.keyboard.type('a]b[');
+  await expect(form.locator('textarea')).toHaveValue('a]b[');
+  expect(await status.textContent()).toBe(before);
+  await buttons(form).first().click();
+
+  // 툴바 ↓는 그 파일 안에서만
+  await fileOf(page, 'docs/pricing.md').locator('[data-mdf="file-toolbar"] .mdf-nav').last().click();
+  await expect(status).toHaveText(/\b1\D+1\b/);
+  await expect(fileOf(page, 'docs/pricing.md').locator('[data-mdf="table"].mdf-flash')).toHaveCount(1);
+  await page.waitForTimeout(1500);
+  await expect(page.locator('.mdf-flash')).toHaveCount(0); // 비춤은 1.2초 뒤 모두 걷힌다
 });
