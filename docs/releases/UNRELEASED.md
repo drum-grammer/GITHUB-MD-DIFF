@@ -27,3 +27,4 @@ Everything in [docs/releases/v1.1.1.md](v1.1.1.md): comment in the rendered view
 ## How it was tested (fill in from the latest `pnpm verify release` report)
 
 - 1.3.0, 2026-10-09: see [docs/reports/v1.3.0-testing.md](../reports/v1.3.0-testing.md)
+- 1.4.0, 2026-10-10: `pnpm verify release` 10/10 (testbed 60/60 in 5 layouts), extension CPU unchanged from 1.3.0 within noise — see [docs/reports/v1.4.0-testing.md](../reports/v1.4.0-testing.md)
