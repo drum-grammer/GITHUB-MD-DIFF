@@ -426,3 +426,60 @@ test('T14 로그아웃 화면(옛 /files)에서 스레드 없는 md는 렌더링
     await context.close();
   }
 });
+
+test('T15 파일 툴바 요약과 ] [ } { 이동 — 바뀐 곳·스레드를 페이지 순서로, 글을 쓰는 중에는 가로채지 않는다', async ({ page }) => {
+  await open(page, 'review');
+  for (const path of ['docs/guides/renamed-edit.md', 'docs/handbook.md', 'docs/new-page.md', 'docs/pricing.md', 'docs/widget.mdx', 'docs/escape.md']) {
+    await rendered(fileOf(page, path));
+  }
+  const summary = (path: string) => fileOf(page, path).locator('[data-mdf="file-toolbar"] .mdf-summary');
+  // 내용 v1 기준: handbook은 바뀐 곳 8(머리말 표·문단·목록·지운 문단+코드·Plans 표·알림·HTML 표·각주), 심은 스레드 3
+  await expect(summary('docs/handbook.md')).toHaveText(/\b8\b.*\b3\b.*\b3\b/, { timeout: 20_000 });
+  await expect(summary('docs/pricing.md')).toHaveText(/\b1\b.*\b1\b.*\b0\b/); // 해결된 스레드는 미해결에 세지 않는다
+  await expect(summary('docs/widget.mdx')).toHaveText(/^\D*1\D*$/);
+  await expect(summary('docs/escape.md')).toHaveCount(0); // 렌더링에 안 드러나는 변경 — 요약 대신 안내
+  metric('handbook 요약', (await summary('docs/handbook.md').textContent()) ?? '');
+
+  const status = page.locator('[data-mdf="nav-status"]');
+  const press = async (key: string) => {
+    await page.keyboard.press(key);
+    return (await status.textContent()) ?? '';
+  };
+  const flashedTop = () => page.evaluate(() => [Math.round(document.querySelector('.mdf-flash')?.getBoundingClientRect().top ?? -1), Math.round(innerHeight * 0.3)]);
+  await page.evaluate(() => {
+    (document.activeElement as HTMLElement | null)?.blur();
+    window.scrollTo(0, 0);
+  });
+  const changes: string[] = [];
+  for (let i = 0; i < 13; i++) changes.push(await press(']'));
+  metric('] 차례', changes.join(' → '));
+  expect(changes.slice(0, 12)).toEqual(Array.from({ length: 12 }, (_, i) => expect.stringMatching(new RegExp(`\\b${i + 1}\\D+12\\b`))));
+  expect(changes[12]).not.toMatch(/\d/); // 끝 안내
+  expect(await press('[')).toMatch(/\b11\D+12\b/);
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(1300); // 앞의 비춤(1.2초)이 사라진 뒤에 잰다
+  const first = await press('}');
+  expect(first).toMatch(/\b1\D+6\b/);
+  const [top, ref] = await flashedTop();
+  expect(Math.abs(top - ref)).toBeLessThan(12); // GitHub 고정 머리 아래, 화면 위 30%
+  for (let i = 2; i <= 6; i++) expect(await press('}')).toMatch(new RegExp(`\\b${i}\\D+6\\b`));
+  expect(await press('{')).toMatch(/\b5\D+6\b/);
+
+  // 코멘트 상자에 쓰는 중에는 ]가 글자로 들어간다
+  const hb = fileOf(page, 'docs/handbook.md');
+  const form = await formFor(hb, prose(hb).locator('li', { hasText: 'Connect your calendar' }).first());
+  const before = await status.textContent();
+  await form.locator('textarea').click();
+  await page.keyboard.type('a]b[');
+  await expect(form.locator('textarea')).toHaveValue('a]b[');
+  expect(await status.textContent()).toBe(before);
+  await buttons(form).first().click();
+
+  // 툴바 ↓는 그 파일 안에서만
+  await fileOf(page, 'docs/pricing.md').locator('[data-mdf="file-toolbar"] .mdf-nav').last().click();
+  await expect(status).toHaveText(/\b1\D+1\b/);
+  await expect(fileOf(page, 'docs/pricing.md').locator('[data-mdf="table"].mdf-flash')).toHaveCount(1);
+  await page.waitForTimeout(1500);
+  await expect(page.locator('.mdf-flash')).toHaveCount(0); // 비춤은 1.2초 뒤 모두 걷힌다
+});

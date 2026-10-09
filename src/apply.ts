@@ -1,5 +1,5 @@
 import { noticeBox } from './comment-ui';
-import { addFileToolbar } from './controls';
+import { syncFileToolbar } from './controls';
 import { foldUnchanged } from './fold';
 import { t } from './i18n';
 import { HIDDEN_CLASS, MDF_ATTR, PIN_ATTR, UNCOLLAPSED_ATTR, setHidden, tablePairs } from './selectors';
@@ -11,7 +11,7 @@ export interface ApplyResult {
   errors: unknown[];
 }
 
-/** 렌더링 diff 본문 하나에 표 합치기·접기·파일 버튼을 적용한다. 여러 번 불러도 결과가 같다 */
+/** 렌더링 diff 본문 하나에 표 합치기·접기·파일 툴바(펼치기·요약·이동)를 적용한다. 여러 번 불러도 결과가 같다 */
 export function applyBody(body: HTMLElement): ApplyResult {
   const result: ApplyResult = { folds: 0, tables: 0, errors: [] };
   for (const pair of tablePairs(body)) {
@@ -27,7 +27,7 @@ export function applyBody(body: HTMLElement): ApplyResult {
     result.errors.push(e);
   }
   try {
-    addFileToolbar(body);
+    syncFileToolbar(body);
   } catch (e) {
     result.errors.push(e);
   }

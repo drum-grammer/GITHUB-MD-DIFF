@@ -22,6 +22,7 @@ Markdown Diff Cat gives you both: the rendered document, with only the changes i
 - **Opens the rendered view for you** on every `.md`, `.markdown`, and `.mdx` file on the "Files changed" page
 - **Folds unchanged sections** into one-line bars that show how many blocks they hide and the last heading inside. Click a bar to expand it, or **Expand all** at the top of the file
 - **Shows only the changed rows of tables.** When one row changes, GitHub shows the whole old table and the whole new table. Markdown Diff Cat merges them into one table with only the changed, added, and removed rows, and shows changed cells as old → new. **All rows** and **Original tables** buttons sit above each merged table
+- **Jump between changes.** The top of each file says how many places changed and how many review threads it has, with how many are still open ("8 changes · 3 threads (3 open)"). Press `]` / `[` for the next or previous change on the page and `}` / `{` for the next or previous thread, or use ↑ ↓ to move within one file. The keys do nothing while you type
 - **Comment right in the rendered view** (signed in to GitHub)
   - Hover over a block and click **+**, or drag from **+** to another block to comment on a range
   - The comment lands on the right source line as an ordinary GitHub review comment: add a single comment, or start or add to your review
@@ -114,6 +115,7 @@ Markdown Diff Cat은 두 장점을 합쳤어요. 렌더링된 문서를 보면�
 - **렌더링 보기로 자동 전환** — "Files changed" 화면의 `.md`·`.markdown`·`.mdx` 파일
 - **바뀌지 않은 구간 접기** — 한 줄 막대에 숨긴 블록 수와 마지막 제목이 보여요. 누르면 그 자리만 펼치고, 파일 위 **모두 펼치기**로 한 번에 펼쳐요
 - **표는 바뀐 행만** — 행 하나만 바뀌어도 GitHub는 옛 표 전체와 새 표 전체를 보여 줘요. 바뀐·추가된·삭제된 행만 남긴 표 하나로 합치고, 바뀐 칸은 이전 → 이후로 보여 줘요. 표 위 **전체 행**·**원래 표** 버튼으로 언제든 바꿔 볼 수 있어요
+- **바뀐 곳 사이를 오가기** — 파일 맨 위에 바뀐 곳이 몇 군데인지, 리뷰 스레드가 몇 개이고 그중 몇 개가 미해결인지 보여요("변경 8곳 · 스레드 3개(미해결 3)"). `]`·`[`로 페이지의 다음·이전 바뀐 곳, `}`·`{`로 다음·이전 스레드로 가고, ↑ ↓는 그 파일 안에서만 움직여요. 글을 쓰는 중에는 키를 가로채지 않아요
 - **렌더링 보기에서 바로 코멘트** (GitHub에 로그인한 경우)
   - 블록에 마우스를 올리고 **+**를 누르거나, **+**에서 다른 블록까지 끌면 그 범위에 달아요
   - 코멘트는 맞는 원문 줄에 붙는 보통의 GitHub 리뷰 코멘트예요. 단일 코멘트로 달거나 리뷰를 시작·추가할 수 있어요

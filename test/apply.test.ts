@@ -64,11 +64,12 @@ describe('파일 버튼', () => {
     expect(body.querySelectorAll('tr.mdf-row-same.mdf-hidden')).toHaveLength(3);
   });
 
-  it('접을 것이 없으면 버튼을 달지 않는다', () => {
+  it('접을 것이 없으면 모두 펼치기 버튼은 없다(바뀐 곳 요약·이동 버튼만)', () => {
     document.body.innerHTML = '<div class="prose-diff"><div class="markdown-body"><div class="changed">x</div></div></div>';
     const body = document.querySelector<HTMLElement>('.markdown-body')!;
     expect(applyBody(body)).toEqual({ folds: 0, tables: 0, errors: [] });
-    expect(body.querySelector('[data-mdf]')).toBeNull();
+    expect(body.querySelector('.mdf-expand')).toBeNull();
+    expect(body.querySelector('[data-mdf="file-toolbar"] .mdf-summary')?.textContent).toBe('navChangesOne');
   });
 });
 

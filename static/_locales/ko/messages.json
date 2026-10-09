@@ -49,5 +49,20 @@
   "problemComments": {"message": "코멘트 기능 꺼짐 — GitHub 화면이 쓰는 요청이 바뀜"},
   "errorChanged": {"message": "GitHub의 코멘트 올리기 방식이 바뀌어서 올리지 못했어요. 쓴 글은 그대로 있으니 복사해서 원문 보기(<>)에서 달아 주세요."},
   "reportIssue": {"message": "GitHub에 알리기"},
-  "close": {"message": "닫기"}
+  "close": {"message": "닫기"},
+  "navChanges": {"message": "변경 $COUNT$곳", "placeholders": {"count": {"content": "$1"}}},
+  "navChangesOne": {"message": "변경 1곳"},
+  "navThreads": {"message": "스레드 $COUNT$개(미해결 $OPEN$)", "placeholders": {"count": {"content": "$1"}, "open": {"content": "$2"}}},
+  "navThreadsOne": {"message": "스레드 1개(미해결 $OPEN$)", "placeholders": {"open": {"content": "$1"}}},
+  "navPrev": {"message": "이 파일의 이전 변경(페이지 전체는 [)"},
+  "navNext": {"message": "이 파일의 다음 변경(페이지 전체는 ])"},
+  "navHelp": {"message": "단축키: ] 다음 변경 · [ 이전 변경 · } 다음 스레드 · { 이전 스레드"},
+  "navAtChange": {"message": "변경 $AT$ / $TOTAL$", "placeholders": {"at": {"content": "$1"}, "total": {"content": "$2"}}},
+  "navAtThread": {"message": "스레드 $AT$ / $TOTAL$", "placeholders": {"at": {"content": "$1"}, "total": {"content": "$2"}}},
+  "navLastChange": {"message": "아래로 더 바뀐 곳이 없어요"},
+  "navFirstChange": {"message": "위로 더 바뀐 곳이 없어요"},
+  "navLastThread": {"message": "아래로 더 스레드가 없어요"},
+  "navFirstThread": {"message": "위로 더 스레드가 없어요"},
+  "navNoChanges": {"message": "렌더링 보기에 바뀐 곳이 없어요"},
+  "navNoThreads": {"message": "렌더링 보기에 스레드가 없어요"}
 }

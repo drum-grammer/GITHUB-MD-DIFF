@@ -10,6 +10,7 @@ import {
   prepareComments,
 } from './comments';
 import { t } from './i18n';
+import { installNavKeys } from './nav';
 import { fileKey, isPrChangesPage } from './page';
 import { problemsFor, type FileResult } from './problems';
 import { browserOf, showProblemToast } from './report';
@@ -257,6 +258,7 @@ async function start(): Promise<void> {
   const stored = await chrome.storage.local.get({ enabled: true });
   enabled = stored.enabled !== false;
   watchUserViewClicks(document, state, keyOf);
+  installNavKeys(document, () => enabled && isPrChangesPage(location.href));
   // PR 데이터를 읽고 나면 스레드가 있는 파일을 렌더링으로 열거나 "!"를 띄운다 — 결과를 기억해 둔 파일도 다시 본다
   onCommentHealthChange(() => {
     settled = new WeakMap();
