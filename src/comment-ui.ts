@@ -2,6 +2,8 @@
 import type { PostMode, ReviewComment, ReviewThread } from './github-api';
 import type { BlockTarget } from './dom-blocks';
 import { t } from './i18n';
+import { formatEdit, type Format } from './md-format';
+import { OCTICONS, type Octicon } from './octicons';
 import { CHANGE_WRAPPER, MDF_ATTR } from './selectors';
 
 export const ADD = 'add-comment';
@@ -13,6 +15,7 @@ export const NOTICE = 'comment-notice';
 const BOX = `[${MDF_ATTR}="${THREAD}"], [${MDF_ATTR}="${FORM}"]`;
 const DANGEROUS = 'script, style, iframe, object, embed, link, meta, base, form';
 const URL_ATTRS = /^(href|src|xlink:href|action|formaction|srcset)$/i;
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** 브라우저가 읽는 그대로(탭·줄바꿈이 낀 javascript:도) 풀어서 http·https·mailto·상대 주소만 */
 function safeUrl(value: string): boolean {
@@ -40,6 +43,26 @@ export function lineLabel(target: Pick<BlockTarget, 'side' | 'start' | 'end'> & 
   if (target.subject === 'file') return t('wholeFile');
   const lines = target.start >= target.end ? t('lineOne', [target.end]) : t('lineRange', [target.start, target.end]);
   return target.side === 'left' ? `${lines} · ${t('sideOriginal')}` : lines;
+}
+
+/** 코멘트 상자 머리글 — GitHub 상자처럼 "Add a comment on line R13", 원래 파일 쪽은 L */
+export function formLabel(target: Pick<BlockTarget, 'side' | 'start' | 'end'> & { subject?: 'line' | 'file' }): string {
+  if (target.subject === 'file') return t('commentOnFile');
+  const at = (n: number) => `${target.side === 'left' ? 'L' : 'R'}${n}`;
+  return target.start >= target.end ? t('commentOnLine', [at(target.end)]) : t('commentOnLines', [at(target.start), at(target.end)]);
+}
+
+/** 로그인한 사람의 아바타 — 페이지 머리에 이미 있는 그림을 다시 쓰고, 없으면 GitHub 주소(github.com/<login>.png). 로그인 전이면 없다 */
+function viewerAvatar(doc: Document): HTMLImageElement | null {
+  const login = doc.querySelector('meta[name="user-login"]')?.getAttribute('content');
+  if (!login) return null;
+  const mine = doc.querySelector<HTMLImageElement>(`img.avatar[alt="@${CSS.escape(login)}"], img[data-component="Avatar"][alt="@${CSS.escape(login)}"]`);
+  const img = el(doc, 'img', 'mdf-avatar');
+  img.src = mine?.src || `https://github.com/${encodeURIComponent(login)}.png?size=48`;
+  img.alt = '';
+  img.width = img.height = 24;
+  img.setAttribute('aria-hidden', 'true');
+  return img;
 }
 
 /** GitHub가 준 코멘트 HTML(GitHub가 이미 정리한 것)을 한 번 더 걸러 붙인다 — 스크립트·이벤트 속성·javascript: 주소는 뺀다 */
@@ -82,9 +105,69 @@ interface Editor {
   area: HTMLTextAreaElement;
 }
 
+/** 서식 도구 막대 — GitHub 상자와 같은 순서·아이콘. 무리 사이에 구분선 */
+const TOOLS: Array<Array<[Format, Octicon, string, string?]>> = [
+  [['heading', 'heading', 'fmtHeading'], ['bold', 'bold', 'fmtBold', 'b'], ['italic', 'italic', 'fmtItalic', 'i'], ['quote', 'quote', 'fmtQuote'], ['code', 'code', 'fmtCode', 'e'], ['link', 'link', 'fmtLink', 'k']],
+  [['ul', 'list-unordered', 'fmtUl'], ['ol', 'list-ordered', 'fmtOl'], ['task', 'tasklist', 'fmtTask']],
+  [['mention', 'mention', 'fmtMention']],
+];
+const SHORTCUT = new Map(TOOLS.flat().flatMap(([f, , , key]) => (key ? [[key, f] as const] : [])));
+
+function icon(doc: Document, name: Octicon): SVGSVGElement {
+  const svg = doc.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('width', '16');
+  svg.setAttribute('height', '16');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('fill', 'currentColor');
+  const path = doc.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', OCTICONS[name]);
+  svg.append(path);
+  return svg;
+}
+
+/** 서식을 씌운다 — execCommand는 되돌리기(⌘Z) 기록을 남긴다. 못 쓰는 곳(테스트)에서는 직접 바꾸고 input을 알린다 */
+function applyFormat(area: HTMLTextAreaElement, kind: Format): void {
+  if (area.readOnly) return;
+  const e = formatEdit(area.value, area.selectionStart, area.selectionEnd, kind);
+  area.focus();
+  area.setSelectionRange(e.from, e.to);
+  let done = false;
+  try {
+    done = area.ownerDocument.execCommand('insertText', false, e.insert);
+  } catch {
+    done = false;
+  }
+  if (!done) {
+    area.setRangeText(e.insert, e.from, e.to);
+    area.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  area.setSelectionRange(e.selStart, e.selEnd);
+}
+
+function toolbar(doc: Document, area: HTMLTextAreaElement): HTMLElement {
+  const bar = el(doc, 'div', 'mdf-md-toolbar');
+  bar.setAttribute('role', 'toolbar');
+  bar.setAttribute('aria-label', t('fmtTools'));
+  const mod = /Mac|iP(hone|ad|od)/.test(globalThis.navigator?.platform ?? '') ? '⌘' : 'Ctrl+';
+  TOOLS.forEach((group, g) => {
+    if (g) bar.append(el(doc, 'span', 'mdf-md-divider'));
+    for (const [kind, name, label, key] of group) {
+      const b = button(doc, '', 'mdf-md-tool');
+      b.append(icon(doc, name));
+      b.setAttribute('aria-label', t(label));
+      b.title = key ? `${t(label)} (${mod}${key.toUpperCase()})` : t(label);
+      b.addEventListener('mousedown', (e) => e.preventDefault()); // 입력란의 선택을 지킨다
+      b.addEventListener('click', () => applyFormat(area, kind));
+      bar.append(b);
+    }
+  });
+  return bar;
+}
+
 /**
- * 글 입력란. `preview`가 있으면 위에 쓰기·미리보기 탭 — 미리보기는 GitHub에 렌더링을 맡겨(멘션·이슈 링크까지 같게)
- * 입력란 자리에 보여 준다. 실패하면 그 자리에 이유를 쓴다
+ * 글 입력란 — GitHub 상자와 같은 모양: 테두리 안 머리줄(쓰기·미리보기 탭 + 서식 도구 막대) 아래 입력란.
+ * 미리보기는 GitHub에 렌더링을 맡겨(멘션·이슈 링크까지 같게) 입력란 자리에 보여 준다. 실패하면 그 자리에 이유를 쓴다
  */
 function editor(doc: Document, initial: string, preview?: Preview): Editor {
   const wrap = el(doc, 'div', 'mdf-editor');
@@ -92,8 +175,20 @@ function editor(doc: Document, initial: string, preview?: Preview): Editor {
   area.placeholder = t('commentPlaceholder');
   area.rows = 4;
   area.value = initial;
+  area.addEventListener('keydown', (e) => {
+    const kind = (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey ? SHORTCUT.get(e.key.toLowerCase()) : undefined;
+    if (!kind) return;
+    e.preventDefault();
+    e.stopPropagation(); // GitHub 단축키(⌘K 명령 팔레트 등)로 새지 않게
+    applyFormat(area, kind);
+  });
+  const head = el(doc, 'div', 'mdf-editor-head');
+  const tools = toolbar(doc, area);
+  const body = el(doc, 'div', 'mdf-editor-body');
+  body.append(area);
+  wrap.append(head, body);
   if (!preview) {
-    wrap.append(area);
+    head.append(tools);
     return { wrap, area };
   }
   const tabs = el(doc, 'div', 'mdf-tabs');
@@ -111,6 +206,7 @@ function editor(doc: Document, initial: string, preview?: Preview): Editor {
     }
     area.hidden = previewing;
     pane.hidden = !previewing;
+    tools.hidden = previewing;
   };
   write.addEventListener('click', () => {
     select(false);
@@ -134,7 +230,8 @@ function editor(doc: Document, initial: string, preview?: Preview): Editor {
   });
   select(false);
   tabs.append(write, show);
-  wrap.append(tabs, area, pane);
+  head.append(tabs, tools);
+  body.append(pane);
   return { wrap, area };
 }
 
@@ -148,7 +245,9 @@ export interface FormHandlers {
 export function commentForm(doc: Document, opt: FormOptions, h: FormHandlers): HTMLElement {
   const box = el(doc, 'div', 'mdf-comment-form');
   box.setAttribute(MDF_ATTR, FORM);
-  const label = el(doc, 'div', 'mdf-comment-label', opt.label);
+  const head = el(doc, 'div', 'mdf-comment-head');
+  const avatar = viewerAvatar(doc);
+  head.append(...(avatar ? [avatar] : []), el(doc, 'strong', 'mdf-comment-label', opt.label));
   const { wrap, area } = editor(doc, '', opt.preview);
   const error = el(doc, 'div', 'mdf-comment-error');
   error.hidden = true;
@@ -157,9 +256,16 @@ export function commentForm(doc: Document, opt: FormOptions, h: FormHandlers): H
   const single = opt.pendingReview ? null : button(doc, opt.singleLabel);
   const review = button(doc, opt.pendingReview ? t('commentReviewAdd') : t('commentReviewStart'), 'mdf-btn mdf-btn-primary');
   actions.append(cancel, ...(single ? [single] : []), review);
-  box.append(label, wrap, error, actions);
+  box.append(head, wrap, error, actions);
 
   const buttons = [cancel, single, review].filter((b): b is HTMLButtonElement => b !== null);
+  // GitHub처럼 글이 없으면 올리기 버튼을 끈다
+  const sync = () => {
+    const off = Boolean(box.dataset.busy) || !area.value.trim();
+    for (const b of [single, review]) if (b) b.disabled = off;
+  };
+  area.addEventListener('input', sync);
+  sync();
   const submit = async (mode: PostMode, b: HTMLButtonElement) => {
     if (box.dataset.busy) return; // 올리는 중 — ⌘Enter를 또 눌러도 한 번만
     const text = area.value.trim();
@@ -181,8 +287,9 @@ export function commentForm(doc: Document, opt: FormOptions, h: FormHandlers): H
       b.textContent = idle;
     } finally {
       delete box.dataset.busy;
-      for (const x of buttons) x.disabled = false;
+      cancel.disabled = false;
       area.readOnly = false;
+      sync();
     }
   };
   cancel.addEventListener('click', () => h.onCancel());
@@ -256,6 +363,8 @@ function ownActions(doc: Document, c: ReviewComment, h: ThreadHandlers, meta: HT
       const save = button(doc, t('save'), 'mdf-btn mdf-btn-primary');
       actions.append(cancel, save);
       form.append(wrap, actions);
+      const sync = () => (save.disabled = !area.value.trim());
+      area.addEventListener('input', sync);
       const close = () => {
         form.remove();
         body.hidden = false;
@@ -272,7 +381,8 @@ function ownActions(doc: Document, c: ReviewComment, h: ThreadHandlers, meta: HT
           close();
         } catch (e) {
           fail(e);
-          save.disabled = cancel.disabled = false;
+          cancel.disabled = false;
+          sync();
         }
       });
       area.addEventListener('keydown', (e) => {
@@ -376,9 +486,11 @@ export function threadBox(doc: Document, thread: ReviewThread, pendingReview: bo
         },
       );
       form.removeAttribute(MDF_ATTR); // 스레드 상자 안이라 따로 걷지 않는다
-      form.querySelector('textarea')!.value = text;
+      const area = form.querySelector('textarea')!;
+      area.value = text;
+      area.dispatchEvent(new Event('input'));
       inner.append(form);
-      form.querySelector('textarea')?.focus();
+      area.focus();
     };
     reply.addEventListener('click', () => openReply?.(''));
     actions.append(reply);

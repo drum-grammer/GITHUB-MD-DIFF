@@ -33,7 +33,7 @@ import {
   addButton,
   commentForm,
   fileThreadsBox,
-  lineLabel,
+  formLabel,
   noticeBox,
   placeBox,
   replyDraft,
@@ -430,7 +430,7 @@ class FileComments {
     const last = from.compareDocumentPosition(to) & Node.DOCUMENT_POSITION_FOLLOWING ? to : from;
     const form = commentForm(
       this.body.ownerDocument,
-      { label: lineLabel(span), pendingReview: Boolean(this.data?.pendingReviewId), singleLabel: t('commentSingle'), preview: this.preview },
+      { label: formLabel(span), pendingReview: Boolean(this.data?.pendingReviewId), singleLabel: t('commentSingle'), preview: this.preview },
       {
         onSubmit: async (text, mode) => {
           await this.post((d) => commentPayload({ path: this.path, ...span }, text, d.pendingReviewId ? 'review' : mode, d));

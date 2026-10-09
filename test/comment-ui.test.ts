@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { commentForm, fileThreadsBox, lineLabel, placeBox, safeFragment, threadBox, type ThreadHandlers } from '../src/comment-ui';
+import { commentForm, fileThreadsBox, formLabel, lineLabel, placeBox, safeFragment, threadBox, type ThreadHandlers } from '../src/comment-ui';
 import type { ReviewComment, ReviewThread } from '../src/github-api';
 
 function body(html: string): HTMLElement {
@@ -45,15 +45,22 @@ describe('safeFragment', () => {
 });
 
 describe('commentForm', () => {
-  const opt = { label: 'lineOne:3', pendingReview: false, singleLabel: 'commentSingle' };
+  const opt = { label: 'commentOnLine:R3', pendingReview: false, singleLabel: 'commentSingle' };
+  const actions = (f: HTMLElement) => [...f.querySelectorAll<HTMLButtonElement>('.mdf-comment-actions > button')];
+  const type = (f: HTMLElement, text: string) => {
+    const area = f.querySelector('textarea')!;
+    area.value = text;
+    area.dispatchEvent(new Event('input'));
+    return area;
+  };
 
   it('바로 올리기와 리뷰 시작 — 빈 글은 보내지 않는다', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     const f = commentForm(document, opt, { onSubmit, onCancel: vi.fn() });
-    const [, single, review] = [...f.querySelectorAll('button')];
+    const [, single, review] = actions(f);
     single.click();
     expect(onSubmit).not.toHaveBeenCalled();
-    f.querySelector('textarea')!.value = '좋아요';
+    type(f, '좋아요');
     review.click();
     await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledWith('좋아요', 'review'));
   });
@@ -61,9 +68,8 @@ describe('commentForm', () => {
   it('보류 중인 리뷰가 있으면 리뷰에 넣기만, ⌘/Ctrl+Enter도 그쪽', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     const f = commentForm(document, { ...opt, pendingReview: true }, { onSubmit, onCancel: vi.fn() });
-    expect([...f.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['cancel', 'commentReviewAdd']);
-    const area = f.querySelector('textarea')!;
-    area.value = '글';
+    expect(actions(f).map((b) => b.textContent)).toEqual(['cancel', 'commentReviewAdd']);
+    const area = type(f, '글');
     area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
     await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledWith('글', 'review'));
   });
@@ -71,11 +77,76 @@ describe('commentForm', () => {
   it('실패하면 오류 문구를 보이고 글은 남긴다', async () => {
     const f = commentForm(document, opt, { onSubmit: vi.fn().mockRejectedValue(new Error('안 됨')), onCancel: vi.fn() });
     document.body.append(f);
-    f.querySelector('textarea')!.value = '글';
-    f.querySelectorAll('button')[1].click();
+    type(f, '글');
+    actions(f)[1].click();
     await vi.waitFor(() => expect(f.querySelector<HTMLElement>('.mdf-comment-error')!.hidden).toBe(false));
     expect(f.querySelector('.mdf-comment-error')!.textContent).toBe('안 됨');
     expect(f.querySelector('textarea')!.value).toBe('글');
+  });
+
+  it('GitHub 상자처럼 — 머리글은 굵은 줄 표시, 글이 없으면 올리기 버튼이 꺼진다(취소는 켜짐)', () => {
+    const f = commentForm(document, opt, { onSubmit: vi.fn(), onCancel: vi.fn() });
+    expect(f.querySelector('.mdf-comment-head > strong.mdf-comment-label')?.textContent).toBe('commentOnLine:R3');
+    const [cancel, single, review] = actions(f);
+    expect([cancel.disabled, single.disabled, review.disabled]).toEqual([false, true, true]);
+    type(f, '  ');
+    expect(review.disabled).toBe(true);
+    type(f, '글');
+    expect([single.disabled, review.disabled]).toEqual([false, false]);
+    type(f, '');
+    expect(single.disabled).toBe(true);
+  });
+
+  it('로그인한 사람이면 머리글에 아바타, 아니면 없다', () => {
+    expect(commentForm(document, opt, { onSubmit: vi.fn(), onCancel: vi.fn() }).querySelector('.mdf-avatar')).toBeNull();
+    const meta = Object.assign(document.createElement('meta'), { name: 'user-login', content: 'octo cat' });
+    document.head.append(meta);
+    try {
+      const img = commentForm(document, opt, { onSubmit: vi.fn(), onCancel: vi.fn() }).querySelector<HTMLImageElement>('.mdf-avatar')!;
+      expect(img.src).toBe('https://github.com/octo%20cat.png?size=48');
+      const header = Object.assign(document.createElement('img'), { className: 'avatar', alt: '@octo cat', src: 'https://avatars.githubusercontent.com/u/1?v=4' });
+      document.body.append(header);
+      expect(commentForm(document, opt, { onSubmit: vi.fn(), onCancel: vi.fn() }).querySelector<HTMLImageElement>('.mdf-avatar')!.src).toBe(header.src);
+      header.remove();
+    } finally {
+      meta.remove();
+    }
+  });
+
+  it('서식 도구 막대 — GitHub 순서의 버튼 10개, 누르면 고른 글에 씌우고 input을 알린다', () => {
+    const f = commentForm(document, { ...opt, preview: vi.fn() }, { onSubmit: vi.fn(), onCancel: vi.fn() });
+    document.body.append(f);
+    const tools = [...f.querySelectorAll<HTMLButtonElement>('.mdf-md-toolbar .mdf-md-tool')];
+    expect(tools.map((b) => b.getAttribute('aria-label'))).toEqual(['fmtHeading', 'fmtBold', 'fmtItalic', 'fmtQuote', 'fmtCode', 'fmtLink', 'fmtUl', 'fmtOl', 'fmtTask', 'fmtMention']);
+    expect(tools.every((b) => b.querySelector('svg path'))).toBe(true);
+    const area = type(f, '좋아요');
+    const review = actions(f)[2];
+    type(f, '');
+    expect(review.disabled).toBe(true);
+    area.value = '좋아요';
+    area.setSelectionRange(0, 3);
+    tools[1].click(); // 굵게 — input이 와서 버튼도 켜진다
+    expect(area.value).toBe('**좋아요**');
+    expect(review.disabled).toBe(false);
+    area.dispatchEvent(new KeyboardEvent('keydown', { key: 'i', ctrlKey: true }));
+    expect(area.value).toBe('**_좋아요_**');
+    f.remove();
+  });
+
+  it('미리보기 탭에서는 도구 막대를 감춘다', () => {
+    const f = commentForm(document, { ...opt, preview: vi.fn().mockResolvedValue('<p>x</p>') }, { onSubmit: vi.fn(), onCancel: vi.fn() });
+    const [, show] = [...f.querySelectorAll<HTMLButtonElement>('.mdf-tab')];
+    show.click();
+    expect(f.querySelector<HTMLElement>('.mdf-md-toolbar')!.hidden).toBe(true);
+  });
+});
+
+describe('formLabel', () => {
+  it('GitHub처럼 R(바뀐 쪽)·L(원래 쪽) 줄 번호', () => {
+    expect(formLabel({ side: 'right', start: 13, end: 13 })).toBe('commentOnLine:R13');
+    expect(formLabel({ side: 'right', start: 13, end: 17 })).toBe('commentOnLines:R13|R17');
+    expect(formLabel({ side: 'left', start: 25, end: 25 })).toBe('commentOnLine:L25');
+    expect(formLabel({ subject: 'file', side: 'right', start: 0, end: 0 })).toBe('commentOnFile');
   });
 });
 

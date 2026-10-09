@@ -107,8 +107,8 @@ await check('화면: 블록 "+"와 원문 줄(49번째 줄)', async () => {
   must(await plus.isVisible(), '"+"가 나오지 않는다');
   await plus.click();
   const label = await file.locator('[data-mdf="comment-form"] .mdf-comment-label').textContent();
-  must(/\b49\b/.test(label ?? ''), `줄 표시가 다르다: ${label}`);
-  await file.locator('[data-mdf="comment-form"] button').first().click(); // 취소 — 올리지 않는다
+  must(/\bR49\b/.test(label ?? ''), `줄 표시가 다르다: ${label}`);
+  await file.locator('[data-mdf="comment-form"] .mdf-comment-actions > button').first().click(); // 취소 — 올리지 않는다
   return label;
 });
 

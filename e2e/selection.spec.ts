@@ -36,7 +36,7 @@ test('끌어서 고른 범위는 상자가 열려 있는 동안 노랗게 남고
   await page.mouse.move(end!.x + 30, end!.y + end!.height / 2, { steps: 8 });
   await page.mouse.up();
   const form = file.locator('[data-mdf="comment-form"]');
-  await expect(form.locator('.mdf-comment-label')).toHaveText(/\b13–17\b/);
+  await expect(form.locator('.mdf-comment-label')).toHaveText(/\bR13\b.*\bR17\b/);
   const selected = file.locator('.mdf-selected');
   await expect(selected.first()).toBeVisible();
   expect(await selected.count()).toBeGreaterThanOrEqual(3);
