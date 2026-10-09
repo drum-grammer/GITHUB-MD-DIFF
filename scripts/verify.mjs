@@ -16,7 +16,7 @@ const STEPS = {
   typecheck: { name: '타입 검사', cmd: ['pnpm', ['-s', 'typecheck']] },
   unit: { name: '단위·DOM 테스트', cmd: ['pnpm', ['-s', 'test']], summary: vitest },
   build: { name: '빌드', cmd: ['node', ['build.mjs']] },
-  'testbed-setup': { name: '테스트 저장소 맞추기', cmd: ['node', ['scripts/testbed-setup.mjs']], summary: (o) => last(o, /스레드 \d+개[^\n]*/) },
+  'testbed-setup': { name: '테스트 저장소 맞추기', cmd: ['node', ['scripts/testbed-setup.mjs']], summary: (o) => last(o, /스레드 \d+개[^\n→]*/) },
   'testbed-quick': { name: '테스트 저장소 @quick', cmd: ['npx', ['playwright', 'test', '-c', 'testbed/playwright.config.ts', '--project', 'split', '--grep', '@quick']], summary: playwright, testbed: true },
   e2e: { name: 'E2E(쓰기 포함)', cmd: ['npx', ['playwright', 'test']], env: { GMD_E2E_WRITE: '1' }, summary: playwright },
   canary: { name: '카나리(실제 GitHub, 읽기만)', cmd: ['node', ['scripts/canary.mjs']], summary: (o) => last(o, /모두 정상[^\n—]*|문제 \d+[^\n]*/) },

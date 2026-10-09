@@ -64,15 +64,25 @@ const test = base.extend<{ context: BrowserContext; page: Page; worker: Worker }
     },
     { scope: 'worker', auto: true },
   ],
-  context: async ({}, use) => {
+  // 실패하면 그 시나리오의 기록(trace.zip — 화면·DOM·네트워크)과 페이지 콘솔을 결과 폴더에 남긴다(가끔 실패하는 것을 다음에 가리려고)
+  context: async ({}, use, testInfo) => {
     const context = await launch();
+    await context.tracing.start({ screenshots: true, snapshots: true });
     const sw = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
     await sw.evaluate(() => chrome.storage.local.set({ enabled: true }));
     await use(context);
+    const failed = testInfo.status !== testInfo.expectedStatus;
+    await context.tracing.stop(failed ? { path: testInfo.outputPath('trace.zip') } : undefined);
     await context.close();
   },
   worker: async ({ context }, use) => use(context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'))),
-  page: async ({ context }, use) => use(context.pages()[0] ?? (await context.newPage())),
+  page: async ({ context }, use, testInfo) => {
+    const page = context.pages()[0] ?? (await context.newPage());
+    const log: string[] = [];
+    page.on('console', (m) => log.push(`${m.type()} ${m.text()}`));
+    await use(page);
+    if (testInfo.status !== testInfo.expectedStatus && log.length) await testInfo.attach('console', { body: log.join('\n'), contentType: 'text/plain' });
+  },
 });
 
 const metric = (name: string, value: string | number) => test.info().annotations.push({ type: 'metric', description: `${name}=${value}` });

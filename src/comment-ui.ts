@@ -100,7 +100,8 @@ function editor(doc: Document, initial: string, preview?: Preview): Editor {
   tabs.setAttribute('role', 'tablist');
   const write = button(doc, t('tabWrite'), 'mdf-tab');
   const show = button(doc, t('tabPreview'), 'mdf-tab');
-  const pane = el(doc, 'div', 'mdf-preview markdown-body');
+  // markdown-body를 붙이지 않는다 — 렌더링 본문(.prose-diff .markdown-body)이 둘로 보여 본문을 찾는 코드가 헷갈린다. 글꼴·목록 모양은 둘러싼 본문에서 물려받는다
+  const pane = el(doc, 'div', 'mdf-preview');
   pane.hidden = true;
   let seq = 0;
   const select = (previewing: boolean) => {
