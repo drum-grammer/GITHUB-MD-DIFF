@@ -287,6 +287,20 @@ test('T05 블록마다 "+"가 맞는 원문 줄을 고른다(표 행·HTML 표·
     const label = (await form.locator('.mdf-comment-label').textContent()) ?? '';
     metric(`줄 연결 ${name}`, label);
     expect.soft(label, name).toMatch(want);
+    // 제안 버튼 — 오른쪽 줄이면 그 줄 원문을 suggestion 블록으로 넣고, 지운 쪽 줄이면 버튼이 없다
+    const suggest = form.locator('.mdf-md-tool').first();
+    const right = /\bR(\d+)(?:\D+R(\d+))?/.exec(label);
+    if (right) {
+      const from = Number(right[1]);
+      const to = Number(right[2] ?? right[1]);
+      const want = `\`\`\`suggestion\n${hbText.split('\n').slice(from - 1, to).join('\n')}\n\`\`\``;
+      await suggest.click();
+      const got = await form.locator('textarea').inputValue();
+      metric(`제안 ${name}`, got.split('\n').length - 2 + '줄');
+      expect.soft(got.replace(/^`{4,}/, '```').replace(/`{4,}$/, '```'), `제안 ${name}`).toBe(want);
+    } else {
+      await expect.soft(form.locator('.mdf-md-tool[aria-label]').first(), `제안 ${name}`).not.toHaveAttribute('aria-label', /suggestion|제안/i);
+    }
     await buttons(form).first().click(); // 취소
     await expect(form).toHaveCount(0);
   }
