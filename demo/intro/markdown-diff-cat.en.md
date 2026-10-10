@@ -46,7 +46,27 @@ Commenting is planned for a later version. For now, switch the file to the sourc
 | Merge changed table rows | 1.0 | Files changed | Stable |
 | Comment in the rendered view | — | — | Planned |
 
-## 7. Install
+## 7. How it works
+
+### 7.1 Finding the Markdown files
+
+The extension watches the "Files changed" page and picks out every file that ends in .md, .markdown, or .mdx. It switches each one to GitHub's own rendered view, so the document looks exactly as it will after the merge. Files you switched to the source view yourself are left alone.
+
+### 7.2 Folding what did not change
+
+GitHub marks added, removed, and changed blocks in the rendered view. Everything between two marked blocks is unchanged, so the extension replaces that run of blocks with a single bar. The bar keeps the last heading it hides, which tells you where you are in the document without opening it.
+
+Folding never removes anything from the page. Expanding a bar shows the original blocks again, and the expand-all button restores the whole file.
+
+### 7.3 Merging tables
+
+When a table changes, GitHub shows the old table and the new table one after the other. The extension compares them row by row and builds one table that keeps only the rows that changed. Cells that changed show the old and new value side by side, and added and removed rows keep GitHub's colors.
+
+### 7.4 Staying out of your way
+
+If you click the source button on a file, the extension takes that as your choice and does not switch the file back until you pick the rendered view again or reload. Files you collapsed or marked as viewed stay collapsed.
+
+## 8. Install
 
 Install it from the Chrome Web Store, then open any pull request that changes a Markdown file. There is nothing to configure.
 
@@ -60,43 +80,58 @@ pnpm install && pnpm dev:chrome
 
 Load the folder it prints with **Load unpacked** on `chrome://extensions`.
 
-## 8. Privacy
+## 9. Privacy
 
 - No data is collected and no remote code is loaded.
 - It runs only on github.com.
 - When you are signed in, it talks only to GitHub with the session you already have.
 - Your on and off setting stays on your device.
 
-## 9. Frequently asked questions
+## 10. Frequently asked questions
 
-### 9.1 Does it change my pull request?
+### 10.1 Does it change my pull request?
 
 No. It changes only how the page looks in your browser. Comments you post are ordinary GitHub review comments.
 
-### 9.2 Does it work on private repositories?
+### 10.2 Does it work on private repositories?
 
 Yes. It reads the page you already have open, with your own session, and sends nothing anywhere else.
 
-### 9.3 What if GitHub changes its page?
+### 10.3 What if GitHub changes its page?
 
 The toolbar icon shows `!` and commenting turns itself off, while folding and tables keep working. An update usually follows within days.
 
-## 10. Roadmap
+### 10.4 Does it slow GitHub down?
+
+No. It looks at each file once, after GitHub has drawn it, and does not touch files it has already handled. On a pull request with 300 Markdown files it adds well under a second of work in total.
+
+### 10.5 Can I turn it off for a moment?
+
+Yes. Click the toolbar icon. It turns gray, and the page goes back to how GitHub draws it.
+
+## 11. Roadmap
 
 - Comment in the rendered view.
 - Keyboard shortcuts to jump between changes.
 - Commit and compare pages, in addition to pull requests.
 - A side-by-side view for long rewrites.
 
-## 11. Appendix
+## 12. Limits
 
-### 11.1 Glossary
+- Files renamed without changes stay in the source view, since there is nothing to render.
+- When an edit does not change how the page looks, such as a link URL, the file says so and offers the source diff.
+- Blocks that GitHub draws from HTML or diagrams may not get a comment button.
+- In a pull request with many Markdown files, files further down render as you scroll to them.
+
+## 13. Appendix
+
+### 13.1 Glossary
 
 - **Rich diff** — GitHub's rendered view of a changed Markdown file.
 - **Source diff** — the line-by-line view of the Markdown source.
 - **Fold bar** — the one-line bar that stands in for unchanged blocks.
 
-### 11.2 Links
+### 13.2 Links
 
 - Source code and issues: github.com/drum-grammer/GITHUB-MD-DIFF
 - Privacy policy: PRIVACY.md in the repository
