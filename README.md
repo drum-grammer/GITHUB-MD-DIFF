@@ -49,6 +49,14 @@ Release notes: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/
 
 **Try a build before it reaches the store (developer mode)**
 
+You need Node 22.18 or later and pnpm 12 (`corepack enable` picks the pinned version). `main` is the latest build that has not reached the store yet.
+
+```sh
+git clone https://github.com/drum-grammer/GITHUB-MD-DIFF.git && cd GITHUB-MD-DIFF
+```
+
+To update later: `git pull && pnpm install && pnpm dev:chrome`. To try an open pull request instead: `gh pr checkout <number>`, then `pnpm install && pnpm dev:chrome`.
+
 1. `pnpm install && pnpm dev:chrome` — builds a development copy into `~/.local/share/github-md-diff/chrome-dev` (set `GMD_CHROME_DEV_DIR` to change it; it refuses a folder that holds anything else) and, on macOS, copies that path to the clipboard. `--open` also opens `chrome://extensions`
 2. First time only: `chrome://extensions` → turn on **Developer mode** → **Load unpacked** → choose that folder (`Cmd+Shift+G` and paste on macOS). Turn off the store version while you test, or both will change the same page
 3. After that, run `pnpm dev:chrome` from any branch and reload a GitHub tab. The development copy notices the new build, reloads itself, and reloads that tab. It shows as **Markdown Diff Cat (dev)**, with the commit in its version
