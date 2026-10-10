@@ -79,7 +79,7 @@ test('렌더링 보기에서 문단·합친 표의 행·범위에 코멘트를 �
   const para = file.locator('.markdown-body p', { hasText: 'A reconciler runs every' });
   await hoverUntilPlus(page, para);
   await file.locator('[data-mdf="add-comment"]').click();
-  await expect(file.locator('[data-mdf="comment-form"] .mdf-comment-label')).toHaveText(/\b49\b/);
+  await expect(file.locator('[data-mdf="comment-form"] .mdf-comment-label')).toHaveText(/\bR49\b/);
   await submit(page, `${STAMP} 문단`);
   await expect(file.locator('[data-mdf="thread"] .mdf-pending').first()).toBeVisible();
 
@@ -87,7 +87,7 @@ test('렌더링 보기에서 문단·합친 표의 행·범위에 코멘트를 �
   const row = file.locator('[data-mdf="table"] tr', { hasText: 'In progress' });
   await hoverUntilPlus(page, row);
   await file.locator('[data-mdf="add-comment"]').click();
-  await expect(file.locator('[data-mdf="comment-form"] .mdf-comment-label')).toHaveText(/\b132\b/);
+  await expect(file.locator('[data-mdf="comment-form"] .mdf-comment-label')).toHaveText(/\bR132\b/);
   await submit(page, `${STAMP} 표`);
 
   // 목표 첫 항목에서 마지막 항목까지 끌기 → 13–17번째 줄
@@ -100,7 +100,7 @@ test('렌더링 보기에서 문단·합친 표의 행·범위에 코멘트를 �
   await page.mouse.down();
   await page.mouse.move(end!.x + 30, end!.y + end!.height / 2, { steps: 8 });
   await page.mouse.up();
-  await expect(file.locator('[data-mdf="comment-form"] .mdf-comment-label')).toHaveText(/\b13–17\b/);
+  await expect(file.locator('[data-mdf="comment-form"] .mdf-comment-label')).toHaveText(/\bR13\b.*\bR17\b/);
   await submit(page, `${STAMP} 범위`);
 
   expect((await markerKeys(page)).sort()).toEqual(['R13-R17', 'R132', 'R49'].sort());

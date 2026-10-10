@@ -28,6 +28,7 @@ Markdown Diff Cat gives you both: the rendered document, with only the changes i
   - The comment lands on the right source line as an ordinary GitHub review comment: add a single comment, or start or add to your review
   - Existing review threads show under the block they refer to, where you can reply and resolve them. Comments on the whole file show at the top of the file
   - **Preview** your comment the way GitHub will show it, and **edit** or **delete** your own comments in place (delete asks for a second click)
+  - The comment box looks like GitHub's own: your avatar and the line (`R13`, or `L25` on the removed side), Write / Preview tabs, the formatting toolbar (a **suggestion** button that drops the commented lines into a ```` ```suggestion ```` block, heading, bold, italic, quote, code, link, lists, task list, mention, with ⌘/Ctrl+B, I, E, K), and **Comment** and **Start a review** stay off until you type
 
   ![A review thread under a paragraph and a comment box under the next one, in the rendered diff](store/images/en/screenshot-2.png)
 - **Stays out of your way**
@@ -47,6 +48,14 @@ If Enhanced Safe Browsing is on, Chrome may say "Proceed with caution" because t
 Release notes: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases)
 
 **Try a build before it reaches the store (developer mode)**
+
+You need Node 22.18 or later and pnpm 12 (`corepack enable` picks the pinned version). `main` is the latest build that has not reached the store yet.
+
+```sh
+git clone https://github.com/drum-grammer/GITHUB-MD-DIFF.git && cd GITHUB-MD-DIFF
+```
+
+To update later: `git pull && pnpm install && pnpm dev:chrome`. To try an open pull request instead: `gh pr checkout <number>`, then `pnpm install && pnpm dev:chrome`.
 
 1. `pnpm install && pnpm dev:chrome` — builds a development copy into `~/.local/share/github-md-diff/chrome-dev` (set `GMD_CHROME_DEV_DIR` to change it; it refuses a folder that holds anything else) and, on macOS, copies that path to the clipboard. `--open` also opens `chrome://extensions`
 2. First time only: `chrome://extensions` → turn on **Developer mode** → **Load unpacked** → choose that folder (`Cmd+Shift+G` and paste on macOS). Turn off the store version while you test, or both will change the same page
@@ -163,6 +172,7 @@ Markdown Diff Cat은 두 장점을 합쳤어요. 렌더링된 문서를 보면�
   - 코멘트는 맞는 원문 줄에 붙는 보통의 GitHub 리뷰 코멘트예요. 단일 코멘트로 달거나 리뷰를 시작·추가할 수 있어요
   - 이미 달린 리뷰 스레드는 그 블록 아래에 보이고, 답글과 해결도 그 자리에서 해요. 파일 전체에 단 코멘트는 파일 맨 위에 보여요
   - 쓰는 중에 **미리보기**로 GitHub에 보일 모양을 확인하고, 내가 쓴 코멘트는 그 자리에서 **편집**·**삭제**해요(삭제는 한 번 더 눌러야 해요)
+  - 코멘트 상자는 GitHub 상자와 같은 모양이에요: 내 아바타와 줄(`R13`, 지운 쪽은 `L25`), 쓰기·미리보기 탭, 서식 도구 막대(코멘트하는 줄을 ```` ```suggestion ```` 블록으로 넣는 **제안**·제목·굵게·기울임·인용·코드·링크·목록·할 일·멘션, ⌘/Ctrl+B·I·E·K), 글을 쓰기 전에는 **코멘트**·**리뷰 시작**이 꺼져 있어요
 
   ![렌더링 보기에서 문단 아래 리뷰 스레드와 다음 문단의 코멘트 입력 상자](store/images/ko/screenshot-2.png)
 - **방해하지 않아요**

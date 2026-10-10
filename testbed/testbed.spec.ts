@@ -271,22 +271,36 @@ test('T05 블록마다 "+"가 맞는 원문 줄을 고른다(표 행·HTML 표·
   const hbText = HEAD['docs/handbook.md'];
   const baseText = BASE['docs/handbook.md'];
   const cases: Array<[string, Locator, RegExp]> = [
-    ['표 행', body.locator('[data-mdf="table"] tr', { hasText: '$9' }).first(), new RegExp(`\\b${lineOf(hbText, '| Team |')}\\b`)],
-    ['HTML 표 행', body.locator('tr', { hasText: 'Link notes to pull requests' }).first(), new RegExp(`\\b${lineOf(hbText, '<tr><td>GitHub')}\\b`)],
-    ['목록 항목', body.locator('li', { hasText: 'Connect your calendar' }).first(), new RegExp(`\\b${lineOf(hbText, '- Connect your calendar')}\\b`)],
+    ['표 행', body.locator('[data-mdf="table"] tr', { hasText: '$9' }).first(), new RegExp(`\\bR${lineOf(hbText, '| Team |')}\\b`)],
+    ['HTML 표 행', body.locator('tr', { hasText: 'Link notes to pull requests' }).first(), new RegExp(`\\bR${lineOf(hbText, '<tr><td>GitHub')}\\b`)],
+    ['목록 항목', body.locator('li', { hasText: 'Connect your calendar' }).first(), new RegExp(`\\bR${lineOf(hbText, '- Connect your calendar')}\\b`)],
     // 고친 알림은 GitHub가 제목 문단과 본문으로 나눠 그린다(.markdown-alert 묶음 없음)
-    ['알림 제목', body.locator('p.markdown-alert-title').first(), new RegExp(`\\b${lineOf(hbText, '> [!NOTE]')}\\b`)],
-    ['알림 본문', body.locator('.changed', { hasText: 'Shared links never include' }).first(), new RegExp(`\\b${lineOf(hbText, 'or drafts.')}\\b`)],
-    ['코드 블록', body.locator('pre', { hasText: '--template meeting' }).first(), new RegExp(`\\b${lineOf(hbText, '```bash')}–${lineOf(hbText, '```bash') + 2}\\b`)],
+    ['알림 제목', body.locator('p.markdown-alert-title').first(), new RegExp(`\\bR${lineOf(hbText, '> [!NOTE]')}\\b`)],
+    ['알림 본문', body.locator('.changed', { hasText: 'Shared links never include' }).first(), new RegExp(`\\bR${lineOf(hbText, 'or drafts.')}\\b`)],
+    ['코드 블록', body.locator('pre', { hasText: '--template meeting' }).first(), new RegExp(`\\bR${lineOf(hbText, '```bash')}\\b.*\\bR${lineOf(hbText, '```bash') + 2}\\b`)],
     // 문서 중간에 정의한 각주 — 렌더링은 문서 끝에 모은다. 고친 각주는 옛 항목·새 항목이 따로 나온다
-    ['각주(새)', body.locator('[data-footnotes] li.added').first(), new RegExp(`\\b${lineOf(hbText, '[^sync]:')}\\b`)],
-    ['각주(옛)', body.locator('[data-footnotes] li.removed').first(), new RegExp(`\\b${lineOf(baseText, '[^sync]:')}\\b.+·`)],
+    ['각주(새)', body.locator('[data-footnotes] li.added').first(), new RegExp(`\\bR${lineOf(hbText, '[^sync]:')}\\b`)],
+    ['각주(옛)', body.locator('[data-footnotes] li.removed').first(), new RegExp(`\\bL${lineOf(baseText, '[^sync]:')}\\b`)],
   ];
   for (const [name, block, want] of cases) {
     const form = await formFor(hb, block, 15_000);
     const label = (await form.locator('.mdf-comment-label').textContent()) ?? '';
     metric(`줄 연결 ${name}`, label);
     expect.soft(label, name).toMatch(want);
+    // 제안 버튼 — 오른쪽 줄이면 그 줄 원문을 suggestion 블록으로 넣고, 지운 쪽 줄이면 버튼이 없다
+    const suggest = form.locator('.mdf-md-tool').first();
+    const right = /\bR(\d+)(?:\D+R(\d+))?/.exec(label);
+    if (right) {
+      const from = Number(right[1]);
+      const to = Number(right[2] ?? right[1]);
+      const want = `\`\`\`suggestion\n${hbText.split('\n').slice(from - 1, to).join('\n')}\n\`\`\``;
+      await suggest.click();
+      const got = await form.locator('textarea').inputValue();
+      metric(`제안 ${name}`, got.split('\n').length - 2 + '줄');
+      expect.soft(got.replace(/^`{4,}/, '```').replace(/`{4,}$/, '```'), `제안 ${name}`).toBe(want);
+    } else {
+      await expect.soft(form.locator('.mdf-md-tool[aria-label]').first(), `제안 ${name}`).not.toHaveAttribute('aria-label', /suggestion|제안/i);
+    }
     await buttons(form).first().click(); // 취소
     await expect(form).toHaveCount(0);
   }
@@ -299,7 +313,7 @@ test('T06 한 줄 코멘트를 바로 올리면 그 줄의 보통 코멘트가 �
   await rendered(hb);
   const block = prose(hb).locator('p', { hasText: 'or your app store' });
   const form = await formFor(hb, block);
-  await expect(form.locator('.mdf-comment-label')).toHaveText(/\b13\b/);
+  await expect(form.locator('.mdf-comment-label')).toHaveText(/\bR13\b/);
   const body = text('single');
   await submit(hb, form, body, 'single');
   const t = placed(body);
@@ -336,7 +350,7 @@ test('T07 끌어서 고른 범위로 리뷰를 시작하면 보류 중인 리뷰
   const form = f.locator('[data-mdf="comment-form"]');
   const text0 = HEAD['docs/new-page.md'];
   const [a, b] = [lineOf(text0, 'Run the test suite'), lineOf(text0, 'Post the release notes')];
-  await expect(form.locator('.mdf-comment-label')).toHaveText(new RegExp(`\\b${a}–${b}\\b`));
+  await expect(form.locator('.mdf-comment-label')).toHaveText(new RegExp(`\\bR${a}\\b.*\\bR${b}\\b`));
   metric('고른 블록(노란 음영)', await f.locator('.mdf-selected').count());
   expect(await f.locator('.mdf-selected').count()).toBeGreaterThanOrEqual(3);
   const body = text('range');
@@ -357,7 +371,7 @@ test('T08 지운 문단에는 원래 파일 쪽 코멘트가 달리고, 보류 �
   await rendered(hb);
   const removed = prose(hb).locator('p', { hasText: 'Use two blank lines' }).first();
   let form = await formFor(hb, removed);
-  await expect(form.locator('.mdf-comment-label')).toHaveText(/\b25\b.+·/); // "25번째 줄 · 원래 파일"
+  await expect(form.locator('.mdf-comment-label')).toHaveText(/\bL25\b/); // 원래 파일 쪽은 GitHub처럼 L
   const body = text('left');
   await submit(hb, form, body, 'review');
   const t = placed(body);
@@ -418,7 +432,7 @@ test('T11 이름이 바뀌고 내용도 바뀐 파일에도 새 경로로 코멘
   const f = fileOf(page, 'docs/guides/renamed-edit.md');
   await rendered(f);
   const form = await formFor(f, prose(f).locator('p', { hasText: 'search notes' }).first());
-  await expect(form.locator('.mdf-comment-label')).toHaveText(/\b3\b/);
+  await expect(form.locator('.mdf-comment-label')).toHaveText(/\bR3\b/);
   const body = text('renamed');
   await submit(f, form, body, 'single');
   const t = placed(body);
@@ -638,7 +652,7 @@ test('T21 합친 표의 바뀐 행에 단 코멘트는 그 행의 원문 줄에 
   await rendered(hb);
   const line = lineOf(HEAD['docs/handbook.md'], '| Team |');
   const form = await formFor(hb, prose(hb).locator('[data-mdf="table"] tr', { hasText: '$9' }).first());
-  await expect(form.locator('.mdf-comment-label')).toHaveText(new RegExp(`\\b${line}\\b`));
+  await expect(form.locator('.mdf-comment-label')).toHaveText(new RegExp(`\\bR${line}\\b`));
   const body = text('table-row');
   await submit(hb, form, body, 'single');
   const at = placed(body);

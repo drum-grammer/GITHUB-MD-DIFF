@@ -18,6 +18,15 @@ Everything in [docs/releases/v1.1.1.md](v1.1.1.md): comment in the rendered view
 - Edit or delete your own comments in place. Delete asks for a second click
 - Threads made outdated by a later commit stay out of the rendered view and out of the count, like on GitHub
 
+## 1.4.0 — the comment box looks like GitHub's
+
+- The box you comment in from the rendered view now looks like the one on GitHub's own diff: your avatar and a bold "Add a comment on line R13" (`L` for the removed side), the Write / Preview tabs on a bordered header, and the formatting toolbar in GitHub's order (heading, bold, italic, quote, code, link, bulleted, numbered and task lists, mention)
+- The toolbar buttons and ⌘/Ctrl+B, I, E, K wrap or unwrap the selected text, and ⌘/Ctrl+Z undoes them
+- A suggestion button, first in the toolbar like on GitHub, puts the lines you comment on into a ```` ```suggestion ```` block to edit (only on the new side, as on GitHub)
+- Switching between bulleted, numbered and task lists replaces the list marker instead of stacking them
+- **Comment** (was "Add single comment") and **Start a review** stay off until you type, like on GitHub. The edit box's **Save** does the same
+
 ## How it was tested (fill in from the latest `pnpm verify release` report)
 
 - 1.3.0, 2026-10-09: see [docs/reports/v1.3.0-testing.md](../reports/v1.3.0-testing.md)
+- 1.4.0, 2026-10-10: `pnpm verify release` 10/10 (testbed 60/60 in 5 layouts), extension CPU unchanged from 1.3.0 within noise — see [docs/reports/v1.4.0-testing.md](../reports/v1.4.0-testing.md)

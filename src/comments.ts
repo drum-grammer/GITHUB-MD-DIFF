@@ -33,7 +33,7 @@ import {
   addButton,
   commentForm,
   fileThreadsBox,
-  lineLabel,
+  formLabel,
   noticeBox,
   placeBox,
   replyDraft,
@@ -193,6 +193,8 @@ class FileComments {
   private loading: Promise<Map<HTMLElement, BlockTarget> | null> | null = null;
   private data: PrData | null = null;
   private headOid = '';
+  /** 머리 커밋의 파일 원문 줄 — 제안 버튼이 원래 줄을 가져온다 */
+  private headLines: string[] | null = null;
   private readonly host: HTMLElement;
   private readonly button: HTMLButtonElement;
   private hovered: HTMLElement | null = null;
@@ -288,6 +290,7 @@ class FileComments {
     ]);
     if (head === null && base === null) throw new Error('no source text');
     this.headOid = d.headOid;
+    this.headLines = head === null ? null : head.split('\n');
     this.mapping = mapBlocks(blocks, head === null ? null : sourceBlocks(head), base === null ? null : sourceBlocks(base));
     return this.mapping;
   }
@@ -430,7 +433,7 @@ class FileComments {
     const last = from.compareDocumentPosition(to) & Node.DOCUMENT_POSITION_FOLLOWING ? to : from;
     const form = commentForm(
       this.body.ownerDocument,
-      { label: lineLabel(span), pendingReview: Boolean(this.data?.pendingReviewId), singleLabel: t('commentSingle'), preview: this.preview },
+      { label: formLabel(span), pendingReview: Boolean(this.data?.pendingReviewId), singleLabel: t('commentSingle'), preview: this.preview, suggestion: this.suggestionFor(span) },
       {
         onSubmit: async (text, mode) => {
           await this.post((d) => commentPayload({ path: this.path, ...span }, text, d.pendingReviewId ? 'review' : mode, d));
@@ -448,6 +451,13 @@ class FileComments {
     this.insertBoxes([{ block: last, box: form }]);
     this.paintSelection();
     form.querySelector('textarea')?.focus();
+  }
+
+  /** 제안 버튼에 넣을 원래 줄 — 오른쪽(머리 커밋) 줄만. GitHub도 지운 쪽 줄에는 제안을 못 단다 */
+  private suggestionFor(span: BlockTarget): string | undefined {
+    if (span.side !== 'right' || !this.headLines) return undefined;
+    const rows = this.headLines.slice(span.start - 1, span.end);
+    return rows.length ? rows.join('\n').replace(/\r/g, '') : undefined;
   }
 
   /** 최신 PR 데이터로 올린다 — 그 사이 새 커밋이 올라왔으면 멈춘다. 올린 뒤 스레드를 다시 그린다 */
