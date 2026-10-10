@@ -1,6 +1,6 @@
 # Markdown Diff Cat — Product Brief
 
-> Status: Published for 1.0 · Owner: Markdown Diff Cat maintainers · Last updated: 2026-10-07
+> Status: Updated for 1.5 · Owner: Markdown Diff Cat maintainers · Last updated: 2026-10-11
 
 ## 1. Overview
 
@@ -13,6 +13,8 @@ This brief explains the problem it solves, what it does today, and what comes ne
 - AI coding assistants now write long design documents, and every edit lands in a pull request.
 - GitHub's rich diff renders the whole file, so reviewers scroll past hundreds of unchanged lines.
 - The source diff shows only the changes, but they are buried in Markdown syntax, tables, and code fences.
+- Leaving a comment means switching back to the source diff and finding the line again.
+- Reviewers lose track of which changes they have already read in a long document.
 
 ## 3. Who it is for
 
@@ -35,7 +37,15 @@ Every Markdown file opens in the rendered view. Sections that did not change fol
 
 ### 5.2 Comment on the rendered document
 
-Commenting is planned for a later version. For now, switch the file to the source diff to leave a review comment.
+Hover over a block and click +, or drag across blocks to comment on a range. The comment becomes an ordinary GitHub review comment on the right source line, so the author sees it in the usual place. Existing threads appear under the block they refer to, where you can reply and resolve them.
+
+### 5.3 Suggest the exact wording
+
+The comment box looks and works like GitHub's own. The first toolbar button adds a suggestion with the original lines, so you can propose new wording that the author applies with one click. Reply boxes in a thread have the same toolbar.
+
+### 5.4 Jump between changes
+
+The top of each file says how many places changed and how many review threads it has. Press ] and [ to go to the next or previous change, and } and { to move between threads.
 
 ## 6. Feature overview
 
@@ -44,7 +54,10 @@ Commenting is planned for a later version. For now, switch the file to the sourc
 | Rendered diff for Markdown files | 1.0 | Files changed | Stable |
 | Fold unchanged sections | 1.0 | Files changed | Stable |
 | Merge changed table rows | 1.0 | Files changed | Stable |
-| Comment in the rendered view | — | — | Planned |
+| Comment in the rendered view | 1.1 | Signed-in pages | Stable |
+| Jump between changes and threads | 1.2 | Files changed | Stable |
+| Edit, delete, and preview comments | 1.3 | Signed-in pages | Stable |
+| Suggestion button in comments and replies | 1.5 | Signed-in pages | New |
 
 ## 7. How it works
 
@@ -111,8 +124,8 @@ Yes. Click the toolbar icon. It turns gray, and the page goes back to how GitHub
 
 ## 11. Roadmap
 
-- Comment in the rendered view.
-- Keyboard shortcuts to jump between changes.
+- A setting to choose Korean or English for the extension's text.
+- File attachments in comment boxes.
 - Commit and compare pages, in addition to pull requests.
 - A side-by-side view for long rewrites.
 
