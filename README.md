@@ -98,6 +98,35 @@ One command per tier. Each runs its steps in order, keeps going after a failure,
 
 `pnpm verify --list` prints the steps. `--bail` stops at the first failure and `--skip step,…` leaves steps out. `pr` and `release` post real comments to the test repository and need `gh` and the signed-in test profile (see [testbed/README.md](testbed/README.md)). The Minimize comments and Compact line height layouts exist only as GitHub account settings, so `release` turns them on for its run and restores them afterwards.
 
+## Roadmap
+
+[ROADMAP.md](ROADMAP.md) says where development stands and what comes next, written so anyone can pick up the work without other context (Korean, with an English summary). As of 2026-10-10 the Chrome Web Store has 1.0.0 and `main` has 1.3.0. 1.4.0 is a draft pull request ([#31](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/31)). The maintainer uses each version in developer mode before asking for the next store review.
+
+## Research and test reports
+
+Each report is in Korean with an English summary at the top.
+
+| Date | Report | What it found |
+|---|---|---|
+| 2026-10-09 | [1.3.0 testing](docs/reports/v1.3.0-testing.md) | Test repository v2 (4 pull requests, 11 seeded threads, 24 scenarios) in five GitHub diff layouts. 1.2.0 passed 51 of 57, because comments on the whole file were missing in every layout. 1.3.0 passes 60 of 60. The three verification tiers take 43 s, 5 min 35 s, and 15 min 29 s |
+| 2026-10-08 | [1.1.1 test repository](docs/reports/v1.1.1-testbed.md) | Scenarios that post real comments and read them back through the API. The first run passed 10 of 14 and found footnotes defined mid-document getting no **+**. The final run passed 14 of 14 in 131 s |
+| 2026-10-08 | [1.1.1 verification](docs/reports/v1.1.1-verification.md) | Issue [#22](https://github.com/drum-grammer/GITHUB-MD-DIFF/issues/22), then 300 Markdown pull requests in 128 public repositories: false alerts went from 3 to 0 and source-line matching from 98.4% to 99.7%. In a pull request with 334 Markdown files, the extension's own CPU time dropped from 1,182 ms to 220 ms |
+| 2026-10-08 | [Similar extensions](docs/reports/competitors.md) | Eight Chrome extensions for Markdown diffs. The most used had 241 users. Only this one folds unchanged sections and merges changed table rows. The gaps then (commenting, navigation, editing) were closed in 1.1.0 to 1.3.0 |
+
+What the research found, and where the code relies on it:
+
+- **GitHub's own requests.** Loading threads, commenting, replying, resolving, editing, deleting, and previewing all use the internal requests of GitHub's "Files changed" page, with the session you already have and no token or CSRF token. A thread's position exists only as a key in the file summary: `R12` (new file, line 12), `L4` (original file, line 4), or `FILE` (whole file). All of this lives in `src/github-api.ts`
+- **Diff layouts.** Split, Unified, and Hide whitespace can be forced through the URL (`?diff=`, `?w=1`) without touching account settings. Minimize comments and Compact line height are account settings only (`POST /users/diffview`), so the test harness records and restores them. The rendered view behaves the same in all five layouts
+- **GitHub's own failures look like ours.** GitHub times out (504) rendering some large files, leaves files below the screen as loading skeletons, and hides large diffs behind **Load Diff**. The extension treats these as normal, not as page changes
+- **Speed.** Re-checking settled files was the main cost in large pull requests. Since 1.1.1 folding lands in the same frame as GitHub's rendered diff, and later versions stay within run-to-run noise (`pnpm perf`)
+
+Where to see it:
+
+- Test repository: [markdown-diff-cat-testbed](https://github.com/drum-grammer/markdown-diff-cat-testbed) — [#4 review scenarios](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/4) · [#5 large diff](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/5) · [#6 120 files](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/6) · [#7 follow-up commit after review](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/7)
+- Release notes: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases) · [v1.1.1](docs/releases/v1.1.1.md) · [changes not yet in the store](docs/releases/UNRELEASED.md)
+- Store listing: [Chrome Web Store](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj)
+- Maintainer's summary pages (private links that only the maintainer can open): [research and test summary](https://claude.ai/artifact/X8tNysv7MhgaKZocWzaPNx) · [1.1.1 verification](https://claude.ai/artifact/9dxHzJFADpAqSk6U4HMjT3)
+
 ## Thanks
 
 The request shapes for commenting were first written up by [Markdown PR](https://github.com/chienyuanchang/rich-diff-comments) and [Mihiraki](https://github.com/KinjiKawaguchi/mihiraki) (both MIT).
@@ -157,5 +186,20 @@ Markdown Diff Cat은 두 장점을 합쳤어요. 렌더링된 문서를 보면�
 ### 개인정보
 
 수집하는 데이터와 원격 코드가 없어요. 열린 GitHub 페이지는 보여 주는 모양을 바꾸려고 브라우저 안에서 읽어요. 로그인한 경우에는 이미 있는 세션으로 GitHub하고만 통신해요 — PR의 리뷰 스레드와 보여 주는 마크다운 파일을 읽고, 내가 쓴 코멘트를 올려요. 개발자나 다른 곳으로는 아무것도 보내지 않고 토큰도 쓰지 않아요. 설정 하나(켜짐·꺼짐)만 `chrome.storage.local`에 저장해요. 전문: [PRIVACY.md](PRIVACY.md).
+
+### 로드맵·조사·테스트
+
+어디까지 개발했고 다음에 무엇을 할지는 [ROADMAP.md](ROADMAP.md)에 있어요. 다른 맥락 없이 이 문서만 읽고 이어서 일할 수 있게 썼어요. 2026-10-10 기준으로 스토어는 1.0.0, `main`은 1.3.0이고, 1.4.0은 초안 PR([#31](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/31))이에요. 검토 신청은 버전마다 개발자 모드로 써 본 뒤에 해요.
+
+| 날짜 | 보고서 | 찾은 것 |
+|---|---|---|
+| 2026-10-09 | [1.3.0 테스트](docs/reports/v1.3.0-testing.md) | 테스트 저장소 v2(PR 4개·심은 스레드 11개·시나리오 24개)를 GitHub 화면 모양 5가지에서. 1.2.0은 51/57(파일 전체 코멘트가 안 보임), 1.3.0은 60/60. 검증 등급은 43초·5분 35초·15분 29초 |
+| 2026-10-08 | [1.1.1 테스트 저장소](docs/reports/v1.1.1-testbed.md) | 실제로 코멘트를 쓰고 API로 다시 읽기. 첫 실행 10/14에서 문서 중간 각주 버그를 찾고, 마지막 14/14(131초) |
+| 2026-10-08 | [1.1.1 검증](docs/reports/v1.1.1-verification.md) | #22, 공개 저장소 128개의 PR 300개 탐험 — 오탐 3 → 0, 원문 줄 연결 98.4% → 99.7%. md 334개 PR에서 확장 CPU 1,182 → 220ms |
+| 2026-10-08 | [비슷한 확장 비교](docs/reports/competitors.md) | 8개 비교. 가장 많이 쓰이는 것이 241명. 바뀌지 않은 구간 접기·표 바뀐 행 합치기는 우리뿐. 그때 부족했던 코멘트·탐색·편집은 1.1.0–1.3.0에서 채움 |
+
+- 테스트 저장소: [markdown-diff-cat-testbed](https://github.com/drum-grammer/markdown-diff-cat-testbed) — [#4 리뷰 시나리오](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/4) · [#5 큰 diff](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/5) · [#6 파일 120개](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/6) · [#7 리뷰 뒤 따라온 커밋](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/7)
+- 릴리스 노트: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases) · [v1.1.1](docs/releases/v1.1.1.md) · [아직 스토어에 없는 변경](docs/releases/UNRELEASED.md)
+- 관리자용 요약 페이지(비공개 링크, 관리자만 열려요): [조사·테스트 모음](https://claude.ai/artifact/X8tNysv7MhgaKZocWzaPNx) · [1.1.1 검증 보고서](https://claude.ai/artifact/9dxHzJFADpAqSk6U4HMjT3)
 
 GitHub와 관련 없는 비공식 도구이며 GitHub의 보증을 받지 않았습니다. GitHub는 GitHub, Inc.의 상표입니다.
