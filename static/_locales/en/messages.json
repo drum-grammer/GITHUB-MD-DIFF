@@ -88,5 +88,6 @@
   "fmtUl": {"message": "Unordered list"},
   "fmtOl": {"message": "Numbered list"},
   "fmtTask": {"message": "Task list"},
-  "fmtMention": {"message": "Mention"}
+  "fmtMention": {"message": "Mention"},
+  "fmtSuggestion": {"message": "Add a suggestion"}
 }

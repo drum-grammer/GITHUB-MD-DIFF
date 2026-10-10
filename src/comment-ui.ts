@@ -2,7 +2,7 @@
 import type { PostMode, ReviewComment, ReviewThread } from './github-api';
 import type { BlockTarget } from './dom-blocks';
 import { t } from './i18n';
-import { formatEdit, type Format } from './md-format';
+import { formatEdit, suggestionEdit, type Edit, type Format } from './md-format';
 import { OCTICONS, type Octicon } from './octicons';
 import { CHANGE_WRAPPER, MDF_ATTR } from './selectors';
 
@@ -95,6 +95,8 @@ export interface FormOptions {
   singleLabel: string;
   /** 있으면 쓰기·미리보기 탭을 둔다 — 글을 GitHub가 렌더링한 HTML로 바꿔 준다 */
   preview?: Preview;
+  /** 코멘트를 다는 오른쪽 줄의 원문 — 있으면 도구 막대 맨 앞에 제안 버튼을 둔다(GitHub처럼 지운 쪽 줄에는 없다) */
+  suggestion?: string;
 }
 
 /** 글 → GitHub가 렌더링한 HTML */
@@ -137,10 +139,15 @@ function icon(doc: Document, name: Octicon): SVGSVGElement {
   return svg;
 }
 
-/** 서식을 씌운다 — execCommand는 되돌리기(⌘Z) 기록을 남긴다. 못 쓰는 곳(테스트)에서는 직접 바꾸고 input을 알린다 */
+/** 서식을 씌운다 */
 function applyFormat(area: HTMLTextAreaElement, kind: Format): void {
+  applyEdit(area, (value, start, end) => formatEdit(value, start, end, kind));
+}
+
+/** 입력란을 바꾼다 — execCommand는 되돌리기(⌘Z) 기록을 남긴다. 못 쓰는 곳(테스트)에서는 직접 바꾸고 input을 알린다 */
+function applyEdit(area: HTMLTextAreaElement, make: (value: string, start: number, end: number) => Edit): void {
   if (area.readOnly) return;
-  const e = formatEdit(area.value, area.selectionStart, area.selectionEnd, kind);
+  const e = make(area.value, area.selectionStart, area.selectionEnd);
   area.focus();
   area.setSelectionRange(e.from, e.to);
   let done = false;
@@ -156,14 +163,19 @@ function applyFormat(area: HTMLTextAreaElement, kind: Format): void {
   area.setSelectionRange(e.selStart, e.selEnd);
 }
 
-function toolbar(doc: Document, area: HTMLTextAreaElement): HTMLElement {
+function toolbar(doc: Document, area: HTMLTextAreaElement, suggestion?: string): HTMLElement {
   const bar = el(doc, 'div', 'mdf-md-toolbar');
   bar.setAttribute('role', 'toolbar');
   bar.setAttribute('aria-label', t('fmtTools'));
   const mac = isMac();
-  TOOLS.forEach((group, g) => {
+  // GitHub처럼 제안 버튼은 맨 앞 따로 한 무리
+  const groups: Array<Array<[() => void, Octicon, string, string?]>> = [
+    ...(suggestion === undefined ? [] : [[[() => applyEdit(area, (v, s, e) => suggestionEdit(v, s, e, suggestion)), 'file-diff', 'fmtSuggestion'] as [() => void, Octicon, string]]]),
+    ...TOOLS.map((group) => group.map(([kind, name, label, key]): [() => void, Octicon, string, string?] => [() => applyFormat(area, kind), name, label, key])),
+  ];
+  groups.forEach((group, g) => {
     if (g) bar.append(el(doc, 'span', 'mdf-md-divider'));
-    for (const [kind, name, label, key] of group) {
+    for (const [run, name, label, key] of group) {
       const b = button(doc, '', 'mdf-md-tool');
       b.append(icon(doc, name));
       b.setAttribute('aria-label', t(label));
@@ -171,7 +183,7 @@ function toolbar(doc: Document, area: HTMLTextAreaElement): HTMLElement {
       if (key) b.setAttribute('aria-keyshortcuts', `${mac ? 'Meta' : 'Control'}+${key.toUpperCase()}`);
       b.tabIndex = bar.querySelector('.mdf-md-tool') ? -1 : 0; // 도구 막대는 한 칸만 Tab으로 — 안에서는 화살표로 옮긴다
       b.addEventListener('mousedown', (e) => e.preventDefault()); // 입력란의 선택을 지킨다
-      b.addEventListener('click', () => applyFormat(area, kind));
+      b.addEventListener('click', run);
       bar.append(b);
     }
   });
@@ -192,7 +204,7 @@ function toolbar(doc: Document, area: HTMLTextAreaElement): HTMLElement {
  * 글 입력란 — GitHub 상자와 같은 모양: 테두리 안 머리줄(쓰기·미리보기 탭 + 서식 도구 막대) 아래 입력란.
  * 미리보기는 GitHub에 렌더링을 맡겨(멘션·이슈 링크까지 같게) 입력란 자리에 보여 준다. 실패하면 그 자리에 이유를 쓴다
  */
-function editor(doc: Document, initial: string, preview?: Preview): Editor {
+function editor(doc: Document, initial: string, preview?: Preview, suggestion?: string): Editor {
   const wrap = el(doc, 'div', 'mdf-editor');
   const area = el(doc, 'textarea', 'mdf-textarea');
   area.placeholder = t('commentPlaceholder');
@@ -206,7 +218,7 @@ function editor(doc: Document, initial: string, preview?: Preview): Editor {
     applyFormat(area, kind);
   });
   const head = el(doc, 'div', 'mdf-editor-head');
-  const tools = toolbar(doc, area);
+  const tools = toolbar(doc, area, suggestion);
   const body = el(doc, 'div', 'mdf-editor-body');
   body.append(area);
   wrap.append(head, body);
@@ -271,7 +283,7 @@ export function commentForm(doc: Document, opt: FormOptions, h: FormHandlers): H
   const head = el(doc, 'div', 'mdf-comment-head');
   const avatar = viewerAvatar(doc);
   head.append(...(avatar ? [avatar] : []), el(doc, 'strong', 'mdf-comment-label', opt.label));
-  const { wrap, area } = editor(doc, '', opt.preview);
+  const { wrap, area } = editor(doc, '', opt.preview, opt.suggestion);
   const error = el(doc, 'div', 'mdf-comment-error');
   error.hidden = true;
   const actions = el(doc, 'div', 'mdf-comment-actions');

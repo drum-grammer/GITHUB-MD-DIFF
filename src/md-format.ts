@@ -92,3 +92,17 @@ function lines(value: string, start: number, end: number, kind: Format): Edit {
   }
   return { from, to, insert, selStart: from, selEnd: from + insert.length };
 }
+
+/**
+ * 제안(suggestion) — 원래 줄을 ```suggestion 블록에 넣어 고른 글 자리에 둔다. 펜스는 줄 맨 앞에 있어야 하므로 필요하면 줄을 바꾸고,
+ * 원래 줄에 백틱 펜스가 있으면 그보다 긴 펜스로 감싼다. 커서는 원래 줄 끝 — 거기서 고쳐 쓴다
+ */
+export function suggestionEdit(value: string, start: number, end: number, original: string): Edit {
+  const longest = Math.max(0, ...(original.match(/`+/g) ?? []).map((run) => run.length));
+  const fence = '`'.repeat(Math.max(3, longest + 1));
+  const lead = start > 0 && value[start - 1] !== '\n' ? '\n' : '';
+  const tail = end < value.length && value[end] !== '\n' ? '\n' : '';
+  const head = `${lead}${fence}suggestion\n${original}`;
+  const caret = start + head.length;
+  return { from: start, to: end, insert: `${head}\n${fence}${tail}`, selStart: caret, selEnd: caret };
+}

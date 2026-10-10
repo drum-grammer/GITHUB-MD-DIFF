@@ -88,5 +88,6 @@
   "fmtUl": {"message": "글머리 목록"},
   "fmtOl": {"message": "번호 목록"},
   "fmtTask": {"message": "할 일 목록"},
-  "fmtMention": {"message": "멘션"}
+  "fmtMention": {"message": "멘션"},
+  "fmtSuggestion": {"message": "제안 넣기"}
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatEdit, type Format } from '../src/md-format';
+import { formatEdit, suggestionEdit, type Format } from '../src/md-format';
 
 /** 글 안의 [ ]가 선택 — 서식을 씌운 뒤 글과 새 선택을 같은 꼴로 돌려준다 */
 function run(marked: string, kind: Format): string {
@@ -82,5 +82,28 @@ describe('formatEdit', () => {
     expect(press('a', ['task', 'task'])).toBe('a');
     // 인용·제목은 목록과 따로 — 인용 안 목록은 그대로 둔다
     expect(press('> a', ['ul'])).toBe('- > a');
+  });
+});
+
+describe('suggestionEdit', () => {
+  const apply = (value: string, start: number, end: number, original: string) => {
+    const e = suggestionEdit(value, start, end, original);
+    const out = value.slice(0, e.from) + e.insert + value.slice(e.to);
+    return `${out.slice(0, e.selStart)}|${out.slice(e.selEnd)}`;
+  };
+
+  it('빈 상자 — 원래 줄을 suggestion 블록에 넣고 커서를 그 끝에 둔다', () => {
+    expect(apply('', 0, 0, '원래 줄')).toBe('```suggestion\n원래 줄|\n```');
+    expect(apply('', 0, 0, 'a\nb')).toBe('```suggestion\na\nb|\n```');
+  });
+
+  it('줄 가운데·글 뒤면 줄을 바꿔 펜스를 줄 맨 앞에 둔다, 고른 글은 바꾼다', () => {
+    expect(apply('좋아요', 3, 3, 'x')).toBe('좋아요\n```suggestion\nx|\n```');
+    expect(apply('ab\ncd', 1, 1, 'x')).toBe('a\n```suggestion\nx|\n```\nb\ncd');
+    expect(apply('abc', 0, 3, 'x')).toBe('```suggestion\nx|\n```');
+  });
+
+  it('원래 줄에 백틱 펜스가 있으면 더 긴 펜스로 감싼다', () => {
+    expect(apply('', 0, 0, '```js\nx\n```')).toBe('````suggestion\n```js\nx\n```|\n````');
   });
 });

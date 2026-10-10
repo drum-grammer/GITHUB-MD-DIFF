@@ -133,6 +133,22 @@ describe('commentForm', () => {
     f.remove();
   });
 
+  it('제안 버튼 — 오른쪽 줄 원문이 있으면 맨 앞에, 누르면 suggestion 블록을 넣는다(없으면 버튼도 없다)', () => {
+    const f = commentForm(document, { ...opt, suggestion: '원래 줄' }, { onSubmit: vi.fn(), onCancel: vi.fn() });
+    document.body.append(f);
+    const tools = [...f.querySelectorAll<HTMLButtonElement>('.mdf-md-tool')];
+    expect(tools.length).toBe(11);
+    expect(tools[0].getAttribute('aria-label')).toBe('fmtSuggestion');
+    expect(tools[0].tabIndex).toBe(0);
+    const area = f.querySelector('textarea')!;
+    tools[0].click();
+    expect(area.value).toBe('```suggestion\n원래 줄\n```');
+    expect(actions(f)[2].disabled).toBe(false);
+    f.remove();
+    const plain = commentForm(document, opt, { onSubmit: vi.fn(), onCancel: vi.fn() });
+    expect(plain.querySelector('[aria-label="fmtSuggestion"]')).toBeNull();
+  });
+
   it('단축키 — 맥은 ⌘만(Ctrl+E는 줄 끝 이동이라 둔다), 한글 조합 중이면 무시, 한글 자판이면 자판 위치로', () => {
     const f = commentForm(document, opt, { onSubmit: vi.fn(), onCancel: vi.fn() });
     document.body.append(f);
