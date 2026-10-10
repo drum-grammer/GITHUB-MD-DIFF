@@ -20,9 +20,13 @@ WHAT IT DOES
 • Opens every Markdown file (.md, .markdown, .mdx) in the rendered view for you.
 • Folds unchanged sections into one-line bars. Each bar shows how many blocks it hides and the last heading inside. Click a bar to peek, or expand the whole file.
 • Tables: when one row changes, GitHub shows the whole old table and the whole new table. Markdown Diff Cat merges them into one table with only the changed, added, and removed rows, and shows changed cells as old → new. Switch to the original tables any time.
-• Comment right in the rendered view (signed in to GitHub): hover over a block and click +, or drag to another block for a range. The comment lands on the right source line as an ordinary GitHub review comment — add a single comment or add it to your review. Existing review threads show under the block they refer to, where you can reply and resolve them.
+• Comment right in the rendered view (signed in to GitHub): hover over a block and click +, or drag to another block for a range. The comment lands on the right source line as an ordinary GitHub review comment — add a single comment or add it to your review. Existing review threads show under the block they refer to, where you can reply and resolve them. Comments on the whole file show at the top.
+• The comment box works like GitHub's own: Write and Preview tabs, the same formatting toolbar and shortcuts, and a suggestion button that puts the original lines into a suggestion block so the author can apply your wording in one click. Reply boxes have it too.
+• Edit or delete your own comments in place, and preview them the way GitHub will show them.
+• Jump between changes: the top of each file says how many places changed and how many review threads are open. Press ] and [ for the next or previous change, } and { for threads.
 • Stays out of your way: click <> to switch a file to the source view and it will not switch that file back. Collapsed or Viewed files stay collapsed.
 • Color icon means on, gray icon means off. Click the toolbar icon to switch.
+• The extension's text is in English, to match GitHub's pages.
 
 Works on both the new and the classic pull request "Files changed" pages.
 

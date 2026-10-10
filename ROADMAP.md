@@ -22,9 +22,9 @@
 1. **로컬 사용 점검 — 2026-10-16**
    - 1주 동안 쓰며 나온 불편·오류를 1.5.x로 고친다(PATCH)
    - 문제가 없으면 관리자가 검토 신청 여부를 정한다
-2. **스토어 등록물 갱신**(검토 신청과 함께)
-   - 스크린샷·데모 GIF는 1.1.0 기준이다(코멘트 장면까지)
-   - 변경 이동(1.2.0), 미리보기·편집(1.3.0), 새 코멘트 상자(1.4.0) 장면을 `pnpm store:assets`에 더한다
+2. **스토어 등록물 갱신**(검토 신청과 함께) — 2026-10-11 1.5 기준으로 다시 만듦(스크린샷·GIF·설명·심사 안내)
+   - 시연 PR을 이 도구의 소개 문서(1.0판 → 1.5판, 영 [#34](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/34)·한 [#35](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/35))로 바꿔서, 스크린샷 속 글과 코멘트가 그대로 도구 소개가 된다. 코멘트 장면은 제안 버튼
+   - 남은 것: 대시보드 입력(사람, `pnpm store:upload` 도우미)
    - 1.5.0부터 확장 문구가 영어뿐이라 한국어 스크린샷도 확장 부분은 영어로 찍힌다 — 한국어 등록정보의 설명 문구와 맞춘다
    - 대시보드 입력은 사람이 한다(`pnpm store:upload` 도우미). [store/README](store/README.md)
 3. **스토어 검토 신청**(관리자가 정하면) — 절차 정본은 [store/README · Releasing an update](store/README.md#releasing-an-update)
