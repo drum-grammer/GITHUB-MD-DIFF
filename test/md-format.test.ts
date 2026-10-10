@@ -59,13 +59,28 @@ describe('formatEdit', () => {
     expect(run('[  ]', 'bold')).toBe('**[  ]**');
   });
 
-  it('줄 앞머리 섞임 — 번호는 다시 매기고, 할 일 줄은 글머리 목록이 아니고, 다른 제목 수준은 바꾼다', () => {
+  it('줄 앞머리 섞임 — 번호는 다시 매기고, 할 일 줄을 글머리로 바꾸면 갈아 끼우고, 다른 제목 수준은 바꾼다', () => {
     expect(run('[1. a\nb]', 'ol')).toBe('[1. a\n2. b]');
     expect(run('[3. a\nb]', 'ol')).toBe('[1. a\n2. b]');
     // 할 일 줄은 [ ]가 선택 표시와 겹쳐서 formatEdit를 바로 본다
-    expect(formatEdit('- [ ] x', 0, 7, 'ul').insert).toBe('- - [ ] x');
+    expect(formatEdit('- [ ] x', 0, 7, 'ul').insert).toBe('- x');
     expect(formatEdit('- [ ] x', 0, 7, 'task').insert).toBe('x');
     expect(run('## 제[]목', 'heading')).toBe('제[]목');
     expect(run('[## a\nb]', 'heading')).toBe('[### a\n### b]');
+  });
+
+  it('목록 종류를 바꾸면 앞머리를 갈아 끼운다 — 글머리·번호·할 일을 차례로 눌러도 쌓이지 않는다', () => {
+    const press = (value: string, kinds: Format[]) =>
+      kinds.reduce((v, k) => {
+        const e = formatEdit(v, v.length, v.length, k);
+        return v.slice(0, e.from) + e.insert + v.slice(e.to);
+      }, value);
+    expect(press('', ['ul', 'ol', 'task'])).toBe('- [ ] ');
+    expect(press('a', ['ul', 'ol'])).toBe('1. a');
+    expect(press('a', ['ol', 'ul'])).toBe('- a');
+    expect(press('a', ['task', 'ol'])).toBe('1. a');
+    expect(press('a', ['task', 'task'])).toBe('a');
+    // 인용·제목은 목록과 따로 — 인용 안 목록은 그대로 둔다
+    expect(press('> a', ['ul'])).toBe('- > a');
   });
 });

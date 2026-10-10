@@ -20,6 +20,10 @@ const LINE: Partial<Record<Format, { marker: RegExp; make: (i: number) => string
   task: { marker: /^- \[[ xX]\] /, make: () => '- [ ] ' },
 };
 
+/** 목록 앞머리(할 일·글머리·번호) — 목록 종류를 바꿀 때 있던 것을 떼고 새로 붙인다(GitHub 도구 막대와 같다) */
+const ANY_LIST = /^(?:- \[[ xX]\] |- |\d+\. )/;
+const LISTS: Format[] = ['ul', 'ol', 'task'];
+
 export function formatEdit(value: string, start: number, end: number, kind: Format): Edit {
   const sel = value.slice(start, end);
   switch (kind) {
@@ -76,8 +80,9 @@ function lines(value: string, start: number, end: number, kind: Format): Edit {
   const to = nl === -1 ? value.length : nl;
   const rows = value.slice(from, to).split('\n');
   const { marker, make } = LINE[kind]!;
-  // 모든 줄에 이미 있으면 떼고, 아니면 (있던 것은 떼고) 새로 붙인다 — 번호는 1부터 다시 매긴다
-  const out = rows.every((row) => marker.test(row)) ? rows.map((row) => row.replace(marker, '')) : rows.map((row, i) => make(i) + row.replace(marker, ''));
+  const strip = LISTS.includes(kind) ? ANY_LIST : marker;
+  // 모든 줄에 이미 있으면 떼고, 아니면 (있던 것은 — 목록이면 다른 종류도 — 떼고) 새로 붙인다 — 번호는 1부터 다시 매긴다
+  const out = rows.every((row) => marker.test(row)) ? rows.map((row) => row.replace(marker, '')) : rows.map((row, i) => make(i) + row.replace(strip, ''));
   const insert = out.join('\n');
   if (rows.length === 1) {
     // 한 줄이면 커서를 같은 글자 뒤에 둔다
