@@ -26,6 +26,11 @@ Everything in [docs/releases/v1.1.1.md](v1.1.1.md): comment in the rendered view
 - Switching between bulleted, numbered and task lists replaces the list marker instead of stacking them
 - **Comment** (was "Add single comment") and **Start a review** stay off until you type, like on GitHub. The edit box's **Save** does the same
 
+## 1.5.0 — same as GitHub, in English
+
+- Reply boxes in review threads get the same toolbar as GitHub's reply box, with the suggestion button first: it puts the lines the thread is on into a ```` ```suggestion ```` block
+- The extension's text is now always in English, whatever language Chrome uses, so the comment box reads the same as GitHub's own pages, which are English only. Korean text is kept and will come back as a setting
+
 ## How it was tested (fill in from the latest `pnpm verify release` report)
 
 - 1.3.0, 2026-10-09: see [docs/reports/v1.3.0-testing.md](../reports/v1.3.0-testing.md)

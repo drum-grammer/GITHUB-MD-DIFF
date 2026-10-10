@@ -2,7 +2,7 @@
 
 > 최종 확인 2026-10-11 · [README](README.md) · 조사·테스트 기록: [README · Research and test reports](README.md#research-and-test-reports) · 다음 제출 노트: [UNRELEASED](docs/releases/UNRELEASED.md)
 >
-> **English summary** — The Chrome Web Store has 1.0.0. `main` has 1.4.0 (a comment box that looks like GitHub's, with a suggestion button), which the maintainer runs in developer mode; the review request is on hold by the maintainer's choice (2026-10-09) until a few more versions have been used locally. Next: use 1.4.0 for a week (check on 2026-10-16), refresh the store images, and then ask for review with the steps below. This file is the place to pick up the work without any other context: read "Where things stand", then "Next", then "How to pick up".
+> **English summary** — The Chrome Web Store has 1.0.0. `main` has 1.5.0 (a comment box that looks like GitHub's, with a suggestion button in new comments and replies, and the extension's text in English to match GitHub), which the maintainer runs in developer mode; the review request is on hold by the maintainer's choice (2026-10-09) until a few more versions have been used locally. Next: use 1.5.0 for a week (check on 2026-10-16), refresh the store images, and then ask for review with the steps below. This file is the place to pick up the work without any other context: read "Where things stand", then "Next", then "How to pick up".
 
 새 세션이나 새 기여자가 이 문서 하나만 읽고 이어서 일할 수 있게 쓴다. 버전을 병합하거나 결정이 바뀌면 **지금 어디에 있나**와 **버전 연표**를 같은 PR에서 고친다.
 
@@ -11,20 +11,21 @@
 | | 상태 |
 |---|---|
 | 크롬 웹 스토어(공개) | **1.0.0** — 2026-10-08 게시, 태그 [`v1.0.0`](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases/tag/v1.0.0) |
-| `main` | **1.4.0**([#31](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/31), 2026-10-11) — 코멘트 상자를 GitHub 상자 모양으로 + 제안 버튼. 스토어에는 내지 않았다. 보고서 [v1.4.0-testing](docs/reports/v1.4.0-testing.md) |
+| `main` | **1.5.0**(2026-10-11) — 답글 상자에도 제안 버튼, 확장 문구를 영어로 통일. 그 앞 1.4.0([#31](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/31))은 코멘트 상자를 GitHub 상자 모양으로 + 제안 버튼. 스토어에는 내지 않았다 |
 | 진행 중 | 없음 |
-| 관리자 크롬 | 개발자 모드 1.4.0(`pnpm dev:chrome`, main 빌드) |
+| 관리자 크롬 | 개발자 모드 1.5.0(`pnpm dev:chrome`, main 빌드) |
 | 스토어 검토 신청 | **보류**(2026-10-09 관리자 결정). 버전을 올려 가며 로컬에서 쓰고, 문제가 없으면 그때 신청한다. 1.1.0은 심사를 취소했고 1.1.1은 내지 않았다 — 다음 제출에 1.0.0 이후 전부가 들어간다 |
 | 주간 카나리 | 상시 켜 둔 맥에 예약은 설치했지만 아직 돌기 시작하지 않았다(그 맥의 화면 로그인·알림 토큰 대기) |
 
 ## 다음 할 일 (순서대로)
 
 1. **로컬 사용 점검 — 2026-10-16**
-   - 1주 동안 쓰며 나온 불편·오류를 1.4.x로 고친다(PATCH)
+   - 1주 동안 쓰며 나온 불편·오류를 1.5.x로 고친다(PATCH)
    - 문제가 없으면 관리자가 검토 신청 여부를 정한다
 2. **스토어 등록물 갱신**(검토 신청과 함께)
    - 스크린샷·데모 GIF는 1.1.0 기준이다(코멘트 장면까지)
    - 변경 이동(1.2.0), 미리보기·편집(1.3.0), 새 코멘트 상자(1.4.0) 장면을 `pnpm store:assets`에 더한다
+   - 1.5.0부터 확장 문구가 영어뿐이라 한국어 스크린샷도 확장 부분은 영어로 찍힌다 — 한국어 등록정보의 설명 문구와 맞춘다
    - 대시보드 입력은 사람이 한다(`pnpm store:upload` 도우미). [store/README](store/README.md)
 3. **스토어 검토 신청**(관리자가 정하면) — 절차 정본은 [store/README · Releasing an update](store/README.md#releasing-an-update)
    1. `main`에서 `pnpm verify release`가 모두 통과
@@ -39,7 +40,8 @@
    | 큰 PR 가상화 모드 E2E | GitHub가 화면 밖 파일을 내리는 모드(`virtualizeDiffEntries`)를 아직 E2E로 안 본다 · [비슷한 확장 비교](docs/reports/competitors.md) 제안 5 | 작다 |
    | 남의 코멘트에 편집·삭제가 안 보이는지 | 테스트 저장소는 계정 하나라 모든 코멘트가 내 것 — 두 번째 테스트 계정이 필요 · [1.3.0 보고서 §7](docs/reports/v1.3.0-testing.md#7-다음에) | 작다 |
    | 올린 뒤 GitHub 원문 보기·"Review changes" 개수 즉시 반영 | 지금은 새로고침해야 GitHub 쪽에 보인다. GitHub 내부 상태(React)를 건드려야 해서 깨지기 쉽다 | 중간 |
-   | 답글 상자의 제안 버튼 · 코멘트 파일 첨부 | 제안 버튼은 새 코멘트 상자에만 있다(1.4.0). 첨부는 GitHub 내부 업로드 요청이 필요하다(#31에서 뺐다) | 중간 |
+   | 언어 설정(영어·한국어) | 1.5.0부터 GitHub 화면에 맞춰 영어로 통일했다(2026-10-11 관리자 결정). 한국어 문구(`_locales/ko`)는 그대로 있으니, 팝업이나 옵션 페이지에 언어 고르기를 두고 `src/i18n.ts`가 고른 파일을 읽게 한다 | 작다 |
+   | 코멘트 파일 첨부 | GitHub 내부 업로드 요청이 필요하다(#31에서 뺐다) | 중간 |
    | 커밋·compare 화면 | 지금은 PR "Files changed"만 | 중간 |
    | 좌우 비교 보기 | Mihiraki·Bitbucket Rich Diffs가 한다. GitHub 렌더링을 버려야 해서 지금의 강점과 부딪친다 | 크다 |
    | Bitbucket·Azure DevOps | 수요 확인 전 | 크다 |
@@ -59,6 +61,7 @@
 | 1.2.0 | 2026-10-09 | 변경 탐색 — 파일 툴바 요약, `]` `[` `}` `{` 이동 | [#29](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/29) | `main` | |
 | 1.3.0 | 2026-10-09 | 파일 전체 코멘트 · 내 코멘트 편집·삭제 · 미리보기 · 테스트 저장소 v2(화면 모양 5가지) · 검증 등급 | [#30](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/30) | `main` | [테스트](docs/reports/v1.3.0-testing.md) |
 | 1.4.0 | 2026-10-11 | 코멘트 상자를 GitHub 상자 모양으로(아바타·`R13` 머리글·서식 도구 막대·빈 글이면 버튼 끔) · 제안(suggestion) 버튼 · 목록 종류 바꾸기 | [#31](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/31) | `main` | [테스트](docs/reports/v1.4.0-testing.md) |
+| 1.5.0 | 2026-10-11 | 답글 상자에도 제안 버튼(GitHub 답글 상자와 같게) · 확장 문구를 영어로 통일(크롬 언어와 상관없이) | (이 PR) | `main` | |
 
 버전 규칙은 [store/README · Versioning](store/README.md#versioning) — PATCH는 버그·GitHub 화면 따라가기, MINOR는 새 기능(권한 추가 없음), MAJOR는 권한·사이트 추가나 동작 변경.
 

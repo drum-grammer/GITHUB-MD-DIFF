@@ -558,6 +558,8 @@ class FileComments {
         await this.refresh();
       },
       preview: this.preview,
+      // 파일 전체 스레드는 줄이 없어 제안을 못 단다
+      suggestion: (th: ReviewThread) => (th.subject === 'line' ? this.suggestionFor(th) : undefined),
     };
     const placed: Array<{ block: HTMLElement; box: HTMLElement }> = [];
     const unplaced: HTMLElement[] = [];

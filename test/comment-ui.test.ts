@@ -229,6 +229,23 @@ describe('threadBox', () => {
     [...b.querySelectorAll('button')].find((x) => x.textContent === 'unresolve')!.click();
     await vi.waitFor(() => expect(onResolve).toHaveBeenCalledWith(thread, false));
   });
+
+  it('답글 상자에도 제안 버튼 — GitHub 답글 상자처럼 맨 앞, 스레드 줄 원문을 넣는다(원문이 없으면 버튼 없음)', () => {
+    const suggestion = vi.fn().mockReturnValue('셋째 줄');
+    const b = threadBox(document, { ...thread, resolved: false }, false, handlers({ suggestion }));
+    document.body.append(b);
+    const reply = () => [...b.querySelectorAll('button')].find((x) => x.textContent === 'reply')!;
+    reply().click();
+    expect(suggestion).toHaveBeenCalledWith(expect.objectContaining({ id: 'T1' }));
+    const first = b.querySelector<HTMLButtonElement>('.mdf-md-tool')!;
+    expect(first.getAttribute('aria-label')).toBe('fmtSuggestion');
+    first.click();
+    expect(b.querySelector('textarea')!.value).toBe('```suggestion\n셋째 줄\n```');
+    b.remove();
+    const plain = threadBox(document, { ...thread, resolved: false }, false, handlers());
+    [...plain.querySelectorAll('button')].find((x) => x.textContent === 'reply')!.click();
+    expect(plain.querySelector('[aria-label="fmtSuggestion"]')).toBeNull();
+  });
 });
 
 describe('내 코멘트 편집·삭제 · 미리보기(1.3.0)', () => {

@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { ICON_PATHS, badgeFor } from './badge';
 
 async function isEnabled(): Promise<boolean> {
@@ -8,7 +9,7 @@ async function isEnabled(): Promise<boolean> {
 /** tabId가 없으면 전체 배지, 있으면 그 탭 배지 */
 async function paint(enabled: boolean, problems: string[], tabId?: number): Promise<void> {
   const b = badgeFor(enabled, problems);
-  const title = chrome.i18n.getMessage(b.titleKey, b.titleSubs) || 'GitHub MD Diff';
+  const title = t(b.titleKey, b.titleSubs);
   const target = tabId === undefined ? {} : { tabId };
   await chrome.action.setIcon({ ...target, path: ICON_PATHS[b.icon] });
   await chrome.action.setBadgeBackgroundColor({ ...target, color: b.color });
