@@ -27,7 +27,7 @@
    - 남은 것: 대시보드 입력(사람, `pnpm store:upload` 도우미)
    - 1.5.0부터 확장 문구가 영어뿐이라 한국어 스크린샷도 확장 부분은 영어로 찍힌다 — 한국어 등록정보의 설명 문구와 맞춘다
    - 대시보드 입력은 사람이 한다(`pnpm store:upload` 도우미). [store/README](store/README.md)
-3. **스토어 검토 신청**(관리자가 정하면) — 절차 정본은 [store/README · Releasing an update](store/README.md#releasing-an-update)
+3. **스토어 검토 신청**(관리자가 정하면) — 1.5.0 진행 중(2026-10-11): `verify release` 9/10(E2E 1건 GitHub 지연, 다시 3번 통과) · `release check` 통과(`4ba51b3`, zip SHA-256 `c1077b8c…`) · 노트 [v1.5.0](docs/releases/v1.5.0.md). 남은 것: 대시보드 입력(사람) → 업로드 → 제출. 스토어 API 키(`CWS_SERVICE_ACCOUNT_KEY`)가 아직 없어 업로드는 대시보드에서 사람이 한다 — 절차 정본은 [store/README · Releasing an update](store/README.md#releasing-an-update)
    1. `main`에서 `pnpm verify release`가 모두 통과
    2. `pnpm release check` → `pnpm release notes`로 `docs/releases/vX.Y.Z.md`를 만들고 [UNRELEASED](docs/releases/UNRELEASED.md)의 내용을 옮긴다(1.0.0 이후 전부) → 병합
    3. 등록물이 바뀌었으면 대시보드에 입력(사람)

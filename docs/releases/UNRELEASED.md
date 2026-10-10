@@ -1,5 +1,7 @@
 # Unreleased — changes since 1.0.0
 
+> 2026-10-11: the notes for the next submission are written — [v1.5.0.md](v1.5.0.md). This file goes away when 1.5.0 is published (`pnpm release finish`).
+
 The store still has 1.0.0. 1.1.0 was withdrawn from review and 1.1.1 was never submitted. On 2026-10-09 the maintainer chose to keep improving and to use each build locally (`pnpm dev:chrome`) before the next review request. When that request is made, the release notes for that version (`pnpm release notes` → `docs/releases/vX.Y.Z.md`) start from this list. Delete this file in the same pull request.
 
 ## 1.1.1 (not submitted)
