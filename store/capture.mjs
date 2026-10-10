@@ -7,9 +7,32 @@ import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-const PR = process.env.DEMO_PR ?? 'https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/6/changes';
+// 시연 PR — 이 도구의 소개 문서를 1.0판에서 1.5판으로 고치는 PR(병합하지 않음). 언어마다 그 언어로 쓴 문서라 스크린샷 속 글이 그대로 도구 소개가 된다
+const DEMO = {
+  en: {
+    pr: 'https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/34/changes',
+    heading: '5.2 Comment on the rendered document',
+    para: 'Hover over a block and click +',
+    next: 'The comment box looks and works like',
+    text: [
+      'Could we add a short GIF of clicking + here? People trying it for the first time tend to miss the button.',
+      "A little shorter?\n```suggestion\nThe comment box works just like GitHub's. Its first toolbar button adds a suggestion with the original lines, so the author can apply your wording in one click. Replies have the same toolbar.\n```",
+    ],
+  },
+  ko: {
+    pr: 'https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/35/changes',
+    heading: '5.2 렌더링된 문서에 코멘트',
+    para: '블록에 마우스를 올리고',
+    next: '코멘트 상자는 GitHub 상자와',
+    text: [
+      '여기에 +를 누르는 짧은 GIF를 넣으면 어떨까요? 처음 쓰는 분은 버튼을 놓치기 쉬워요.',
+      '조금 더 짧게 써 보면 어떨까요?\n```suggestion\n코멘트 상자는 GitHub 상자와 똑같이 동작해요. 도구 막대 첫 버튼으로 원래 줄을 담은 제안을 넣으면 작성자가 한 번에 반영해요. 답글 상자도 같아요.\n```',
+    ],
+  },
+}[process.argv[2] ?? 'en'];
+const PR = process.env.DEMO_PR ?? DEMO.pr;
 const PROFILE = process.env.GMD_E2E_PROFILE ?? join(homedir(), '.cache', 'github-md-diff', 'e2e-profile');
-// 맥 Chromium은 --lang을 무시하고 시스템 언어를 따른다 — 영어판은 한국어 문구를 뺀 빌드 사본을 올린다
+// 확장 문구는 1.5.0부터 언어와 상관없이 영어다. 영어판은 예전처럼 한국어 문구를 뺀 사본을 올린다(맥 Chromium은 --lang을 무시한다)
 const DIST = resolve(`store/build/dist-${process.argv[2] ?? 'en'}`);
 rmSync(DIST, { recursive: true, force: true });
 cpSync(resolve('dist'), DIST, { recursive: true });
@@ -146,10 +169,7 @@ async function open(withExtension) {
       .filter(Boolean);
     for (const id of ids) execFileSync('gh', ['api', '-X', 'DELETE', `repos/${REPO}/pulls/${NUMBER}/reviews/${id}`]);
   };
-  const TEXT = {
-    en: ['Should the reconciler back off while the provider is down?', 'Which dashboard shows the queue depth?'],
-    ko: ['프로바이더가 내려가 있는 동안에는 재확인 간격을 늘려야 하지 않을까요?', '큐 길이는 어느 대시보드에서 보나요?'],
-  }[LANG];
+  const TEXT = DEMO.text;
   cleanup();
   const { ctx, page } = await open(true);
   try {
@@ -157,8 +177,8 @@ async function open(withExtension) {
     await file.locator('[data-mdf="fold"]').first().waitFor({ timeout: 20_000 });
     await unstick(page);
     const body = file.locator('.prose-diff .markdown-body');
-    const heading = file.locator('.markdown-body h3', { hasText: '5.2 Failure handling' });
-    const para = file.locator('.markdown-body p', { hasText: 'A reconciler runs every' });
+    const heading = file.locator('.markdown-body h3', { hasText: DEMO.heading });
+    const para = file.locator('.markdown-body p', { hasText: DEMO.para });
     const plus = file.locator('[data-mdf="add-comment"]');
     const hoverPlus = async (block) => {
       for (let k = 0; k < 60 && !(await plus.isVisible()); k++) {
@@ -173,8 +193,8 @@ async function open(withExtension) {
     await file.locator('[data-mdf="comment-form"] .mdf-btn-primary').click(); // 리뷰 시작 — 보류 중이라 나만 보인다
     const thread = file.locator('[data-mdf="thread"]').first();
     await thread.waitFor({ timeout: 20_000 });
-    // 바로 아래 문단(5.3 Observability)은 접힌 묶음 안일 수 있다 — 막대가 있으면 펼친다
-    const next = file.locator('.markdown-body p', { hasText: 'Each service exports request latency' });
+    // 바로 아래 문단(5.3)은 접힌 묶음 안일 수 있다 — 막대가 있으면 펼친다
+    const next = file.locator('.markdown-body p', { hasText: DEMO.next });
     if (!(await next.isVisible())) {
       for (const bar of await file.locator('[data-mdf="fold"][aria-expanded="false"]').all()) {
         await bar.click();
@@ -186,7 +206,10 @@ async function open(withExtension) {
     await hoverPlus(next);
     await plus.click();
     const form = file.locator('[data-mdf="comment-form"]');
+    // 제안 버튼(도구 막대 맨 앞)으로 원래 줄을 넣은 뒤, 고친 문장으로 바꾼 모습
+    await form.locator('.mdf-md-tool').first().click();
     await form.locator('textarea').fill(TEXT[1]);
+    await form.locator('textarea').evaluate((el) => { el.style.height = `${el.scrollHeight + 4}px`; });
     await page.mouse.move(2, 2);
     await heading.evaluate((el) => el.scrollIntoView({ block: 'start' }));
     await page.evaluate(() => window.scrollBy(0, -24));
