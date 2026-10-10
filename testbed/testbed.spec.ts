@@ -398,6 +398,13 @@ test('T09 기존 스레드에 답글을 달면 그 스레드의 답글이 된다
   const t = hb.locator('[data-mdf="thread"]', { hasText: S.seeds.para.body });
   await t.locator('.mdf-thread-body > .mdf-comment-actions > button').first().click();
   const form = t.locator('.mdf-comment-form');
+  // 답글 상자도 GitHub 답글 상자처럼 제안 버튼이 맨 앞 — 스레드 줄 원문을 넣는다(1.5.0, 확장 문구는 영어)
+  const suggest = form.locator('.mdf-md-tool').first();
+  await expect(suggest).toHaveAttribute('aria-label', 'Add a suggestion');
+  await suggest.click();
+  const suggested = await form.locator('textarea').inputValue();
+  metric('답글 제안', suggested.split('\n').slice(1, -1).join(' / '));
+  expect(suggested).toMatch(/^`{3,}suggestion\n[\s\S]+\n`{3,}$/);
   const body = text('reply');
   await form.locator('textarea').fill(body);
   await expect(buttons(form)).toHaveCount(3);
@@ -569,6 +576,8 @@ test('T16 파일 전체에 단 코멘트가 렌더링 보기 맨 위에 보이�
   if (layoutOf() !== 'split') return; // 쓰기는 split 한 번만
   await t.locator('.mdf-thread-body > .mdf-comment-actions > button').first().click(); // 답글
   const form = t.locator('.mdf-comment-form');
+  // 파일 전체 스레드는 줄이 없어 제안 버튼이 없다(GitHub도 같다)
+  await expect(form.locator('.mdf-md-tool').first()).toHaveAttribute('aria-label', 'Heading');
   const body = text('file-reply');
   await form.locator('textarea').fill(body);
   await buttons(form).nth(1).click();

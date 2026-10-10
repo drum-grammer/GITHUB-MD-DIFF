@@ -28,7 +28,8 @@ Markdown Diff Cat gives you both: the rendered document, with only the changes i
   - The comment lands on the right source line as an ordinary GitHub review comment: add a single comment, or start or add to your review
   - Existing review threads show under the block they refer to, where you can reply and resolve them. Comments on the whole file show at the top of the file
   - **Preview** your comment the way GitHub will show it, and **edit** or **delete** your own comments in place (delete asks for a second click)
-  - The comment box looks like GitHub's own: your avatar and the line (`R13`, or `L25` on the removed side), Write / Preview tabs, the formatting toolbar (a **suggestion** button that drops the commented lines into a ```` ```suggestion ```` block, heading, bold, italic, quote, code, link, lists, task list, mention, with ⌘/Ctrl+B, I, E, K), and **Comment** and **Start a review** stay off until you type
+  - The comment box looks like GitHub's own: your avatar and the line (`R13`, or `L25` on the removed side), Write / Preview tabs, the formatting toolbar (a **suggestion** button that drops the commented lines into a ```` ```suggestion ```` block, heading, bold, italic, quote, code, link, lists, task list, mention, with ⌘/Ctrl+B, I, E, K), and **Comment** and **Start a review** stay off until you type. Reply boxes have the same toolbar, suggestion button included
+  - The extension's text is in English, to match GitHub's own pages, which are English only
 
   ![A review thread under a paragraph and a comment box under the next one, in the rendered diff](store/images/en/screenshot-2.png)
 - **Stays out of your way**
@@ -109,7 +110,7 @@ One command per tier. Each runs its steps in order, keeps going after a failure,
 
 ## Roadmap
 
-[ROADMAP.md](ROADMAP.md) says where development stands and what comes next, written so anyone can pick up the work without other context (Korean, with an English summary). As of 2026-10-10 the Chrome Web Store has 1.0.0 and `main` has 1.3.0. 1.4.0 is a draft pull request ([#31](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/31)). The maintainer uses each version in developer mode before asking for the next store review.
+[ROADMAP.md](ROADMAP.md) says where development stands and what comes next, written so anyone can pick up the work without other context (Korean, with an English summary). As of 2026-10-11 the Chrome Web Store has 1.0.0 and `main` has 1.5.0. The maintainer uses each version in developer mode before asking for the next store review.
 
 ## Research and test reports
 
@@ -172,7 +173,8 @@ Markdown Diff Cat은 두 장점을 합쳤어요. 렌더링된 문서를 보면�
   - 코멘트는 맞는 원문 줄에 붙는 보통의 GitHub 리뷰 코멘트예요. 단일 코멘트로 달거나 리뷰를 시작·추가할 수 있어요
   - 이미 달린 리뷰 스레드는 그 블록 아래에 보이고, 답글과 해결도 그 자리에서 해요. 파일 전체에 단 코멘트는 파일 맨 위에 보여요
   - 쓰는 중에 **미리보기**로 GitHub에 보일 모양을 확인하고, 내가 쓴 코멘트는 그 자리에서 **편집**·**삭제**해요(삭제는 한 번 더 눌러야 해요)
-  - 코멘트 상자는 GitHub 상자와 같은 모양이에요: 내 아바타와 줄(`R13`, 지운 쪽은 `L25`), 쓰기·미리보기 탭, 서식 도구 막대(코멘트하는 줄을 ```` ```suggestion ```` 블록으로 넣는 **제안**·제목·굵게·기울임·인용·코드·링크·목록·할 일·멘션, ⌘/Ctrl+B·I·E·K), 글을 쓰기 전에는 **코멘트**·**리뷰 시작**이 꺼져 있어요
+  - 코멘트 상자는 GitHub 상자와 같은 모양이에요: 내 아바타와 줄(`R13`, 지운 쪽은 `L25`), 쓰기·미리보기 탭, 서식 도구 막대(코멘트하는 줄을 ```` ```suggestion ```` 블록으로 넣는 **제안**·제목·굵게·기울임·인용·코드·링크·목록·할 일·멘션, ⌘/Ctrl+B·I·E·K), 글을 쓰기 전에는 **Comment**·**Start a review**가 꺼져 있어요. 답글 상자도 같은 도구 막대(제안 버튼 포함)예요
+  - 확장 문구는 GitHub 화면에 맞춰 영어예요(GitHub 화면은 영어만 있어요). 한국어는 나중에 설정으로 고를 수 있게 할 예정이에요
 
   ![렌더링 보기에서 문단 아래 리뷰 스레드와 다음 문단의 코멘트 입력 상자](store/images/ko/screenshot-2.png)
 - **방해하지 않아요**
@@ -199,7 +201,7 @@ Markdown Diff Cat은 두 장점을 합쳤어요. 렌더링된 문서를 보면�
 
 ### 로드맵·조사·테스트
 
-어디까지 개발했고 다음에 무엇을 할지는 [ROADMAP.md](ROADMAP.md)에 있어요. 다른 맥락 없이 이 문서만 읽고 이어서 일할 수 있게 썼어요. 2026-10-10 기준으로 스토어는 1.0.0, `main`은 1.3.0이고, 1.4.0은 초안 PR([#31](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/31))이에요. 검토 신청은 버전마다 개발자 모드로 써 본 뒤에 해요.
+어디까지 개발했고 다음에 무엇을 할지는 [ROADMAP.md](ROADMAP.md)에 있어요. 다른 맥락 없이 이 문서만 읽고 이어서 일할 수 있게 썼어요. 2026-10-11 기준으로 스토어는 1.0.0, `main`은 1.5.0이에요. 검토 신청은 버전마다 개발자 모드로 써 본 뒤에 해요.
 
 | 날짜 | 보고서 | 찾은 것 |
 |---|---|---|

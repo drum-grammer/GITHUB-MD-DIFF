@@ -349,6 +349,8 @@ export interface ThreadHandlers {
   onEdit(comment: ReviewComment, text: string): Promise<void>;
   onDelete(comment: ReviewComment): Promise<void>;
   preview?: Preview;
+  /** 스레드가 가리키는 오른쪽 줄의 원문 — 있으면 답글 상자에도 제안 버튼(GitHub 답글 상자와 같다) */
+  suggestion?(thread: ReviewThread): string | undefined;
 }
 
 /** 지우기는 두 번 눌러야 — 처음 누르면 "정말 삭제"로 바뀌고 4초 안에 다시 누를 때만 지운다 */
@@ -511,7 +513,7 @@ export function threadBox(doc: Document, thread: ReviewThread, pendingReview: bo
       };
       const form = commentForm(
         doc,
-        { label: t('replyTo'), pendingReview, singleLabel: t('reply'), preview: h.preview },
+        { label: t('replyTo'), pendingReview, singleLabel: t('reply'), preview: h.preview, suggestion: h.suggestion?.(thread) },
         {
           onSubmit: async (body, mode) => {
             await h.onReply(thread, body, mode);
