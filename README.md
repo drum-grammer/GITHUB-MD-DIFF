@@ -133,7 +133,7 @@ What the research found, and where the code relies on it:
 Where to see it:
 
 - Test repository: [markdown-diff-cat-testbed](https://github.com/drum-grammer/markdown-diff-cat-testbed) — [#4 review scenarios](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/4) · [#5 large diff](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/5) · [#6 120 files](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/6) · [#7 follow-up commit after review](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/7)
-- Release notes: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases) · [v1.1.1](docs/releases/v1.1.1.md) · [changes not yet in the store](docs/releases/UNRELEASED.md)
+- Release notes: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases) · [v1.5.0](docs/releases/v1.5.0.md) · [v1.1.1](docs/releases/v1.1.1.md) · [changes not yet in the store](docs/releases/UNRELEASED.md)
 - Store listing: [Chrome Web Store](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj)
 - Maintainer's summary pages (private links that only the maintainer can open): [research and test summary](https://claude.ai/artifact/X8tNysv7MhgaKZocWzaPNx) · [1.1.1 verification](https://claude.ai/artifact/9dxHzJFADpAqSk6U4HMjT3)
 
@@ -211,7 +211,7 @@ Markdown Diff Cat은 두 장점을 합쳤어요. 렌더링된 문서를 보면�
 | 2026-10-08 | [비슷한 확장 비교](docs/reports/competitors.md) | 8개 비교. 가장 많이 쓰이는 것이 241명. 바뀌지 않은 구간 접기·표 바뀐 행 합치기는 우리뿐. 그때 부족했던 코멘트·탐색·편집은 1.1.0–1.3.0에서 채움 |
 
 - 테스트 저장소: [markdown-diff-cat-testbed](https://github.com/drum-grammer/markdown-diff-cat-testbed) — [#4 리뷰 시나리오](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/4) · [#5 큰 diff](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/5) · [#6 파일 120개](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/6) · [#7 리뷰 뒤 따라온 커밋](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/7)
-- 릴리스 노트: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases) · [v1.1.1](docs/releases/v1.1.1.md) · [아직 스토어에 없는 변경](docs/releases/UNRELEASED.md)
+- 릴리스 노트: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases) · [v1.5.0](docs/releases/v1.5.0.md) · [v1.1.1](docs/releases/v1.1.1.md) · [아직 스토어에 없는 변경](docs/releases/UNRELEASED.md)
 - 관리자용 요약 페이지(비공개 링크, 관리자만 열려요): [조사·테스트 모음](https://claude.ai/artifact/X8tNysv7MhgaKZocWzaPNx) · [1.1.1 검증 보고서](https://claude.ai/artifact/9dxHzJFADpAqSk6U4HMjT3)
 
 GitHub와 관련 없는 비공식 도구이며 GitHub의 보증을 받지 않았습니다. GitHub는 GitHub, Inc.의 상표입니다.
