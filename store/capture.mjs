@@ -6,30 +6,15 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { latestVersion, listDemos, loadDemo, prUrl } from '../scripts/store-demo-lib.mjs';
 
-// 시연 PR — 이 도구의 소개 문서를 1.0판에서 1.5판으로 고치는 PR(병합하지 않음). 언어마다 그 언어로 쓴 문서라 스크린샷 속 글이 그대로 도구 소개가 된다
-const DEMO = {
-  en: {
-    pr: 'https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/34/changes',
-    heading: '5.2 Comment on the rendered document',
-    para: 'Hover over a block and click +',
-    next: 'The comment box looks and works like',
-    text: [
-      'Could we add a short GIF of clicking + here? People trying it for the first time tend to miss the button.',
-      "A little shorter?\n```suggestion\nThe comment box works just like GitHub's. Its first toolbar button adds a suggestion with the original lines, so the author can apply your wording in one click. Replies have the same toolbar.\n```",
-    ],
-  },
-  ko: {
-    pr: 'https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/35/changes',
-    heading: '5.2 렌더링된 문서에 코멘트',
-    para: '블록에 마우스를 올리고',
-    next: '코멘트 상자는 GitHub 상자와',
-    text: [
-      '여기에 +를 누르는 짧은 GIF를 넣으면 어떨까요? 처음 쓰는 분은 버튼을 놓치기 쉬워요.',
-      '조금 더 짧게 써 보면 어떨까요?\n```suggestion\n코멘트 상자는 GitHub 상자와 똑같이 동작해요. 도구 막대 첫 버튼으로 원래 줄을 담은 제안을 넣으면 작성자가 한 번에 반영해요. 답글 상자도 같아요.\n```',
-    ],
-  },
-}[process.argv[2] ?? 'en'];
+// 시연 PR — store/demos/<버전>/demo.json(버전별 기록). 기본은 가장 높은 버전, DEMO_VERSION=v1.0.0처럼 고른다. 새 시연은 pnpm store:demo create
+const LANG0 = process.argv[2] ?? 'en';
+const DEMO_DIR = process.env.DEMO_VERSION ?? latestVersion(listDemos());
+const DEMO = loadDemo(DEMO_DIR).langs[LANG0];
+DEMO.text = DEMO.comments;
+DEMO.pr = prUrl(DEMO.pr);
+console.log(`시연: ${DEMO_DIR} (${LANG0}) ${DEMO.pr}`);
 const PR = process.env.DEMO_PR ?? DEMO.pr;
 const PROFILE = process.env.GMD_E2E_PROFILE ?? join(homedir(), '.cache', 'github-md-diff', 'e2e-profile');
 // 확장 문구는 1.5.0부터 언어와 상관없이 영어다. 영어판은 예전처럼 한국어 문구를 뺀 사본을 올린다(맥 Chromium은 --lang을 무시한다)
