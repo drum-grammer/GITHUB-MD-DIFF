@@ -73,8 +73,9 @@ const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>'
 const tag = (key) => (UPDATE ? (changed.has(key) ? '<span class="tag new">바꿀 것</span>' : '<span class="tag same">그대로</span>') : '');
 const copy = (key, label, rows) => {
   const v = D[key];
-  if (UPDATE && !changed.has(key)) return `<p class="same-field">${tag(key)} ${esc(label)}</p>`;
-  const r = rows ?? Math.min(18, v.split('\n').length + 1 + Math.floor(v.length / 110));
+  // 그대로인 칸도 복사할 수 있게 둔다 — 대시보드 칸이 비었거나 잘못 들어가 있으면 다시 붙여 넣는다(작게 보여 준다)
+  const same = UPDATE && !changed.has(key);
+  const r = same ? 2 : (rows ?? Math.min(18, v.split('\n').length + 1 + Math.floor(v.length / 110)));
   return `<div class="field"><div class="fhead"><span>${tag(key)} ${esc(label)}</span><button data-copy="${key}">복사</button></div><textarea readonly rows="${r}" id="t-${key}">${esc(v)}</textarea></div>`;
 };
 const list = (...names) => `<ul class="files">${names.map((n) => `<li><code>${esc(n)}</code></li>`).join('')}</ul>`;
