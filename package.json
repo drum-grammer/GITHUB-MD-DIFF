@@ -24,7 +24,8 @@
     "testbed": "node build.mjs && playwright test -c testbed/playwright.config.ts",
     "testbed:report": "node scripts/testbed-report.mjs",
     "verify": "node scripts/verify.mjs",
-    "store:assets": "node build.mjs && node store/capture.mjs en && node store/capture.mjs ko && node store/compose.mjs en && node store/compose.mjs ko"
+    "store:assets": "node build.mjs && node store/capture.mjs en && node store/capture.mjs ko && node store/compose.mjs en && node store/compose.mjs ko",
+    "store:demo": "node scripts/store-demo.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

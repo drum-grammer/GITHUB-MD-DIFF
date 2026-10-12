@@ -26,6 +26,7 @@
    - 시연 PR을 이 도구의 소개 문서(1.0판 → 1.5판, 영 [#34](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/34)·한 [#35](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/35))로 바꿔서, 스크린샷 속 글과 코멘트가 그대로 도구 소개가 된다. 코멘트 장면은 제안 버튼
    - 남은 것: 대시보드 입력(사람, `pnpm store:upload` 도우미)
    - 1.5.0부터 확장 문구가 영어뿐이라 한국어 스크린샷도 확장 부분은 영어로 찍힌다 — 한국어 등록정보의 설명 문구와 맞춘다
+   - 다음에 그림을 다시 만들 때는 새 시연 PR부터: 새 버전 폴더(`store/demos/vX.Y.Z/`) → `pnpm store:demo create` → `DEMO_VERSION=vX.Y.Z pnpm store:assets`([store/demos/README](store/demos/README.md)). v1.5.0 시연 PR #34·#35는 병합돼 지금 화면이 기록과 다르다
    - 대시보드 입력은 사람이 한다(`pnpm store:upload` 도우미). [store/README](store/README.md)
 3. **스토어 검토 신청**(관리자가 정하면) — 1.5.0 진행 중(2026-10-11): `verify release` 9/10(E2E 1건 GitHub 지연, 다시 3번 통과) · `release check` 통과(`4ba51b3`, zip SHA-256 `c1077b8c…`) · 노트 [v1.5.0](docs/releases/v1.5.0.md). 태그 [`v1.5.0`](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases/tag/v1.5.0)(`e8098fd`, 코드는 `4ba51b3`과 같음)과 GitHub Release(노트·스크린샷·zip)는 2026-10-11 관리자 요청으로 먼저 만들었다 — 스토어 게시 전이라 **pre-release**로 두고, 게시되면 Latest로 바꾼다(`gh release edit v1.5.0 --prerelease=false --latest`; `release finish`는 태그가 있으면 이어서 한다). **2026-10-13 심사 제출**(API로 업로드, 대시보드에서 제출, `release status` PENDING_REVIEW). 남은 것: 게시 확인 → Release를 Latest로 · UNRELEASED 삭제 · 1.1.1 초안 Release 정리. 스토어 API 키(`CWS_SERVICE_ACCOUNT_KEY`)가 아직 없어 업로드는 대시보드에서 사람이 한다 — 절차 정본은 [store/README · Releasing an update](store/README.md#releasing-an-update)
    1. `main`에서 `pnpm verify release`가 모두 통과
@@ -41,6 +42,7 @@
    | 남의 코멘트에 편집·삭제가 안 보이는지 | 테스트 저장소는 계정 하나라 모든 코멘트가 내 것 — 두 번째 테스트 계정이 필요 · [1.3.0 보고서 §7](docs/reports/v1.3.0-testing.md#7-다음에) | 작다 |
    | 올린 뒤 GitHub 원문 보기·"Review changes" 개수 즉시 반영 | 지금은 새로고침해야 GitHub 쪽에 보인다. GitHub 내부 상태(React)를 건드려야 해서 깨지기 쉽다 | 중간 |
    | 언어 설정(영어·한국어) | 1.5.0부터 GitHub 화면에 맞춰 영어로 통일했다(2026-10-11 관리자 결정). 한국어 문구(`_locales/ko`)는 그대로 있으니, 팝업이나 옵션 페이지에 언어 고르기를 두고 `src/i18n.ts`가 고른 파일을 읽게 한다 | 작다 |
+   | AI 기능·지속 가능성 검토안 | [docs/proposals/2026-10-12-ai-next.ko.md](docs/proposals/2026-10-12-ai-next.ko.md) — 규칙 기반 문서 렌즈(1.6)·봇 코멘트 배지(1.7)·에이전트에게 넘기기(1.8) 후보, 확장 안 LLM·BYOK·기능 잠금은 버림 | 문서 |
    | 코멘트 파일 첨부 | GitHub 내부 업로드 요청이 필요하다(#31에서 뺐다) | 중간 |
    | 커밋·compare 화면 | 지금은 PR "Files changed"만 | 중간 |
    | 좌우 비교 보기 | Mihiraki·Bitbucket Rich Diffs가 한다. GitHub 렌더링을 버려야 해서 지금의 강점과 부딪친다 | 크다 |

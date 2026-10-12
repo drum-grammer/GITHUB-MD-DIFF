@@ -1,0 +1,40 @@
+{
+  "version": "1.0.0",
+  "about": "Checkout Service v2 design document (unrelated to the extension). Used for the store images of 1.0.0 and 1.1.0.",
+  "usedFor": [
+    "store images 1.0.0 (7425a17)",
+    "store images 1.1.0 (46a9b14, c361ff3)"
+  ],
+  "baseBranch": "demo/base",
+  "langs": {
+    "en": {
+      "pr": 6,
+      "branch": "demo/change",
+      "path": "demo/design-doc.md",
+      "base": "design-doc.base.md",
+      "head": "design-doc.md",
+      "heading": "5.2 Failure handling",
+      "para": "A reconciler runs every",
+      "next": "Each service exports request latency",
+      "comments": [
+        "Should the reconciler back off while the provider is down?",
+        "Which dashboard shows the queue depth?"
+      ]
+    },
+    "ko": {
+      "pr": 6,
+      "branch": "demo/change",
+      "path": "demo/design-doc.md",
+      "base": "design-doc.base.md",
+      "head": "design-doc.md",
+      "heading": "5.2 Failure handling",
+      "para": "A reconciler runs every",
+      "next": "Each service exports request latency",
+      "comments": [
+        "프로바이더가 내려가 있는 동안에는 재확인 간격을 늘려야 하지 않을까요?",
+        "큐 길이는 어느 대시보드에서 보나요?"
+      ]
+    }
+  },
+  "notes": "Both languages captured the same English pull request; only the comment text and captions were Korean. PR #6 was merged into demo/base later; its diff stays visible."
+}

@@ -1,0 +1,40 @@
+{
+  "version": "1.5.0",
+  "about": "The extension's own product brief, updated from 1.0 to 1.5, so the screenshots introduce the extension.",
+  "usedFor": [
+    "store images 1.5.0 (4ba51b3)",
+    "reviewer test instructions 1.5.0 (PR #34)"
+  ],
+  "baseBranch": "demo/intro-base",
+  "langs": {
+    "en": {
+      "pr": 34,
+      "branch": "demo/intro-en",
+      "path": "demo/intro/markdown-diff-cat.en.md",
+      "base": "en.base.md",
+      "head": "en.md",
+      "heading": "5.2 Comment on the rendered document",
+      "para": "Hover over a block and click +",
+      "next": "The comment box looks and works like",
+      "comments": [
+        "Could we add a short GIF of clicking + here? People trying it for the first time tend to miss the button.",
+        "A little shorter?\n```suggestion\nThe comment box works just like GitHub's. Its first toolbar button adds a suggestion with the original lines, so the author can apply your wording in one click. Replies have the same toolbar.\n```"
+      ]
+    },
+    "ko": {
+      "pr": 35,
+      "branch": "demo/intro-ko",
+      "path": "demo/intro/markdown-diff-cat.ko.md",
+      "base": "ko.base.md",
+      "head": "ko.md",
+      "heading": "5.2 렌더링된 문서에 코멘트",
+      "para": "블록에 마우스를 올리고",
+      "next": "코멘트 상자는 GitHub 상자와",
+      "comments": [
+        "여기에 +를 누르는 짧은 GIF를 넣으면 어떨까요? 처음 쓰는 분은 버튼을 놓치기 쉬워요.",
+        "조금 더 짧게 써 보면 어떨까요?\n```suggestion\n코멘트 상자는 GitHub 상자와 똑같이 동작해요. 도구 막대 첫 버튼으로 원래 줄을 담은 제안을 넣으면 작성자가 한 번에 반영해요. 답글 상자도 같아요.\n```"
+      ]
+    }
+  },
+  "notes": "Both pull requests were later merged into demo/intro-base (#34 on 2026-10-10, #35 on 2026-10-13); #35 had first taken the 1.6 proposal (#40), now in docs/proposals/2026-10-12-ai-next.ko.md. Their diffs stay visible, but the live branches no longer match these files — recapture from a new demo made with pnpm store:demo create."
+}
