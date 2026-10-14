@@ -143,8 +143,14 @@ await check('클래스 이름 형식(새 화면 파일 묶음)', async () => {
 });
 
 await check('확장 경고 없음(툴바 "!"·구석 안내)', async () => {
-  const toast = await page.locator('[data-mdf="problem-toast"]').count();
-  must(toast === 0, `확장이 화면을 못 읽는다고 알렸다: ${await page.locator('[data-mdf="problem-toast"]').first().textContent()}`);
+  // 글과 진단을 한 번에 읽는다 — 따로 읽으면 그 사이에 안내가 사라져 시간 초과로 보인다
+  const toast = await page.evaluate(() => {
+    const el = document.querySelector('[data-mdf="problem-toast"]');
+    if (!el) return null;
+    const details = new URLSearchParams(el.dataset.url?.split('?')[1] ?? '').get('body')?.split('**Details**')[1] ?? '';
+    return `${el.querySelector('span')?.textContent ?? ''} ${details.replace(/\s+/g, ' ').slice(0, 300)}`;
+  });
+  must(!toast, `확장이 화면을 못 읽는다고 알렸다: ${toast}`);
 });
 
 await check(`연결률(≥ ${MIN_COVERAGE * 100}%)`, async () => {
