@@ -16,6 +16,7 @@
     "release": "node scripts/release.mjs",
     "store:upload": "node scripts/store-upload.mjs",
     "canary": "node build.mjs && node scripts/canary.mjs",
+    "canary:status": "node scripts/canary.mjs --status",
     "explore:pick": "node scripts/explore-pick.mjs",
     "explore": "node build.mjs && node scripts/explore.mjs",
     "explore:report": "node scripts/explore-report.mjs",

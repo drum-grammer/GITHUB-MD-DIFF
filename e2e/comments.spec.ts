@@ -1,6 +1,7 @@
 import { expect, test as base, type BrowserContext, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { launch } from './support';
+import { GITHUB_CSS } from '../src/selectors';
 
 // 코멘트를 실제로 올린다 — 보류 중인 리뷰(나만 보임)로 올리고 끝나면 gh로 지운다. GMD_E2E_WRITE=1일 때만 돈다
 const REPO = 'drum-grammer/GITHUB-MD-DIFF';
@@ -36,7 +37,7 @@ test.beforeAll(deletePendingReviews);
 test.afterAll(deletePendingReviews);
 
 const fileOf = (page: Page) =>
-  page.locator('div[id^="diff-"][class*="Diff-module__diff__"]').filter({ has: page.locator('h3 code', { hasText: FILE }) });
+  page.locator(GITHUB_CSS.file).filter({ has: page.locator('h3 code', { hasText: FILE }) });
 
 /** 블록에 마우스를 올려 "+"가 나올 때까지(첫 호버는 원문을 받는 동안 기다린다) */
 async function hoverUntilPlus(page: Page, block: ReturnType<Page['locator']>): Promise<void> {

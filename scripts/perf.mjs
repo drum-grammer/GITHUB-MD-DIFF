@@ -7,6 +7,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { installPageCss } from './page-css.mjs';
 
 const DEFAULT = [
   'https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/6/changes', // md 1개·표
@@ -43,6 +44,8 @@ const ctx = await chromium.launchPersistentContext(PROFILE, {
 const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker'));
 const setEnabled = (on) => sw.evaluate((v) => chrome.storage.local.set({ enabled: v }), on);
 
+await installPageCss(ctx); // window.__mdf — src/selectors.ts와 같은 GitHub 가정
+
 // 페이지 쪽 기록 — 긴 작업, md 파일마다 렌더링 본문이 처음 보인 때와 확장의 접기 막대가 처음 붙은 때
 await ctx.addInitScript(() => {
   const w = window;
@@ -54,7 +57,7 @@ await ctx.addInitScript(() => {
   } catch {}
   const seen = () => {
     const now = Math.round(performance.now());
-    for (const f of document.querySelectorAll('div[id^="diff-"][class*="Diff-module__diff__"], div.file.js-file')) {
+    for (const f of window.__mdf.files()) {
       if (!(f.id in w.__perf.prose) && f.querySelector('.prose-diff .markdown-body')) w.__perf.prose[f.id] = now;
       if (!(f.id in w.__perf.fold) && f.querySelector('[data-mdf="fold"], [data-mdf="table"], [data-mdf="no-change"]')) w.__perf.fold[f.id] = now;
     }
@@ -108,7 +111,7 @@ async function run(url, mode) {
   const { profile } = await cdp.send('Profiler.stop');
   const metrics = Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map((m) => [m.name, m.value]));
   const p = await page.evaluate(() => {
-    const md = [...document.querySelectorAll('div[id^="diff-"][class*="Diff-module__diff__"], div.file.js-file')].filter((f) => /\.(md|markdown|mdx)$/i.test((f.querySelector('h3 code')?.textContent ?? f.querySelector('.file-header[data-path]')?.getAttribute('data-path') ?? '').replace(/[\u200e\u200f]/g, '').trim()));
+    const md = [...window.__mdf.files()].filter((f) => /\.(md|markdown|mdx)$/i.test(window.__mdf.path(f)));
     return { ...window.__perf, md: md.map((f) => f.id) };
   });
   const r = { url, mode, md: p.md.length };
@@ -132,7 +135,7 @@ async function run(url, mode) {
   if (mode === 'on' && prose.length) {
     const target = await page.evaluate(() => {
       let best = null;
-      for (const f of document.querySelectorAll('div[id^="diff-"][class*="Diff-module__diff__"], div.file.js-file')) {
+      for (const f of window.__mdf.files()) {
         const n = f.querySelectorAll('.prose-diff .markdown-body p, .prose-diff .markdown-body li, .prose-diff .markdown-body tr').length;
         if (n && (!best || n > best.n)) best = { id: f.id, n };
       }

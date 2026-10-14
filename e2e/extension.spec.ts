@@ -1,5 +1,6 @@
 import { expect, test as base, type BrowserContext, type Page, type Worker } from '@playwright/test';
 import { launch } from './support';
+import { GITHUB_CSS } from '../src/selectors';
 
 // 병합된 공개 PR — 내용이 바뀌지 않는다(2026-10-07 구조 확인)
 const FOLD_PR = 'https://github.com/github/docs/pull/46149/changes';
@@ -33,7 +34,7 @@ async function openChanges(page: Page, url: string): Promise<void> {
 }
 
 const fileLocator = (page: Page, name: string) =>
-  page.locator('div[id^="diff-"][class*="Diff-module__diff__"]').filter({ has: page.locator('h3 code', { hasText: name }) });
+  page.locator(GITHUB_CSS.file).filter({ has: page.locator('h3 code', { hasText: name }) });
 
 test('md 파일이 자동으로 렌더링되고 변경 없는 구간이 접힌다', async ({ page }) => {
   await openChanges(page, FOLD_PR);

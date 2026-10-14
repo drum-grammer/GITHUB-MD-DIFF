@@ -2,6 +2,7 @@ import { expect, test as base, type BrowserContext, type Locator, type Page, typ
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { launch, launchLoggedOut } from '../e2e/support';
+import { GITHUB_CSS } from '../src/selectors';
 import { api, cleanRuns, comments, me, setResolved, threadAt, threads, type ReviewComment, type ThreadAt } from './github';
 import { ORIGINAL_FILE, QUERY, applyPrefs, restorePrefs, type Layout } from './layout';
 import { RUN_MARKER, baseFiles, headFiles, lineOf } from './scenarios';
@@ -103,7 +104,7 @@ async function open(page: Page, key: keyof State['prs']): Promise<number> {
 
 /** 파일 상자. 이름이 바뀐 파일은 새 경로로 찾는다 */
 const fileOf = (page: Page, path: string): Locator =>
-  page.locator('div[id^="diff-"][class*="Diff-module__diff__"]').filter({ has: page.locator('h3 code', { hasText: path }) });
+  page.locator(GITHUB_CSS.file).filter({ has: page.locator('h3 code', { hasText: path }) });
 
 const prose = (file: Locator) => file.locator('.prose-diff .markdown-body');
 
@@ -460,7 +461,7 @@ test('T12 큰 파일(2,400줄 바뀜)도 렌더링 보기로 열리고 경고가
 test('T13 파일 120개(md 100) PR에서 md는 모두 렌더링되고 txt는 그대로다', async ({ page, worker }) => {
   test.setTimeout(180_000);
   const t0 = await open(page, 'many');
-  const md = page.locator('div[id^="diff-"][class*="Diff-module__diff__"]').filter({ has: page.locator('h3 code', { hasText: /\.md\b/ }) });
+  const md = page.locator(GITHUB_CSS.file).filter({ has: page.locator('h3 code', { hasText: /\.md\b/ }) });
   await expect(md).toHaveCount(100, { timeout: 60_000 });
   // 화면 밖 파일도 차례로 받아 오는지 — 끝까지 내려가며 기다린다
   await expect(async () => {
@@ -468,7 +469,7 @@ test('T13 파일 120개(md 100) PR에서 md는 모두 렌더링되고 txt는 그
     expect(await md.filter({ has: page.locator('.prose-diff .markdown-body') }).count()).toBe(100);
   }).toPass({ timeout: 120_000, intervals: [1000] });
   metric('md 100개 렌더링까지(ms)', Date.now() - t0);
-  const txt = page.locator('div[id^="diff-"][class*="Diff-module__diff__"]').filter({ has: page.locator('h3 code', { hasText: /\.txt\b/ }) });
+  const txt = page.locator(GITHUB_CSS.file).filter({ has: page.locator('h3 code', { hasText: /\.txt\b/ }) });
   await expect(txt).toHaveCount(20);
   await expect(txt.locator('.prose-diff')).toHaveCount(0);
   await page.waitForTimeout(4000);

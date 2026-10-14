@@ -9,6 +9,7 @@ import { JSDOM } from 'jsdom';
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { installPageCss } from './page-css.mjs';
 
 const args = process.argv.slice(2);
 const OUT = args[0] ?? join('.scratch', 'explore', new Date().toISOString().slice(0, 10));
@@ -47,6 +48,7 @@ const ctx = await chromium.launchPersistentContext(PROFILE, {
   viewport: { width: 1400, height: 1000 },
   args: [`--disable-extensions-except=${DIST}`, `--load-extension=${DIST}`],
 });
+await installPageCss(ctx); // window.__mdf — src/selectors.ts와 같은 GitHub 가정
 await ctx.addInitScript(() => {
   window.__mdfClicks = [];
   document.addEventListener(
@@ -74,18 +76,14 @@ await ctx.addInitScript(() => {
 
 const STATE = () => {
   const MD = /\.(md|markdown|mdx)$/i;
-  const files = [...document.querySelectorAll('div[id^="diff-"][class*="Diff-module__diff__"], div.file.js-file')];
+  const files = [...window.__mdf.files()];
   const label = (b) => b.getAttribute('aria-label') ?? (b.getAttribute('aria-labelledby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent?.trim() ?? '').join(' ');
   const md = [];
   for (const f of files) {
-    const code = f.querySelector('h3[class*="DiffFileHeader-module__file-name"] code');
-    const spoken = code?.querySelector('.sr-only')?.textContent ?? '';
-    const path = (spoken.includes(' renamed to ') ? spoken.split(' renamed to ').pop() : (code?.textContent ?? f.querySelector('.file-header[data-path]')?.getAttribute('data-path') ?? ''))
-      .replace(/[\u200e\u200f]/g, '')
-      .trim();
+    const path = window.__mdf.path(f);
     if (!MD.test(path.split(/\s+/).pop() ?? '')) continue;
     const pressed = (icon) => f.querySelector(`button[aria-pressed] svg.octicon-${icon}`)?.closest('button')?.getAttribute('aria-pressed') ?? null;
-    const header = f.querySelector('[class*="DiffFileHeader-module__diff-file-header"], .file-header');
+    const header = window.__mdf.header(f);
     md.push({
       id: f.id,
       path,
@@ -93,7 +91,7 @@ const STATE = () => {
       rich: pressed('file'),
       source: pressed('code'),
       collapsed: [...(header?.querySelectorAll('button') ?? [])].some((b) => /Expand file/.test(label(b))),
-      loadDiff: Boolean(f.querySelector('[class*="HiddenDiffPatch-module"]')),
+      loadDiff: Boolean(f.querySelector(window.__mdf.css.largeDiff)),
       folds: f.querySelectorAll('[data-mdf="fold"]').length,
       tables: f.querySelectorAll('[data-mdf="table"]').length,
       hidden: f.querySelectorAll('.mdf-hidden').length,
@@ -103,14 +101,14 @@ const STATE = () => {
       hiddenChanges: [...f.querySelectorAll('.mdf-hidden')]
         .filter((h) => h.tagName !== 'DEL' && h.tagName !== 'INS' && !h.closest('del.mdf-hidden, ins.mdf-hidden'))
         .reduce((n, h) => n + (h.matches('ins, del, .changed, .added, .removed') ? 1 : 0) + h.querySelectorAll('ins, del, .changed, .added, .removed').length, 0),
-      ghThreads: f.querySelectorAll('[class*="InlineReviewThread-module__ReviewThreadContainer"], tr.inline-comments').length,
+      ghThreads: f.querySelectorAll(window.__mdf.css.reviewThread).length,
       bodyText: Math.max(0, (f.textContent?.length ?? 0) - (header?.textContent?.length ?? 0)),
     });
   }
   const toast = document.querySelector('[data-mdf="problem-toast"]');
   return {
     vis: document.visibilityState,
-    variant: document.querySelector('div[id^="diff-"][class*="Diff-module__diff__"]') ? 'new' : document.querySelector('div.file.js-file') ? 'classic' : 'unknown',
+    variant: document.querySelector('div.file.js-file') ? 'classic' : files.length ? 'new' : 'unknown',
     login: Boolean(document.querySelector('meta[name="user-login"]')?.getAttribute('content')),
     files: files.length,
     md,
@@ -138,11 +136,9 @@ async function mapping(page) {
       return res.ok ? res.json() : null;
     };
     const list = [];
-    for (const file of document.querySelectorAll('div[id^="diff-"][class*="Diff-module__diff__"]')) {
+    for (const file of window.__mdf.files()) {
       const prose = file.querySelector('.prose-diff .markdown-body');
-      const code = file.querySelector('h3[class*="DiffFileHeader-module__file-name"] code');
-      const spoken = code?.querySelector('.sr-only')?.textContent ?? '';
-      const path = (spoken.includes(' renamed to ') ? spoken.split(' renamed to ').pop() : (code?.textContent ?? '')).replace(/[\u200e\u200f]/g, '').trim();
+      const path = window.__mdf.path(file);
       if (!prose || !path) continue;
       const sum = route.payload.pullRequestsChangesRoute.diffSummaries?.find((s) => s.path === path);
       list.push({ path, oldPath: sum?.oldTreeEntry?.path ?? null, changeType: sum?.changeType ?? null, html: prose.outerHTML.length > 3e6 ? null : prose.outerHTML });
