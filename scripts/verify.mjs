@@ -13,8 +13,8 @@ const PERF_PRS = ['https://github.com/reactjs/ko.react.dev/pull/1565/changes', '
 
 /** 단계 — cmd는 [명령, 인자], summary는 출력에서 한 줄 요약을 뽑는다 */
 const STEPS = {
-  typecheck: { name: '타입 검사', cmd: ['pnpm', ['-s', 'typecheck']] },
-  unit: { name: '단위·DOM 테스트', cmd: ['pnpm', ['-s', 'test']], summary: vitest },
+  typecheck: { name: '타입 검사', cmd: ['pnpm', ['--silent', 'typecheck']] },
+  unit: { name: '단위·DOM 테스트', cmd: ['pnpm', ['--silent', 'test']], summary: vitest },
   build: { name: '빌드', cmd: ['node', ['build.mjs']] },
   'testbed-setup': { name: '테스트 저장소 맞추기', cmd: ['node', ['scripts/testbed-setup.mjs']], summary: (o) => last(o, /스레드 \d+개[^\n→]*/) },
   'testbed-quick': { name: '테스트 저장소 @quick', cmd: ['npx', ['playwright', 'test', '-c', 'testbed/playwright.config.ts', '--project', 'split', '--grep', '@quick']], summary: playwright, testbed: true },
