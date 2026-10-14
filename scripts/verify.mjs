@@ -19,7 +19,7 @@ const STEPS = {
   'testbed-setup': { name: '테스트 저장소 맞추기', cmd: ['node', ['scripts/testbed-setup.mjs']], summary: (o) => last(o, /스레드 \d+개[^\n→]*/) },
   'testbed-quick': { name: '테스트 저장소 @quick', cmd: ['npx', ['playwright', 'test', '-c', 'testbed/playwright.config.ts', '--project', 'split', '--grep', '@quick']], summary: playwright, testbed: true },
   e2e: { name: 'E2E(쓰기 포함)', cmd: ['npx', ['playwright', 'test']], env: { GMD_E2E_WRITE: '1' }, summary: playwright },
-  canary: { name: '카나리(실제 GitHub, 읽기만)', cmd: ['node', ['scripts/canary.mjs']], summary: (o) => last(o, /모두 정상[^\n—]*|문제 \d+[^\n]*/) },
+  canary: { name: '카나리(실제 GitHub, 읽기만)', cmd: ['node', ['scripts/canary.mjs']], summary: (o) => last(o, /모두 정상[^\n—]*|깨짐 \d+\/\d+[^\n]*/) },
   'testbed-split': { name: '테스트 저장소 Split 전체', cmd: ['npx', ['playwright', 'test', '-c', 'testbed/playwright.config.ts', '--project', 'split']], summary: playwright, testbed: true },
   'testbed-all': { name: '테스트 저장소 화면 모양 5가지', cmd: ['npx', ['playwright', 'test', '-c', 'testbed/playwright.config.ts']], summary: playwright, testbed: true },
   explore: { name: '공개 PR 16개 재탐험(읽기만)', cmd: null, summary: explore },
