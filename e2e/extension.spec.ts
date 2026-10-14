@@ -80,20 +80,27 @@ test('끄면 확장이 만든 것이 모두 사라진다', async ({ page, sw }) 
 });
 
 // 1.5.0은 GitHub가 클래스 이름 형식을 바꾸자(2026-10-14) 아무 말 없이 멈췄다 — 이제 파일을 하나도 못 읽으면 몇 초 뒤 알린다.
-// GitHub가 앵커 id·클래스까지 바꾼 화면을 흉내 낸다(파일 링크는 그대로 남는다)
+// GitHub가 앵커 id·클래스까지 바꾼 화면을 흉내 낸다(파일 링크는 그대로 남는다). 파일이 하나뿐인 데모 PR을 쓰고, 나중에 그려지는
+// 파일도 계속 바꾼다 — 파일 20개 PR에서는 GitHub가 아래쪽 파일을 늦게 그려, 그 파일을 확장이 제대로 읽어 경고가 안 떴다(2026-10-14)
+const DEMO_PR = 'https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/6/changes';
+
 test('GitHub 화면이 바뀌어 파일을 하나도 못 읽으면 몇 초 뒤 경고(구석 안내·이슈 링크)', async ({ page }) => {
-  await openChanges(page, FOLD_PR);
-  await expect(fileLocator(page, FOLD_FILE).locator('.prose-diff')).toBeVisible({ timeout: 20_000 });
+  await openChanges(page, DEMO_PR);
+  await expect(fileLocator(page, 'demo/design-doc.md').locator('.prose-diff')).toBeVisible({ timeout: 20_000 });
   const toast = page.locator('[data-mdf="problem-toast"]');
   await expect(toast).toHaveCount(0);
   await page.evaluate(() => {
-    for (const f of document.querySelectorAll('div[id^="diff-"]')) {
-      if (!/^diff-[0-9a-f]+$/.test(f.id)) continue;
-      f.id = `moved-${f.id}`;
-      f.className = '';
-      f.querySelectorAll('[class]').forEach((el) => el.setAttribute('class', [...el.classList].filter((c) => !c.includes('__')).join(' ')));
-      f.querySelectorAll('h3').forEach((h) => h.replaceWith(Object.assign(document.createElement('div'), { innerHTML: h.innerHTML })));
-    }
+    const disguise = () => {
+      for (const f of document.querySelectorAll('div[id^="diff-"]')) {
+        if (!/^diff-[0-9a-f]+$/.test(f.id)) continue;
+        f.id = `moved-${f.id}`;
+        f.className = '';
+        f.querySelectorAll('[class]').forEach((el) => el.setAttribute('class', [...el.classList].filter((c) => !c.includes('__')).join(' ')));
+        f.querySelectorAll('h3').forEach((h) => h.replaceWith(Object.assign(document.createElement('div'), { innerHTML: h.innerHTML })));
+      }
+    };
+    disguise();
+    new MutationObserver(disguise).observe(document.body, { childList: true, subtree: true });
     document.body.append(document.createElement('span')); // 확장은 자식 변화로 다시 훑는다
   });
   await expect(toast).toBeVisible({ timeout: 15_000 });
