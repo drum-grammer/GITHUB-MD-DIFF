@@ -12,9 +12,9 @@ import {
 import { t } from './i18n';
 import { installNavKeys } from './nav';
 import { fileKey, isPrChangesPage } from './page';
-import { problemsFor, type FileResult } from './problems';
+import { problemsFor, structureProblem, type FileResult } from './problems';
 import { browserOf, showProblemToast } from './report';
-import { fileElements, fileOf, filePath, isMarkdownPath, isSignedIn, pageVariant, proseBody, viewButton } from './selectors';
+import { fileElements, fileOf, filePath, isMarkdownPath, isSignedIn, pageStructure, pageVariant, proseBody, viewButton } from './selectors';
 
 const LOG = '[github-md-diff]';
 /** 이 상태의 파일이 있으면 화면 변화가 없어도 1초 뒤 다시 본다(시간 판정) */
@@ -27,6 +27,13 @@ let enabled = true;
 let scheduled = false;
 let retryTimer: ReturnType<typeof setTimeout> | undefined;
 let lastReport = '';
+/**
+ * 화면에 파일이 있는데 하나도 못 읽는 상태가 이만큼 이어지면 알린다 — GitHub가 파일을 그리는 중일 수 있어 바로는 아니다.
+ * 1.5.0은 GitHub가 클래스 이름 형식을 바꾸자(2026-10-14) 아무 말 없이 멈췄다
+ */
+const STRUCTURE_GRACE_MS = 5000;
+let structureSince: { url: string; at: number } | null = null;
+let structureTimer: ReturnType<typeof setTimeout> | undefined;
 
 const keyOf = (file: HTMLElement): string => fileKey(location.href, file.id);
 
@@ -168,6 +175,7 @@ function scan(): void {
   scheduled = false;
   lastScan = performance.now();
   if (!enabled || !isPrChangesPage(location.href)) {
+    structureSince = null;
     if (problems.size) {
       problems.clear();
       problemDetails.clear();
@@ -186,7 +194,8 @@ function scan(): void {
     warnOnce('comments', e); // 코멘트 준비가 실패해도 접기·표 합치기는 그대로
   }
   const results: FileResult[] = [];
-  for (const file of byViewport(fileElements(document))) {
+  const files = fileElements(document);
+  for (const file of byViewport(files)) {
     if (settled.has(file)) {
       const r = settled.get(file);
       if (r) results.push(r);
@@ -207,6 +216,21 @@ function scan(): void {
     problems.set(key, t(problem));
     problemDetails.add(problem);
     warnOnce(`${key}:${problem}`, problem);
+  }
+  // md 파일을 하나라도 처리했으면 화면을 읽고 있는 것이다 — 아니면 파일·이름을 아예 못 찾는지 센다
+  const structure = results.length > 0 ? null : pageStructure(document, files, pathOf);
+  const broken = structure && structureProblem(structure);
+  if (!broken) structureSince = null;
+  else {
+    if (structureSince?.url !== location.href) structureSince = { url: location.href, at: Date.now() };
+    const waited = Date.now() - structureSince.at;
+    if (waited >= STRUCTURE_GRACE_MS) {
+      problems.set('page', t(broken));
+      problemDetails.add(`${broken} — files ${structure.files}, named ${structure.named}, loading ${structure.loading}, links ${structure.links}`);
+    } else {
+      clearTimeout(structureTimer);
+      structureTimer = setTimeout(schedule, STRUCTURE_GRACE_MS - waited + 50);
+    }
   }
   if (signedIn && results.length > 0 && commentsBroken(location.href)) {
     problems.set('comments', t('problemComments'));

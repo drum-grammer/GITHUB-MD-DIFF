@@ -308,3 +308,37 @@ describe('ensureRich — 옛 화면', () => {
     expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('rich');
   });
 });
+
+/** 뼈대·큰 diff 자리도 클래스 이름 형식이 바뀌어도 알아본다(2026-10-14 확인한 새 형식) */
+describe('ensureRich — 새 클래스 이름 형식', () => {
+  it('뼈대(skeleton__해시)는 lazy', () => {
+    const file = fakeFile('a.md', true, 'new');
+    file.querySelectorAll('button').forEach((b) => b.remove());
+    file.querySelector('.diff-body')!.innerHTML = '<div class="skeleton__c5fLaY rounded__er6wPa heightSm__S99g6S"></div>';
+    expect(ensureRich(file, 'k', createAutoRichState(), 60_000)).toBe('lazy');
+  });
+
+  it.each([
+    ['gridColumnTemplate__해시', '<div class="gridColumnTemplate__kXqy-c"><button>Load diff</button></div>'],
+    ['클래스 없이 "Load diff" 버튼만', '<div><div><button type="button">Load diff</button></div></div>'],
+  ])('버튼 없이 큰 diff 안내만 있으면 notice — %s', (_name, inner) => {
+    const file = fakeFile('a.md', true, 'new');
+    file.querySelectorAll('button').forEach((b) => b.remove());
+    file.querySelector('.diff-body')!.innerHTML = `<div class="tmp-px-3 tmp-py-4 fgColor-muted" data-diff-anchor="diff-abc">${inner}</div>`;
+    expect(ensureRich(file, 'k', createAutoRichState(), 10_000)).toBe('notice');
+  });
+
+  it('버튼이 있는 큰 diff는 새 형식에서도 렌더링을 누른다', () => {
+    const file = fakeFile('a.md', true, 'new');
+    file.querySelector('.diff-body')!.innerHTML =
+      '<div class="tmp-px-3 tmp-py-4 fgColor-muted" data-diff-anchor="diff-abc"><div class="gridColumnTemplate__kXqy-c"><button>Load diff</button></div></div>';
+    expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('clicked');
+  });
+
+  it('클래스가 하나도 없는 화면에서도 렌더링 버튼을 누른다', () => {
+    const file = fakeFile('a.md', true, 'bare');
+    const clicks = countClicks(viewButton(file, 'rich')!);
+    expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('clicked');
+    expect(clicks()).toBe(1);
+  });
+});
