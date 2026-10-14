@@ -13,13 +13,13 @@ const PERF_PRS = ['https://github.com/reactjs/ko.react.dev/pull/1565/changes', '
 
 /** 단계 — cmd는 [명령, 인자], summary는 출력에서 한 줄 요약을 뽑는다 */
 const STEPS = {
-  typecheck: { name: '타입 검사', cmd: ['pnpm', ['-s', 'typecheck']] },
-  unit: { name: '단위·DOM 테스트', cmd: ['pnpm', ['-s', 'test']], summary: vitest },
+  typecheck: { name: '타입 검사', cmd: ['pnpm', ['--silent', 'typecheck']] },
+  unit: { name: '단위·DOM 테스트', cmd: ['pnpm', ['--silent', 'test']], summary: vitest },
   build: { name: '빌드', cmd: ['node', ['build.mjs']] },
   'testbed-setup': { name: '테스트 저장소 맞추기', cmd: ['node', ['scripts/testbed-setup.mjs']], summary: (o) => last(o, /스레드 \d+개[^\n→]*/) },
   'testbed-quick': { name: '테스트 저장소 @quick', cmd: ['npx', ['playwright', 'test', '-c', 'testbed/playwright.config.ts', '--project', 'split', '--grep', '@quick']], summary: playwright, testbed: true },
   e2e: { name: 'E2E(쓰기 포함)', cmd: ['npx', ['playwright', 'test']], env: { GMD_E2E_WRITE: '1' }, summary: playwright },
-  canary: { name: '카나리(실제 GitHub, 읽기만)', cmd: ['node', ['scripts/canary.mjs']], summary: (o) => last(o, /모두 정상[^\n—]*|문제 \d+[^\n]*/) },
+  canary: { name: '카나리(실제 GitHub, 읽기만)', cmd: ['node', ['scripts/canary.mjs']], summary: (o) => last(o, /모두 정상[^\n—]*|깨짐 \d+\/\d+[^\n]*/) },
   'testbed-split': { name: '테스트 저장소 Split 전체', cmd: ['npx', ['playwright', 'test', '-c', 'testbed/playwright.config.ts', '--project', 'split']], summary: playwright, testbed: true },
   'testbed-all': { name: '테스트 저장소 화면 모양 5가지', cmd: ['npx', ['playwright', 'test', '-c', 'testbed/playwright.config.ts']], summary: playwright, testbed: true },
   explore: { name: '공개 PR 16개 재탐험(읽기만)', cmd: null, summary: explore },

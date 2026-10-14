@@ -6,6 +6,7 @@
   "titleProblem": {"message": "Markdown Diff Cat: 화면을 읽지 못함 — $WHAT$", "placeholders": {"what": {"content": "$1"}}},
   "problemNoRichButton": {"message": "렌더링 버튼을 찾지 못함"},
   "problemNoProseDiff": {"message": "렌더링 diff가 나타나지 않음"},
+  "problemNoFiles": {"message": "페이지의 파일을 알아보지 못함"},
   "foldBlocks": {"message": "변경 없음 · 블록 $COUNT$개", "placeholders": {"count": {"content": "$1"}}},
   "foldBlocksHeading": {"message": "변경 없음 · 블록 $COUNT$개 · 마지막 제목 “$HEADING$”", "placeholders": {"count": {"content": "$1"}, "heading": {"content": "$2"}}},
   "foldRows": {"message": "같은 행 $COUNT$개", "placeholders": {"count": {"content": "$1"}}},

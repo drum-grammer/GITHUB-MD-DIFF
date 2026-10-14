@@ -6,6 +6,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { launch } from './mapping-launch.mjs';
+import { installPageCss } from './page-css.mjs';
 
 const out = join(mkdtempSync(join(tmpdir(), 'gmd-map-')), 'entry.mjs');
 await build({ entryPoints: ['scripts/mapping-entry.ts'], bundle: true, format: 'esm', platform: 'node', outfile: out, logLevel: 'silent' });
@@ -14,6 +15,7 @@ Object.assign(globalThis, { window: dom.window, document: dom.window.document, N
 const lib = await import(out);
 
 const context = await launch();
+await installPageCss(context); // window.__mdf — src/selectors.ts와 같은 GitHub 가정
 const page = context.pages()[0] ?? (await context.newPage());
 let total = { blocks: 0, mapped: 0 };
 for (const url of process.argv.slice(2)) {
@@ -24,9 +26,9 @@ for (const url of process.argv.slice(2)) {
     const route = await (await fetch(location.pathname, { headers: H, credentials: 'include' })).json();
     const [, owner, repo] = location.pathname.split('/');
     const list = [];
-    for (const file of document.querySelectorAll('div[id^="diff-"][class*="Diff-module__diff__"], div.file.js-file')) {
+    for (const file of window.__mdf.files()) {
       const prose = file.querySelector('.prose-diff .markdown-body');
-      const path = (file.querySelector('h3[class*="DiffFileHeader-module__file-name"] code')?.textContent ?? file.querySelector('.file-header[data-path]')?.getAttribute('data-path') ?? '').replace(/[‎‏]/g, '').trim();
+      const path = window.__mdf.path(file);
       if (!prose || !path) continue;
       list.push({ path: path.split('→').pop().trim(), html: prose.outerHTML });
     }

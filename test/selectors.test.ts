@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  fileElements, fileOf, filePath, hasReviewThreads, hasUnknownRendering, isCollapsed, isFoldable, isMarkdownPath, isPressed, proseBody, setHidden, tablePairs, viewButton,
+  fileElements, fileOf, filePath, hasReviewThreads, hasUnknownRendering, isCollapsed, isFoldable, isMarkdownPath, isPressed, pageStructure, pageVariant, proseBody,
+  setHidden, tablePairs, viewButton,
 } from '../src/selectors';
-import { addProse, fakeClassicFile, fakeFile, loadFixture } from './helpers';
+import { FILE_FORMATS, addProse, fakeClassicFile, fakeFile, loadFixture } from './helpers';
 
 describe('파일 묶음', () => {
   it('파일 묶음을 찾고 경로에서 방향 표시 문자를 뗀다', () => {
@@ -160,5 +161,100 @@ describe('filePath — 이름이 바뀐 파일', () => {
     const file = fakeFile('docs/api 기능 정의서 초안.md');
     expect(filePath(file)).toBe('docs/api 기능 정의서 초안.md');
     expect(isMarkdownPath(filePath(file)!)).toBe(true);
+  });
+});
+
+/**
+ * GitHub가 클래스 이름 형식을 바꿔도(2026-10-14 `Diff-module__diff__해시` → `diff__해시`, 1.5.0이 로그인 화면에서 멈춘 원인)
+ * 되돌려도, 또 다른 형식으로 바꿔도 파일을 찾는다 — 파일 앵커 id(`diff-<해시>`, PR 파일 링크 주소)와 구조가 1순위다
+ */
+describe.each(FILE_FORMATS)('새 화면 클래스 형식 %s', (format) => {
+  it('파일 묶음 하나만 찾는다 — id가 diff-로 시작하는 큰 상자는 파일이 아니다', () => {
+    const file = fakeFile('docs/가이드.md', true, format);
+    expect(fileElements(document)).toEqual([file]);
+    expect(filePath(file)).toBe('docs/가이드.md');
+    expect(pageVariant(document)).toBe('new');
+  });
+
+  it('렌더링·원문 버튼을 라벨로, 라벨이 없으면 아이콘으로 찾는다', () => {
+    const file = fakeFile('a.md', true, format);
+    expect(viewButton(file, 'rich')?.getAttribute('aria-labelledby')).toBe('l-rich');
+    expect(viewButton(file, 'source')?.getAttribute('aria-labelledby')).toBe('l-src');
+    const bare = fakeFile('a.md', false, format);
+    expect(viewButton(bare, 'rich')?.querySelector('svg.octicon-file')).not.toBeNull();
+  });
+
+  it('안쪽 요소에서 파일 묶음을 거슬러 찾는다(큰 상자가 아니라 파일)', () => {
+    const file = fakeFile('a.md', true, format);
+    expect(fileOf(viewButton(file, 'rich')!.querySelector('svg')!)).toBe(file);
+    expect(fileOf(addProse(file))).toBe(file);
+  });
+
+  it('접힌 파일: 머리에 "Expand file" 버튼', () => {
+    const file = fakeFile('a.md', true, format);
+    expect(isCollapsed(file)).toBe(false);
+    file.querySelector('h3')!.insertAdjacentHTML('beforebegin', '<button type="button" aria-label="Expand file"></button>');
+    expect(isCollapsed(file)).toBe(true);
+  });
+
+  it('머리의 파일 이름(h3)은 렌더링된 글로 세지 않는다', () => {
+    const file = fakeFile('a.md', true, format);
+    expect(hasUnknownRendering(file)).toBe(false);
+    file.querySelector('.diff-body')!.innerHTML = '<article class="markdown-body-v2"><p>글</p></article>';
+    expect(hasUnknownRendering(file)).toBe(true);
+  });
+
+  it('렌더링 본문 안의 h3 code는 파일 이름이 아니다', () => {
+    const file = fakeFile('docs/a.md', true, format);
+    addProse(file).innerHTML = '<h3><code>not-a-path.md</code></h3>';
+    expect(filePath(file)).toBe('docs/a.md');
+  });
+
+  it('이름이 바뀐 파일은 화면 낭독기용 글에서 새 경로를 쓴다', () => {
+    const file = fakeFile('a.md', true, format);
+    file.querySelector('h3 code')!.innerHTML =
+      '<span aria-hidden="true">docs/moved.md <svg class="octicon octicon-arrow-right"></svg> docs/archive/moved.md</span>' +
+      '<span class="sr-only">docs/moved.md<!-- --> renamed to <!-- -->docs/archive/moved.md<!-- --> </span>';
+    expect(filePath(file)).toBe('docs/archive/moved.md');
+  });
+});
+
+describe('줄 코멘트 스레드 — 클래스 이름 형식', () => {
+  it.each([
+    ['old', 'InlineReviewThread-module__ReviewThreadContainer__abc12'],
+    ['new', 'ReviewThreadContainer__dO-Lq2'],
+  ] as const)('%s', (format, cls) => {
+    const file = fakeFile('a.md', true, format);
+    expect(hasReviewThreads(file)).toBe(false);
+    file.querySelector('.diff-body')!.innerHTML = `<div class="${cls}">스레드</div>`;
+    expect(hasReviewThreads(file)).toBe(true);
+  });
+});
+
+describe('pageVariant', () => {
+  it('파일이 없으면 unknown, 옛 화면은 classic', () => {
+    document.body.innerHTML = '<div id="diff-comparison-viewer-container"></div>';
+    expect(pageVariant(document)).toBe('unknown');
+    fakeClassicFile();
+    expect(pageVariant(document)).toBe('classic');
+  });
+});
+
+describe('pageStructure — 파일을 못 찾을 때 알아채기', () => {
+  it('파일 링크는 있는데 파일 묶음이 없으면 files 0, links > 0', () => {
+    document.body.innerHTML = '<nav><a href="#diff-abc">a.md</a></nav><div class="unknown-file"><h3><code>a.md</code></h3></div>';
+    expect(pageStructure(document)).toMatchObject({ files: 0, named: 0, links: 1 });
+  });
+
+  it.each(FILE_FORMATS)('%s: 파일과 이름을 센다', (format) => {
+    fakeFile('a.md', true, format);
+    expect(pageStructure(document)).toMatchObject({ files: 1, named: 1, loading: 0, links: 1 });
+  });
+
+  it('뼈대만 있는 파일은 loading으로 센다', () => {
+    const file = fakeFile('a.md', true, 'new');
+    file.querySelector('h3')!.remove();
+    file.querySelector('.diff-body')!.innerHTML = '<div class="skeleton__c5fLaY rounded__er6wPa"></div>';
+    expect(pageStructure(document)).toMatchObject({ files: 1, named: 0, loading: 1 });
   });
 });

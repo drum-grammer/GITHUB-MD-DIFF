@@ -1,39 +1,32 @@
 # 로드맵 — 어디까지 왔고 다음은 무엇인가
 
-> 최종 확인 2026-10-11 · [README](README.md) · 조사·테스트 기록: [README · Research and test reports](README.md#research-and-test-reports) · 다음 제출 노트: [UNRELEASED](docs/releases/UNRELEASED.md)
+> 최종 확인 2026-10-14 · [README](README.md) · 조사·테스트 기록: [README · Research and test reports](README.md#research-and-test-reports) · 다음 제출 노트: [UNRELEASED](docs/releases/UNRELEASED.md)
 >
-> **English summary** — The Chrome Web Store has 1.0.0. `main` has 1.5.0 (a comment box that looks like GitHub's, with a suggestion button in new comments and replies, and the extension's text in English to match GitHub), which the maintainer runs in developer mode; the review request is on hold by the maintainer's choice (2026-10-09) until a few more versions have been used locally. Next: use 1.5.0 for a week (check on 2026-10-16), refresh the store images, and then ask for review with the steps below. This file is the place to pick up the work without any other context: read "Where things stand", then "Next", then "How to pick up".
+> **English summary** — The Chrome Web Store has 1.5.0 (published 2026-10-14), but it does nothing on the signed-in "Files changed" page: GitHub renamed its CSS module classes that day (`Diff-module__diff__hash` → `diff__hash`) and the extension stopped without a warning. 1.5.1 fixes it — it finds files by their anchor id and page structure first, accepts both class formats, warns when it cannot read any file, and the tests, canary and scripts share one set of selectors. Next: ship 1.5.1 to the store, then make the canary actually run every day. How to handle the next GitHub change: [docs/runbooks/github-ui-change.md](docs/runbooks/github-ui-change.md). This file is the place to pick up the work without any other context: read "Where things stand", then "Next", then "How to pick up".
 
 새 세션이나 새 기여자가 이 문서 하나만 읽고 이어서 일할 수 있게 쓴다. 버전을 병합하거나 결정이 바뀌면 **지금 어디에 있나**와 **버전 연표**를 같은 PR에서 고친다.
 
-## 지금 어디에 있나 (2026-10-11)
+## 지금 어디에 있나 (2026-10-14)
 
 | | 상태 |
 |---|---|
-| 크롬 웹 스토어(공개) | **1.0.0** — 2026-10-08 게시, 태그 [`v1.0.0`](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases/tag/v1.0.0) |
-| `main` | **1.5.0**(2026-10-11) — 답글 상자에도 제안 버튼, 확장 문구를 영어로 통일. 그 앞 1.4.0([#31](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/31))은 코멘트 상자를 GitHub 상자 모양으로 + 제안 버튼. 스토어에는 내지 않았다 |
-| 진행 중 | 없음 |
-| 관리자 크롬 | 개발자 모드 1.5.0(`pnpm dev:chrome`, main 빌드) |
-| 스토어 검토 신청 | **보류**(2026-10-09 관리자 결정). 버전을 올려 가며 로컬에서 쓰고, 문제가 없으면 그때 신청한다. 1.1.0은 심사를 취소했고 1.1.1은 내지 않았다 — 다음 제출에 1.0.0 이후 전부가 들어간다 |
-| 주간 카나리 | 상시 켜 둔 맥에 예약은 설치했지만 아직 돌기 시작하지 않았다(그 맥의 화면 로그인·알림 토큰 대기) |
+| 크롬 웹 스토어(공개) | **1.5.0** — 2026-10-13 제출, 2026-10-14 게시 확인(`pnpm release status`). **로그인한 사용자의 "Files changed"에서 동작하지 않는다** — 같은 날 GitHub가 화면의 클래스 이름 형식을 바꿨다([보고서](docs/reports/v1.5.1-github-class-names.md)). 로그아웃 화면은 정상 |
+| `main` | **1.5.0** — 이 다음 PR이 1.5.1 |
+| 진행 중 | **1.5.1** — 새 클래스 이름 형식 대응(파일 앵커 id·구조가 1순위, 두 형식 모두), 파일을 못 읽으면 경고, 시험·canary·스크립트가 선택자 하나를 같이 씀, canary 클래스 형식 점검·`pnpm canary:status` |
+| 관리자 크롬 | 스토어판 1.5.0(로그인 화면에서 멈춤). 1.5.1이 게시될 때까지 `pnpm dev:chrome`으로 고친 빌드를 쓴다 |
+| 스토어 검토 신청 | 1.5.1을 바로 신청한다(사용자가 멈춰 있다) — 채팅에서 관리자 확인 뒤 |
+| 주간 카나리 | 상시 켜 둔 맥의 예약이 **한 번도 돌지 않았다**(그 맥의 화면 로그인·알림 토큰 대기). 그래서 이번 변경을 사용자가 먼저 겪었다. 2026-10-14 회사 맥북에서 손으로 돌림: 1.5.0 깨짐 3/7 → 1.5.1 정상 9/9 |
 
 ## 다음 할 일 (순서대로)
 
-1. **로컬 사용 점검 — 2026-10-16**
-   - 1주 동안 쓰며 나온 불편·오류를 1.5.x로 고친다(PATCH)
-   - 문제가 없으면 관리자가 검토 신청 여부를 정한다
-2. **스토어 등록물 갱신**(검토 신청과 함께) — 2026-10-11 1.5 기준으로 다시 만듦(스크린샷·GIF·설명·심사 안내)
-   - 시연 PR을 이 도구의 소개 문서(1.0판 → 1.5판, 영 [#34](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/34)·한 [#35](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/35))로 바꿔서, 스크린샷 속 글과 코멘트가 그대로 도구 소개가 된다. 코멘트 장면은 제안 버튼
-   - 남은 것: 대시보드 입력(사람, `pnpm store:upload` 도우미)
-   - 1.5.0부터 확장 문구가 영어뿐이라 한국어 스크린샷도 확장 부분은 영어로 찍힌다 — 한국어 등록정보의 설명 문구와 맞춘다
-   - 다음에 그림을 다시 만들 때는 새 시연 PR부터: 새 버전 폴더(`store/demos/vX.Y.Z/`) → `pnpm store:demo create` → `DEMO_VERSION=vX.Y.Z pnpm store:assets`([store/demos/README](store/demos/README.md)). v1.5.0 시연 PR #34·#35는 병합돼 지금 화면이 기록과 다르다
-   - 대시보드 입력은 사람이 한다(`pnpm store:upload` 도우미). [store/README](store/README.md)
-3. **스토어 검토 신청**(관리자가 정하면) — 1.5.0 진행 중(2026-10-11): `verify release` 9/10(E2E 1건 GitHub 지연, 다시 3번 통과) · `release check` 통과(`4ba51b3`, zip SHA-256 `c1077b8c…`) · 노트 [v1.5.0](docs/releases/v1.5.0.md). 태그 [`v1.5.0`](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases/tag/v1.5.0)(`e8098fd`, 코드는 `4ba51b3`과 같음)과 GitHub Release(노트·스크린샷·zip)는 2026-10-11 관리자 요청으로 먼저 만들었다 — 스토어 게시 전이라 **pre-release**로 두고, 게시되면 Latest로 바꾼다(`gh release edit v1.5.0 --prerelease=false --latest`; `release finish`는 태그가 있으면 이어서 한다). **2026-10-13 심사 제출**(API로 업로드, 대시보드에서 제출, `release status` PENDING_REVIEW). 남은 것: 게시 확인 → Release를 Latest로 · UNRELEASED 삭제 · 1.1.1 초안 Release 정리. 스토어 API 키(`CWS_SERVICE_ACCOUNT_KEY`)가 아직 없어 업로드는 대시보드에서 사람이 한다 — 절차 정본은 [store/README · Releasing an update](store/README.md#releasing-an-update)
+1. **1.5.1 내보내기 — 급함**(1.5.0이 로그인 화면에서 멈춰 있다). 절차는 [runbook §5](docs/runbooks/github-ui-change.md#5-내보내기사용자가-멈춰-있으니-빨리)·[store/README · Releasing an update](store/README.md#releasing-an-update)
    1. `main`에서 `pnpm verify release`가 모두 통과
-   2. `pnpm release check` → `pnpm release notes`로 `docs/releases/vX.Y.Z.md`를 만들고 [UNRELEASED](docs/releases/UNRELEASED.md)의 내용을 옮긴다(1.0.0 이후 전부) → 병합
-   3. 등록물이 바뀌었으면 대시보드에 입력(사람)
-   4. `pnpm release upload` → `pnpm release submit --confirm X.Y.Z` — **채팅에서 관리자 확인을 받은 뒤**
-   5. 게시되면 `pnpm release finish --confirm X.Y.Z`(태그·GitHub Release) → `UNRELEASED.md` 삭제, 쓰지 않은 Release 초안 1.1.1 정리, store/README 제출 기록
+   2. `pnpm release check` → `pnpm release notes`로 `docs/releases/v1.5.1.md`를 만들고 [UNRELEASED](docs/releases/UNRELEASED.md)를 옮긴다 → 병합
+   3. `pnpm release upload` → `pnpm release submit --confirm 1.5.1` — **채팅에서 관리자 확인을 받은 뒤**. 등록정보는 1.5.0과 같다
+   4. 게시되면 `pnpm release finish --confirm 1.5.1` → `UNRELEASED.md` 비우기 · store/README 제출 기록
+   5. GitHub Release: v1.5.0은 pre-release로 두고(로그인 화면에서 멈춘 판), v1.5.1을 Latest로 — 관리자가 정한다. 쓰지 않은 1.1.1 초안 Release 정리
+2. **canary가 매일 실제로 돌게** — 상시 켠 맥의 화면 로그인 → 예약 확인. `pnpm canary:status`(2일 넘게 안 돌았거나 깨졌으면 종료 코드 1)를 정기 점검에 붙인다. 클래스 형식이 또 바뀌면 "클래스 이름 형식" 점검이 사용자보다 먼저 깨진다
+3. **로컬 사용 점검 — 2026-10-16** — 1주 동안 쓰며 나온 불편·오류를 1.5.x로 고친다(PATCH)
 4. **개선 후보**(수요·여유에 따라, 위에서부터)
 
    | 후보 | 왜·근거 | 무게 |
@@ -50,7 +43,8 @@
 
 5. **늘 하는 일**
    - 주 1회 `pnpm canary`(상시 켜 둔 맥) — 깨지면 `canary` 라벨 이슈가 열린다(`.github/workflows/canary-report.yml`)
-   - GitHub 화면이 바뀌면 PATCH. 가정은 `src/selectors.ts`(화면)·`src/github-api.ts`(요청) 두 파일에만 있다
+   - GitHub 화면이 바뀌면 PATCH. 가정은 `src/selectors.ts`(화면)·`src/github-api.ts`(요청) 두 파일에만 있고, 시험·스크립트도 `GITHUB_CSS`로 같은 가정을 쓴다. 알아채기·고치기·내보내기 순서는 [runbook](docs/runbooks/github-ui-change.md)
+   - `pnpm canary:status` — 점검이 멈춘 것도 알아야 한다(2026-10-11~14 예약이 한 번도 돌지 않았다)
 
 ## 버전 연표
 
@@ -63,7 +57,8 @@
 | 1.2.0 | 2026-10-09 | 변경 탐색 — 파일 툴바 요약, `]` `[` `}` `{` 이동 | [#29](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/29) | `main` | |
 | 1.3.0 | 2026-10-09 | 파일 전체 코멘트 · 내 코멘트 편집·삭제 · 미리보기 · 테스트 저장소 v2(화면 모양 5가지) · 검증 등급 | [#30](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/30) | `main` | [테스트](docs/reports/v1.3.0-testing.md) |
 | 1.4.0 | 2026-10-11 | 코멘트 상자를 GitHub 상자 모양으로(아바타·`R13` 머리글·서식 도구 막대·빈 글이면 버튼 끔) · 제안(suggestion) 버튼 · 목록 종류 바꾸기 | [#31](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/31) | `main` | [테스트](docs/reports/v1.4.0-testing.md) |
-| 1.5.0 | 2026-10-11 | 답글 상자에도 제안 버튼(GitHub 답글 상자와 같게) · 확장 문구를 영어로 통일(크롬 언어와 상관없이) | [#33](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/33) | `main` | |
+| 1.5.0 | 2026-10-11 | 답글 상자에도 제안 버튼(GitHub 답글 상자와 같게) · 확장 문구를 영어로 통일(크롬 언어와 상관없이) | [#33](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/33) | **스토어 게시**(2026-10-14) — 로그인 화면에서 멈춤 | |
+| 1.5.1 | 2026-10-14 | GitHub 클래스 이름 새 형식(`diff__해시`) 대응 — 파일 앵커 id·구조 우선, 두 형식 모두 · 파일을 못 읽으면 경고 · 시험·canary·스크립트 공통 선택자 · canary 형식 점검·`canary:status` | 이 PR | 스토어 제출 준비 | [보고서](docs/reports/v1.5.1-github-class-names.md) · [runbook](docs/runbooks/github-ui-change.md) |
 
 버전 규칙은 [store/README · Versioning](store/README.md#versioning) — PATCH는 버그·GitHub 화면 따라가기, MINOR는 새 기능(권한 추가 없음), MAJOR는 권한·사이트 추가나 동작 변경.
 

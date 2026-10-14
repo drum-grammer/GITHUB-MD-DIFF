@@ -1,6 +1,7 @@
 import type { RichStatus } from './autorich';
+import type { PageStructure } from './selectors';
 
-export type ProblemKey = 'problemNoRichButton' | 'problemNoProseDiff';
+export type ProblemKey = 'problemNoRichButton' | 'problemNoProseDiff' | 'problemNoFiles';
 
 export interface FileResult {
   key: string;
@@ -26,4 +27,16 @@ export function problemsFor(results: FileResult[]): Map<string, ProblemKey> {
     else if (r.status === 'no-button' && !anyButton) out.set(r.key, 'problemNoRichButton');
   }
   return out;
+}
+
+/**
+ * 화면에 파일이 있다는 신호(파일 링크)가 있는데 파일 묶음을 하나도 못 찾았거나, 찾은 파일의 이름을 하나도 못 읽었으면
+ * GitHub가 화면 구조를 바꾼 것이다. 1.5.0은 이때 아무 말 없이 멈췄다(2026-10-14, 클래스 이름 형식 변경).
+ * 뼈대(아직 안 온 파일)만 있으면 기다린다. content.ts는 이 상태가 몇 초 이어질 때만 알린다
+ */
+export function structureProblem(s: PageStructure): ProblemKey | null {
+  if (s.links === 0) return null;
+  if (s.files === 0) return 'problemNoFiles';
+  if (s.named === 0 && s.loading < s.files) return 'problemNoFiles';
+  return null;
 }

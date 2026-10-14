@@ -1,13 +1,16 @@
 // 실제 GitHub에서 확장이 기대는 것을 점검한다 — 읽기만 한다(코멘트를 올리지 않는다). 하나라도 깨지면 종료 코드 1.
 // 쓰기: pnpm canary [--notify] — 로그인 프로필(pnpm e2e:login)이 있어야 한다. 결과는 ~/.cache/github-md-diff/canary.log에 한 줄씩 쌓인다.
 // --notify: 깨지면 macOS 알림을 띄우고, 내용이 채워진 GitHub 이슈 작성 주소를 출력한다(이슈를 올리지는 않는다)
+// --status [--max-days N]: 점검을 돌리지 않고 마지막 기록만 본다 — N일(기본 2) 넘게 안 돌았거나 마지막이 깨졌으면 종료 코드 1.
+//   2026-10-11~14 예약해 둔 점검이 한 번도 돌지 않아 GitHub 화면 변경을 사용자가 먼저 겪었다 — 점검이 멈춘 것도 알아야 한다
 import { build } from 'esbuild';
 import { chromium } from '@playwright/test';
 import { JSDOM } from 'jsdom';
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, mkdirSync, mkdtempSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { GITHUB_CSS } from './page-css.mjs';
 
 const REPO = 'drum-grammer/GITHUB-MD-DIFF';
 const PR = 6; // 데모 PR — demo/design-doc.md 하나
@@ -17,6 +20,21 @@ const DIST = resolve('dist');
 const LOG = join(homedir(), '.cache', 'github-md-diff', 'canary.log');
 const MIN_COVERAGE = 0.95;
 const notify = process.argv.includes('--notify');
+
+if (process.argv.includes('--status')) {
+  const i = process.argv.indexOf('--max-days');
+  const maxDays = i > 0 ? Number(process.argv[i + 1]) : 2;
+  const lines = existsSync(LOG) ? readFileSync(LOG, 'utf8').trim().split('\n').filter(Boolean) : [];
+  const last = lines.length ? JSON.parse(lines.at(-1)) : null;
+  if (!last) {
+    console.log(`✗ 점검 기록이 없다 — ${LOG}. 이 기기에서 pnpm canary가 한 번도 돌지 않았다`);
+    process.exit(1);
+  }
+  const days = (Date.now() - Date.parse(last.at)) / 86_400_000;
+  const stale = days > maxDays;
+  console.log(`${stale || !last.ok ? '✗' : '✓'} 마지막 점검 ${last.at.slice(0, 16).replace('T', ' ')}Z(${days.toFixed(1)}일 전) · 확장 ${last.version} · ${last.ok ? '정상' : `깨짐 — ${last.failed.join(' / ')}`}${stale ? ` · ${maxDays}일 넘게 돌지 않았다` : ''}`);
+  process.exit(stale || !last.ok ? 1 : 0);
+}
 
 const results = [];
 async function check(name, fn) {
@@ -42,7 +60,7 @@ const lib = await import(out);
 const args = [`--disable-extensions-except=${DIST}`, `--load-extension=${DIST}`];
 const context = await chromium.launchPersistentContext(PROFILE, { channel: 'chromium', headless: true, args });
 const page = context.pages()[0] ?? (await context.newPage());
-const file = page.locator('div[id^="diff-"][class*="Diff-module__diff__"]');
+const file = page.locator(GITHUB_CSS.file);
 let route = null;
 let head = null;
 
@@ -110,6 +128,29 @@ await check('화면: 블록 "+"와 원문 줄(49번째 줄)', async () => {
   must(/\bR49\b/.test(label ?? ''), `줄 표시가 다르다: ${label}`);
   await file.locator('[data-mdf="comment-form"] .mdf-comment-actions > button').first().click(); // 취소 — 올리지 않는다
   return label;
+});
+
+// 확장은 클래스 이름이 바뀌어도 파일 앵커 id·구조로 버틴다 — 그래서 클래스 형식이 또 바뀐 것은 여기서만 보인다. 사용자가 겪기 전에 고친다
+await check('클래스 이름 형식(새 화면 파일 묶음)', async () => {
+  const n = await page.evaluate((css) => ({
+    structure: document.querySelectorAll(css.file).length,
+    old: document.querySelectorAll(css.fileClassOld).length,
+    new: document.querySelectorAll(css.fileClassNew).length,
+  }), GITHUB_CSS);
+  must(n.structure > 0, '구조로도 파일 묶음을 못 찾는다');
+  must(n.old + n.new > 0, `GitHub가 클래스 이름 형식을 또 바꿨다(옛 ${n.old}·새 ${n.new}·구조 ${n.structure}) — 확장은 id·구조로 돌지만 src/selectors.ts의 moduleClass를 맞춘다`);
+  return n.new ? `새 형식(diff__해시) ${n.new}` : `옛 형식(Diff-module__…) ${n.old}`;
+});
+
+await check('확장 경고 없음(툴바 "!"·구석 안내)', async () => {
+  // 글과 진단을 한 번에 읽는다 — 따로 읽으면 그 사이에 안내가 사라져 시간 초과로 보인다
+  const toast = await page.evaluate(() => {
+    const el = document.querySelector('[data-mdf="problem-toast"]');
+    if (!el) return null;
+    const details = new URLSearchParams(el.dataset.url?.split('?')[1] ?? '').get('body')?.split('**Details**')[1] ?? '';
+    return `${el.querySelector('span')?.textContent ?? ''} ${details.replace(/\s+/g, ' ').slice(0, 300)}`;
+  });
+  must(!toast, `확장이 화면을 못 읽는다고 알렸다: ${toast}`);
 });
 
 await check(`연결률(≥ ${MIN_COVERAGE * 100}%)`, async () => {

@@ -1,12 +1,13 @@
 import { expect, test as base, type BrowserContext, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { launch } from './support';
+import { GITHUB_CSS } from '../src/selectors';
 
 // GitHub가 화면 뒤 요청을 바꾼 상황을 흉내 낸다 — PR 데이터(JSON) 요청에 404를 돌려준다
 const REPO = 'drum-grammer/GITHUB-MD-DIFF';
 const PR = 6;
 const URL = `https://github.com/${REPO}/pull/${PR}/changes`;
-const THREAD = '[class*="InlineReviewThread-module__ReviewThreadContainer"]';
+const THREAD = GITHUB_CSS.reviewThread;
 
 const test = base.extend<{ context: BrowserContext; page: Page }>({
   context: async ({}, use) => {
@@ -26,7 +27,7 @@ const test = base.extend<{ context: BrowserContext; page: Page }>({
   page: async ({ context }, use) => use(context.pages()[0] ?? (await context.newPage())),
 });
 
-const fileOf = (page: Page) => page.locator('div[id^="diff-"][class*="Diff-module__diff__"]');
+const fileOf = (page: Page) => page.locator(GITHUB_CSS.file);
 
 /** 이 사람의 보류 중인 리뷰를 지운다 — 쓰기 E2E가 남긴 것이 있으면 이 파일은 (의도대로) 원문 보기에 남는다 */
 function deletePendingReviews(): void {

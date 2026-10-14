@@ -1,5 +1,6 @@
 import { expect, test as base, type BrowserContext, type Page } from '@playwright/test';
 import { launch } from './support';
+import { GITHUB_CSS } from '../src/selectors';
 
 // 범위를 끌어 고르면 코멘트 상자가 열려 있는 동안 노란 음영이 남는다(GitHub 원문 보기처럼). 코멘트는 올리지 않는다
 const URL = 'https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/6/changes';
@@ -15,7 +16,7 @@ const test = base.extend<{ context: BrowserContext; page: Page }>({
   page: async ({ context }, use) => use(context.pages()[0] ?? (await context.newPage())),
 });
 
-const fileOf = (page: Page) => page.locator('div[id^="diff-"][class*="Diff-module__diff__"]');
+const fileOf = (page: Page) => page.locator(GITHUB_CSS.file);
 
 test('끌어서 고른 범위는 상자가 열려 있는 동안 노랗게 남고, 취소하면 지워진다', async ({ page }) => {
   await page.goto(URL);
