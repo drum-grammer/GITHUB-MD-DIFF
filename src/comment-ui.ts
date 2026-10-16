@@ -1,5 +1,5 @@
 /** 코멘트 상자·스레드 상자 같은 화면 조각 — 요청은 모르고, 누르면 받은 함수를 부른다 */
-import type { PostMode, ReviewComment, ReviewThread } from './github-api';
+import type { PostMode, ReviewComment, ReviewThread } from './types';
 import type { BlockTarget } from './dom-blocks';
 import { t } from './i18n';
 import { formatEdit, suggestionEdit, type Edit, type Format } from './md-format';

@@ -1,5 +1,5 @@
 import { alignBlocks } from './align';
-import type { Side } from './github-api';
+import type { Side } from './types';
 import { COMMENT_BLOCK, INLINE_DELETED, INLINE_INSERTED, MDF_ATTR, REMOVED_BLOCK } from './selectors';
 import type { BlockKind, SourceBlock } from './source-blocks';
 
