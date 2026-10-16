@@ -1,5 +1,5 @@
 import { t } from './i18n';
-import { HIDDEN_CLASS, MDF_ATTR, isDecoration } from './selectors';
+import { HIDDEN_CLASS, MDF_ATTR, isDecoration } from './prose-markup';
 
 /** GitHub 렌더링 diff의 바뀐 곳 표시 — 바뀐 곳 옆 문맥(.vicinity)은 바뀐 것이 아니다 */
 const CHANGE = 'ins, del, .changed, .added, .removed, .moved';

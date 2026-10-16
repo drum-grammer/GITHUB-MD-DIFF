@@ -1,5 +1,5 @@
 import { t } from './i18n';
-import { MDF_ATTR, PIN_ATTR, UNCOLLAPSED_ATTR, isAnchor, isDecoration, isFoldable, setHidden } from './selectors';
+import { MDF_ATTR, PIN_ATTR, UNCOLLAPSED_ATTR, isAnchor, isDecoration, isFoldable, setHidden } from './prose-markup';
 
 const BAR = 'fold';
 const HEADING = /^H[1-6]$/;

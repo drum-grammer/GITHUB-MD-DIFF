@@ -1,6 +1,6 @@
 import { alignBlocks } from './align';
 import type { Side } from './types';
-import { COMMENT_BLOCK, INLINE_DELETED, INLINE_INSERTED, MDF_ATTR, REMOVED_BLOCK } from './selectors';
+import { COMMENT_BLOCK, INLINE_DELETED, INLINE_INSERTED, MDF_ATTR, REMOVED_BLOCK } from './prose-markup';
 import type { BlockKind, SourceBlock } from './source-blocks';
 
 export interface DomBlock {

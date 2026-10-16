@@ -4,7 +4,7 @@ import type { BlockTarget } from './dom-blocks';
 import { t } from './i18n';
 import { formatEdit, suggestionEdit, type Edit, type Format } from './md-format';
 import { OCTICONS, type Octicon } from './octicons';
-import { CHANGE_WRAPPER, MDF_ATTR } from './selectors';
+import { CHANGE_WRAPPER, MDF_ATTR } from './prose-markup';
 
 export const ADD = 'add-comment';
 export const FORM = 'comment-form';

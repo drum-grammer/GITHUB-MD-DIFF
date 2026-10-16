@@ -1,5 +1,5 @@
 import { t } from './i18n';
-import { MDF_ATTR, setHidden, type TablePair } from './selectors';
+import { MDF_ATTR, setHidden, type TablePair } from './prose-markup';
 import { diffRows, normalizeCell, type Row, type RowOp } from './table-diff';
 
 export const MAX_ROWS = 2000;
