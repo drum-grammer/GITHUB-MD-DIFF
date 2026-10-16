@@ -335,3 +335,86 @@ describe('내 코멘트 편집·삭제 · 미리보기(1.3.0)', () => {
     expect(wrap.firstElementChild?.textContent).toBe('threadsFile');
   });
 });
+
+describe('로컬 리뷰 페이지 옵션 — buttons·showAvatar·없는 핸들러', () => {
+  const opt = { label: 'commentOnLine:R3', pendingReview: false, singleLabel: 'Add comment' };
+  const actions = (f: HTMLElement) => [...f.querySelectorAll<HTMLButtonElement>('.mdf-comment-actions > button')];
+  const type = (f: HTMLElement, text: string) => {
+    const area = f.querySelector('textarea')!;
+    area.value = text;
+    area.dispatchEvent(new Event('input'));
+    return area;
+  };
+  const mine: ReviewComment = { id: 'c1', author: 'you', body: '고쳐 주세요', bodyHTML: '', url: '', pending: false, bodyVersion: '', canEdit: true, canDelete: true };
+  const thread: ReviewThread = { id: 'T', subject: 'line', side: 'right', start: 4, end: 6, resolved: false, canReply: true, comments: [mine] };
+  const labels = (b: HTMLElement) => [...b.querySelectorAll<HTMLButtonElement>('button')].map((x) => x.textContent);
+
+  it("buttons 'local' — 취소와 singleLabel 주 버튼 하나, 누르면 onSubmit(글, 'single')", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const f = commentForm(document, { ...opt, buttons: 'local' }, { onSubmit, onCancel: vi.fn() });
+    const all = actions(f);
+    expect(all.map((b) => b.textContent)).toEqual(['cancel', 'Add comment']);
+    expect(all[1].classList.contains('mdf-btn-primary')).toBe(true);
+    expect(all[1].disabled).toBe(true);
+    type(f, '고쳐 주세요');
+    all[1].click();
+    await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledWith('고쳐 주세요', 'single'));
+  });
+
+  it("buttons 'local'은 보류 중 리뷰 표시가 있어도 버튼 하나이고 ⌘/Ctrl+Enter도 single", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const f = commentForm(document, { ...opt, pendingReview: true, buttons: 'local' }, { onSubmit, onCancel: vi.fn() });
+    expect(actions(f).map((b) => b.textContent)).toEqual(['cancel', 'Add comment']);
+    type(f, '글').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
+    await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledWith('글', 'single'));
+  });
+
+  it('showAvatar false면 로그인 정보가 있어도 아바타를 넣지 않는다(생략하면 지금처럼 넣는다)', () => {
+    const meta = Object.assign(document.createElement('meta'), { name: 'user-login', content: 'octocat' });
+    document.head.append(meta);
+    try {
+      expect(commentForm(document, { ...opt, showAvatar: false }, { onSubmit: vi.fn(), onCancel: vi.fn() }).querySelector('.mdf-avatar')).toBeNull();
+      expect(commentForm(document, opt, { onSubmit: vi.fn(), onCancel: vi.fn() }).querySelector('.mdf-avatar')).not.toBeNull();
+    } finally {
+      meta.remove();
+    }
+  });
+
+  it('핸들러가 없으면 그 버튼을 그리지 않는다 — 편집·삭제만 넘긴 스레드에는 답글·해결이 없다', () => {
+    const b = threadBox(document, thread, false, { onEdit: vi.fn(), onDelete: vi.fn() });
+    expect(labels(b)).toEqual(expect.arrayContaining(['edit', 'delete']));
+    expect(labels(b)).not.toContain('reply');
+    expect(labels(b)).not.toContain('resolve');
+    expect(b.querySelector('.mdf-thread-body > .mdf-comment-actions')).toBeNull();
+    const bare = threadBox(document, thread, false, {});
+    expect(bare.querySelector('.mdf-comment-tools')).toBeNull();
+    expect(bare.querySelectorAll('button')).toHaveLength(1); // 머리(접기) 버튼만
+  });
+
+  it('form 옵션은 답글 상자에 넘어간다 — 로컬이면 버튼 하나, single로 부른다', async () => {
+    const onReply = vi.fn().mockResolvedValue(undefined);
+    const b = threadBox(document, thread, false, { onReply, form: { buttons: 'local', showAvatar: false } });
+    document.body.append(b);
+    [...b.querySelectorAll<HTMLButtonElement>('button')].find((x) => x.textContent === 'reply')!.click();
+    const form = b.querySelector<HTMLElement>('.mdf-comment-form')!;
+    expect(actions(form).map((x) => x.textContent)).toEqual(['cancel', 'reply']);
+    type(form, '답');
+    actions(form)[1].click();
+    await vi.waitFor(() => expect(onReply).toHaveBeenCalledWith(thread, '답', 'single'));
+    b.remove();
+  });
+
+  it('메서드로 넘긴 핸들러도 this를 잃지 않는다', async () => {
+    class Handlers {
+      calls: string[] = [];
+      async onResolve(th: ReviewThread, resolved: boolean): Promise<void> {
+        this.calls.push(`${th.id}:${resolved}`);
+      }
+    }
+    const h = new Handlers();
+    const b = threadBox(document, thread, false, h);
+    [...b.querySelectorAll<HTMLButtonElement>('button')].find((x) => x.textContent === 'resolve')!.click();
+    await vi.waitFor(() => expect(h.calls).toEqual(['T:true']));
+    expect(b.querySelector<HTMLElement>('.mdf-comment-error')!.hidden).toBe(true);
+  });
+});
