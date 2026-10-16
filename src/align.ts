@@ -1,9 +1,16 @@
 /** 렌더링 블록 줄과 원문 블록 줄을 순서대로 맞춘다 — DOM을 모르는 순수 함수 */
-import { normalizeText, type BlockKind } from './source-blocks';
+import { normalizeText } from './source-blocks';
 
+/** kind는 같은 것끼리만 짝짓는 열쇠다 — 확장은 BlockKind, 로컬 엔진은 각주·머리말 같은 종류를 더 쓴다 */
 export interface AlignItem {
-  kind: BlockKind;
+  kind: string;
   text: string;
+}
+
+/** 성능 한도 — 생략하면 아래 기본값(확장이 쓰는 값). 로컬 엔진은 옛 판·새 판처럼 긴 문서끼리 맞출 때 더 크게 넘긴다 */
+export interface AlignOptions {
+  gapCells?: number;
+  maxCells?: number;
 }
 
 /** 이보다 비슷하면(글자 두 개씩 묶음의 Dice 계수) 같은 블록으로 본다 */
@@ -42,7 +49,7 @@ const mayBeSimilar = (a: string, b: string): boolean =>
   (2 * Math.min(a.length, b.length)) / (a.length + b.length) >= MIN_SIMILARITY;
 
 /** 똑같은 열쇠끼리의 최장 공통 부분열 — 앞뒤 공통 부분을 먼저 떼고 가운데만 표로 돈다 */
-function exactPairs(a: string[], b: string[]): Array<[number, number]> {
+function exactPairs(a: string[], b: string[], maxCells: number): Array<[number, number]> {
   let start = 0;
   while (start < a.length && start < b.length && a[start] === b[start]) start++;
   let endA = a.length;
@@ -55,7 +62,7 @@ function exactPairs(a: string[], b: string[]): Array<[number, number]> {
   for (let i = 0; i < start; i++) pairs.push([i, i]);
   const n = endA - start;
   const m = endB - start;
-  if (n * m > MAX_CELLS) {
+  if (n * m > maxCells) {
     // 아주 긴 문서 — 같은 열쇠를 앞으로만 찾는다
     const where = new Map<string, number[]>();
     for (let j = start; j < endB; j++) where.set(b[j], [...(where.get(b[j]) ?? []), j]);
@@ -95,13 +102,16 @@ function exactPairs(a: string[], b: string[]): Array<[number, number]> {
  * dom[i]에 맞는 src 번호(없으면 -1). 먼저 종류·글자가 똑같은 블록으로 순서를 지키는 기준점을 잡고,
  * 기준점 사이 틈에서만 종류가 같고 비슷한(0.6 이상) 블록을 비슷한 정도의 합이 가장 크게 짝짓는다.
  */
-export function alignBlocks(dom: AlignItem[], src: AlignItem[]): number[] {
+export function alignBlocks(dom: AlignItem[], src: AlignItem[], opts: AlignOptions = {}): number[] {
+  const gapCells = opts.gapCells ?? GAP_CELLS;
+  const maxCells = opts.maxCells ?? MAX_CELLS;
   const a = dom.map((d) => normalizeText(d.text));
   const b = src.map((s) => normalizeText(s.text));
   const out = new Array<number>(dom.length).fill(-1);
   const anchors = exactPairs(
     dom.map((d, i) => `${d.kind}\u0001${a[i]}`),
     src.map((s, j) => `${s.kind}\u0001${b[j]}`),
+    maxCells,
   );
   for (const [i, j] of anchors) out[i] = j;
 
@@ -112,7 +122,7 @@ export function alignBlocks(dom: AlignItem[], src: AlignItem[]): number[] {
   const fillGap = (i0: number, i1: number, j0: number, j1: number): void => {
     const n = i1 - i0;
     const m = j1 - j0;
-    if (n <= 0 || m <= 0 || n * m > GAP_CELLS) return;
+    if (n <= 0 || m <= 0 || n * m > gapCells) return;
     const score = (i: number, j: number): number => {
       if (dom[i].kind !== src[j].kind || !mayBeSimilar(a[i], b[j])) return 0;
       const s = dice(a[i], b[j], gramsA(i), gramsB(j));
