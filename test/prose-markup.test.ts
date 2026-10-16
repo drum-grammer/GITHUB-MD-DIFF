@@ -5,7 +5,7 @@ import * as markup from '../src/prose-markup';
 import * as selectors from '../src/selectors';
 
 /** 로컬 리뷰 페이지가 그대로 쓰는 화면 모듈 — GitHub 페이지 껍데기(selectors.ts)와 GitHub 요청(github-api.ts)을 모르게 둔다 */
-const REUSED = ['fold', 'table-render', 'nav', 'controls', 'apply', 'dom-blocks', 'comment-ui'];
+const REUSED = ['fold', 'table-render', 'nav', 'controls', 'apply', 'dom-blocks', 'comment-ui', 'comment-controller'];
 
 describe('prose-markup — 렌더링 본문 안 표기', () => {
   it('selectors.ts가 같은 이름을 그대로 다시 내보낸다(같은 값·같은 함수)', () => {
