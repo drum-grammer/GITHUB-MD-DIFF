@@ -2,7 +2,7 @@
 
 > 최종 확인 2026-10-14 · [ROADMAP](../../ROADMAP.md) · 이 일이 처음 생긴 기록: [1.5.1 보고서](../reports/v1.5.1-github-class-names.md)
 >
-> **English summary** — The extension reads GitHub's "Files changed" page, which GitHub can change without notice. On 2026-10-14 GitHub renamed its CSS module classes (`Diff-module__diff__hash` → `diff__hash`) on the signed-in page and 1.5.0 silently stopped. Since 1.5.1 the extension finds files by their anchor id (`diff-<hash>`, the address of file links) and page structure first, accepts both class formats, and shows its warning when it can see file links but cannot read any file. Detect a change with the extension's warning, `pnpm canary` (the "class name format" check fails before users are hit), and `pnpm canary:status` (the canary itself stopped). Fix it in `src/selectors.ts`, add the new format to `test/helpers.ts`, and ship a PATCH with the steps below.
+> **English summary** — The extension reads GitHub's "Files changed" page, which GitHub can change without notice. On 2026-10-14 GitHub renamed its CSS module classes (`Diff-module__diff__hash` → `diff__hash`) on the signed-in page and 1.5.0 silently stopped. Since 1.5.1 the extension finds files by their anchor id (`diff-<hash>`, the address of file links) and page structure first, accepts both class formats, and shows its warning when it can see file links but cannot read any file. Detect a change with the extension's warning, `pnpm canary` (the "class name format" check fails before users are hit), and `pnpm canary:status` (the canary itself stopped). Fix it in `src/selectors.ts` (or in `src/prose-markup.ts` for the markup inside the rendered diff, which `src/selectors.ts` re-exports), add the new format to `test/helpers.ts`, and ship a PATCH with the steps below.
 
 확장은 GitHub "Files changed" 화면을 읽어서 동작한다. GitHub는 이 화면을 예고 없이 바꾼다. 클래스 이름은 GitHub 내부 사정이라 공지도 없다. 이 문서는 그런 변화를 빨리 알아채고, 고치고, 내보내는 순서다.
 
@@ -55,7 +55,7 @@
 
 1. 확장 저장소 `origin/main`에서 브랜치(`fix/X.Y.Z-…`)
 2. **시험 먼저** — `test/helpers.ts`의 `FORMAT_CLASSES`에 새 형식을 넣고 `FILE_FORMATS`에 더한다. `pnpm test`가 새 형식에서 실패하는지 본다
-3. `src/selectors.ts`만 고친다 — 해시 클래스는 `moduleClass(모듈, 로컬)` 갈래를 늘리고, 옛 갈래는 지우지 않는다(되돌아올 수 있다)
+3. `src/selectors.ts`(파일·머리·버튼)나 `src/prose-markup.ts`(렌더링 diff 본문 안 표기 — `unchanged`·`vicinity`·`ins`/`del`·표 `<del>`+`<ins>` 쌍. selectors.ts가 다시 내보낸다)만 고친다. selectors.ts의 import에는 `.ts`를 붙인다(Node가 `scripts/page-css.mjs`로 바로 읽는다) — 해시 클래스는 `moduleClass(모듈, 로컬)` 갈래를 늘리고, 옛 갈래는 지우지 않는다(되돌아올 수 있다)
 4. `pnpm test` · `pnpm typecheck` → 로그인 E2E(`pnpm exec playwright test e2e/extension.spec.ts e2e/selection.spec.ts e2e/degraded.spec.ts`) → `pnpm canary`가 모두 통과
 5. `static/manifest.json`·`package.json` 버전을 PATCH로 올리고, [UNRELEASED](../releases/UNRELEASED.md)에 사람이 읽을 몇 줄, ROADMAP "지금 어디에 있나"·버전 연표
 6. `pnpm verify pr`(약 6분) → PR → 병합

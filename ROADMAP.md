@@ -37,7 +37,7 @@
 
 5. **늘 하는 일**
    - 주 1회 `pnpm canary`(상시 켜 둔 맥) — 깨지면 `canary` 라벨 이슈가 열린다(`.github/workflows/canary-report.yml`)
-   - GitHub 화면이 바뀌면 PATCH. 가정은 `src/selectors.ts`(화면)·`src/github-api.ts`(요청) 두 파일에만 있고, 시험·스크립트도 `GITHUB_CSS`로 같은 가정을 쓴다. 알아채기·고치기·내보내기 순서는 [runbook](docs/runbooks/github-ui-change.md)
+   - GitHub 화면이 바뀌면 PATCH. 가정은 `src/selectors.ts`(화면 껍데기)·`src/prose-markup.ts`(렌더링 diff 본문 표기 — selectors.ts가 다시 내보냄)·`src/github-api.ts`(요청)에만 있고, 시험·스크립트도 `GITHUB_CSS`로 같은 가정을 쓴다. 알아채기·고치기·내보내기 순서는 [runbook](docs/runbooks/github-ui-change.md)
    - `pnpm canary:status` — 점검이 멈춘 것도 알아야 한다(2026-10-11~14 예약이 한 번도 돌지 않았다)
 
 ## 버전 연표
