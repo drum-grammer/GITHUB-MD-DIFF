@@ -32,6 +32,20 @@ describe('domBlocks', () => {
     ]);
   });
 
+  it('전역 Node가 없어도 돈다 — 로컬 엔진이 Node.js에서 jsdom 창 하나로 부른다', () => {
+    const g = globalThis as { Node?: unknown };
+    const saved = g.Node;
+    delete g.Node;
+    try {
+      const b = body('<ul><li><p>위</p><ul><li>안쪽</li></ul></li></ul>');
+      expect(view(b)).toEqual([
+        ['item', 'right', '위'],
+        ['item', 'right', '안쪽'],
+      ]);
+    } finally {
+      g.Node = saved;
+    }
+  });
   it('머리말 표 안의 표 행과 확장이 만든 것은 뺀다', () => {
     const b = body(
       '<table><tr><th>versions</th><td><table><tr><td>fpt</td></tr></table></td></tr></table>' +

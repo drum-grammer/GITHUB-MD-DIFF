@@ -170,7 +170,8 @@ if (!repoExists()) {
 const version = remoteVersion();
 if (REBUILD || version !== FIXTURE_VERSION) {
   log(`내용 다시 만들기: 원격 ${version ?? '없음'} → ${FIXTURE_VERSION}`);
-  for (const p of openPulls()) {
+  // 패리티 PR(parity/ 브랜치)은 testbed 내용 버전과 따로 간다 — 닫지 않는다
+  for (const p of openPulls().filter((x) => !x.head.ref.startsWith('parity/'))) {
     log(`옛 PR 닫기: #${p.number}`);
     api(`repos/${REPO}/issues/${p.number}/comments`, 'POST', { body: `Superseded by testbed fixtures v${FIXTURE_VERSION}.` });
     api(`repos/${REPO}/pulls/${p.number}`, 'PATCH', { state: 'closed' });

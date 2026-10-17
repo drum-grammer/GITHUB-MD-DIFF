@@ -50,12 +50,16 @@ function ownText(el: HTMLElement, side: Side): string {
   return textOf(el, skip);
 }
 
+/** 노드 종류 번호 — 전역 Node가 없는 곳(엔진이 jsdom으로 도는 Node.js)에서도 같게 돌도록 숫자로 쓴다 */
+const TEXT_NODE = 3;
+const ELEMENT_NODE = 1;
+
 function textOf(root: Element, skip: (node: Element) => boolean): string {
   let out = '';
   const walk = (node: Node): void => {
     for (const child of node.childNodes) {
-      if (child.nodeType === Node.TEXT_NODE) out += child.textContent ?? '';
-      else if (child.nodeType === Node.ELEMENT_NODE && !skip(child as Element)) walk(child);
+      if (child.nodeType === TEXT_NODE) out += child.textContent ?? '';
+      else if (child.nodeType === ELEMENT_NODE && !skip(child as Element)) walk(child);
     }
   };
   walk(root);

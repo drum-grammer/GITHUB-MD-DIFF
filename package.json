@@ -24,6 +24,9 @@
     "testbed:setup": "node scripts/testbed-setup.mjs",
     "testbed": "node build.mjs && playwright test -c testbed/playwright.config.ts",
     "testbed:report": "node scripts/testbed-report.mjs",
+    "parity": "node scripts/parity.mjs",
+    "parity:setup": "node scripts/parity-setup.mjs",
+    "parity:capture": "node build.mjs && node scripts/parity-capture.mjs",
     "verify": "node scripts/verify.mjs",
     "store:assets": "node build.mjs && node store/capture.mjs en && node store/capture.mjs ko && node store/compose.mjs en && node store/compose.mjs ko",
     "store:demo": "node scripts/store-demo.mjs"
