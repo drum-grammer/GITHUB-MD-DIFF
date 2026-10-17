@@ -44,7 +44,7 @@ export function loadFixtures(dir = FIXTURES): Fixture[] {
 const show = (b: ParityBlock): string => `${b.mark} ${b.kind} “${b.text.slice(0, 40)}”`;
 
 /** 단어 표시 기준 비율을 정할 자료 — 엔진이 짝지은 문단·제목·항목의 바뀐 비율과, GitHub가 그것을 단어로 냈는지(inline) 통째로 냈는지(whole) */
-function wordRows(f: Fixture, github: HTMLElement): string[] {
+export function wordRows(f: Fixture, github: HTMLElement): string[] {
   if (f.oldText === null) return [];
   const rows: string[] = [];
   const os = buildSide(f.oldText);
@@ -59,7 +59,8 @@ function wordRows(f: Fixture, github: HTMLElement): string[] {
       if (!o?.el || !n?.el) continue;
       const ratio = wordDiff(o.el, n.el, l.leaf.kind)?.ratio ?? 1;
       const g = gblocks.find((x) => x.side === 'right' && x.text.replace(/\s+/g, ' ').trim() === (n.el!.textContent ?? '').replace(/\s+/g, ' ').trim());
-      const how = !g ? 'not found' : g.el.closest('ins') ? 'whole' : 'inline';
+      // 통째로 낸 것 — 최상위 <ins> 안이거나, 목록 항목처럼 li.added로 바꿔 쓴 것(GitHub는 목록 항목에 <ins>를 쓰지 않는다)
+      const how = !g ? 'not found' : g.el.closest('ins, .added') ? 'whole' : 'inline';
       rows.push(`| ${f.name} | ${l.leaf.kind} | ${ratio.toFixed(2)} | ${how} | ${(n.el.textContent ?? '').slice(0, 50).replace(/\|/g, '\\|')} |`);
     }
   }
