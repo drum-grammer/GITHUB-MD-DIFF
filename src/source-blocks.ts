@@ -1,5 +1,4 @@
-import MarkdownIt from 'markdown-it';
-import type Token from 'markdown-it/lib/token.mjs';
+import markdownit, { type MarkdownIt, type Token } from 'markdown-it';
 
 /** 코멘트를 달 수 있는 블록 종류 — 렌더링 화면(DOM)과 원문 양쪽에서 같은 기준으로 나눈다 */
 export type BlockKind = 'heading' | 'paragraph' | 'item' | 'row' | 'code';
@@ -19,7 +18,7 @@ export interface SourceBlock {
 
 /** 파서는 처음 쓸 때 만든다 — 확장은 github.com의 모든 페이지에 들어가므로 페이지를 열 때마다 만들지 않는다 */
 let md: MarkdownIt | null = null;
-const parser = (): MarkdownIt => (md ??= new MarkdownIt('default', { html: true }));
+const parser = (): MarkdownIt => (md ??= markdownit('default', { html: true }));
 
 /** 글자 비교용 — 기호·공백·대소문자를 지우고 글자와 숫자만 남긴다 */
 export function normalizeText(text: string): string {

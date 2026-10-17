@@ -12,6 +12,17 @@ export interface MessageEntry {
 
 const MESSAGES: Record<string, MessageEntry> = en;
 
+/** 확장 밖(로컬 리뷰 페이지)에서 쓰는 문구 표 — useMessages로 정한다. 정하지 않으면 null(지금 동작 그대로) */
+let custom: Record<string, MessageEntry> | null = null;
+
+/**
+ * 확장 밖에서 문구를 쓰게 한다 — 부르면 t()가 chrome.i18n 없이도 이 표로 문구를 만든다.
+ * 로컬 리뷰 페이지는 확장 영어 문구와 페이지 전용 문구를 합쳐 넘긴다(`{ ...en, ...pageEn }`). 표에 없는 키는 지금처럼 키를 돌려준다
+ */
+export function useMessages(messages: Record<string, MessageEntry>): void {
+  custom = messages;
+}
+
 /** chrome.i18n과 같은 규칙 — $NAME$은 자리표시의 content로, $1…$9는 치환값으로, $$는 $로 */
 export function formatMessage(entry: MessageEntry, subs: string[]): string {
   const named = entry.message.replace(/\$([A-Za-z0-9_@]+)\$/g, (all, name: string) => entry.placeholders?.[name.toLowerCase()]?.content ?? all);
@@ -21,7 +32,7 @@ export function formatMessage(entry: MessageEntry, subs: string[]): string {
 export function t(key: string, subs: Array<string | number> = []): string {
   const s = subs.map(String);
   const inExtension = Boolean((globalThis as { chrome?: typeof chrome }).chrome?.i18n);
-  const entry = MESSAGES[key];
-  const msg = inExtension && entry ? formatMessage(entry, s) : '';
+  const entry = custom ? custom[key] : inExtension ? MESSAGES[key] : undefined;
+  const msg = entry ? formatMessage(entry, s) : '';
   return msg || (s.length ? `${key}:${s.join('|')}` : key);
 }

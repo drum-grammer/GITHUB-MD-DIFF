@@ -2,7 +2,7 @@ import { noticeBox } from './comment-ui';
 import { syncFileToolbar } from './controls';
 import { foldUnchanged } from './fold';
 import { t } from './i18n';
-import { HIDDEN_CLASS, MDF_ATTR, PIN_ATTR, UNCOLLAPSED_ATTR, setHidden, tablePairs } from './selectors';
+import { HIDDEN_CLASS, MDF_ATTR, PIN_ATTR, UNCOLLAPSED_ATTR, setHidden, tablePairs } from './prose-markup';
 import { mergeTablePair } from './table-render';
 
 export interface ApplyResult {

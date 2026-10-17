@@ -94,7 +94,7 @@ No data collected and no remote code. The extension reads the open GitHub page i
 - `pnpm package` — build and zip `dist/` into `release/` for the Chrome Web Store
 - `pnpm release <check|notes|upload|submit|status|finish>` — publish an update to the Chrome Web Store through its API. See [store/README.md](store/README.md#releasing-an-update)
 - `pnpm store:assets` — regenerate the store screenshots, promo tiles, and `docs/demo.gif`. See [store/README.md](store/README.md)
-- GitHub page assumptions live only in `src/selectors.ts`, and GitHub request assumptions only in `src/github-api.ts`. Tests and scripts use the same selectors through `GITHUB_CSS` (scripts via `scripts/page-css.mjs`). When GitHub changes its page, follow [docs/runbooks/github-ui-change.md](docs/runbooks/github-ui-change.md)
+- GitHub page assumptions live in `src/selectors.ts` (files, headers, buttons) and `src/prose-markup.ts` (the markup inside the rendered diff, which `src/selectors.ts` re-exports), and GitHub request assumptions only in `src/github-api.ts`. The comment UI behavior is `src/comment-controller.ts`; `src/comments.ts` is its GitHub backend. Tests and scripts use the same selectors through `GITHUB_CSS` (scripts via `scripts/page-css.mjs`, which Node reads directly — keep the `.ts` extension on imports in `src/selectors.ts`). When GitHub changes its page, follow [docs/runbooks/github-ui-change.md](docs/runbooks/github-ui-change.md)
 - Test fixtures must come from public repositories or be handmade; the first line records the source and `test/fixtures.test.ts` checks it
 
 ### Verification tiers

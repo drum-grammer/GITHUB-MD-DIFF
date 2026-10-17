@@ -4,6 +4,11 @@
  * 요청 모양은 Markdown PR(chienyuanchang/rich-diff-comments)과 Mihiraki(KinjiKawaguchi/mihiraki)가 정리한 것을 참고했다.
  */
 
+import type { PostMode, ReviewComment, ReviewThread, Side } from './types';
+
+/** 공용 타입은 types.ts로 옮겼다 — 예전처럼 여기서 가져와도 된다 */
+export type { PostMode, ReviewComment, ReviewThread, Side } from './types';
+
 const HEADERS = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'GitHub-Verified-Fetch': 'true' };
 const TIMEOUT_MS = 20_000;
 const PR_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/|$)/;
@@ -13,36 +18,6 @@ export interface PrRef {
   owner: string;
   repo: string;
   number: number;
-}
-
-/** left = 원래 파일(지운 쪽), right = 새 파일 */
-export type Side = 'left' | 'right';
-
-export interface ReviewComment {
-  id: string;
-  author: string;
-  body: string;
-  bodyHTML: string;
-  url: string;
-  pending: boolean;
-  /** 고칠 때 함께 보내는 본문 버전(동시에 고친 것을 GitHub가 거른다) */
-  bodyVersion: string;
-  /** 내가 고치거나 지울 수 있는가(GitHub가 알려 준다 — 보통 내가 쓴 코멘트) */
-  canEdit: boolean;
-  canDelete: boolean;
-}
-
-export interface ReviewThread {
-  id: string;
-  /** line = 줄(범위)에 단 것, file = 파일 전체에 단 것(줄 없음 — start·end는 0) */
-  subject: 'line' | 'file';
-  side: Side;
-  /** 1부터, 끝 포함 */
-  start: number;
-  end: number;
-  resolved: boolean;
-  canReply: boolean;
-  comments: ReviewComment[];
 }
 
 export interface FileInfo {
@@ -69,9 +44,6 @@ export interface CommentTarget {
   start: number;
   end: number;
 }
-
-/** single = 바로 올리기, review = 보류 중인 리뷰에 넣기(없으면 리뷰 시작) */
-export type PostMode = 'single' | 'review';
 
 export class RequestError extends Error {
   constructor(

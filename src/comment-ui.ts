@@ -1,10 +1,10 @@
 /** 코멘트 상자·스레드 상자 같은 화면 조각 — 요청은 모르고, 누르면 받은 함수를 부른다 */
-import type { PostMode, ReviewComment, ReviewThread } from './github-api';
+import type { PostMode, ReviewComment, ReviewThread } from './types';
 import type { BlockTarget } from './dom-blocks';
 import { t } from './i18n';
 import { formatEdit, suggestionEdit, type Edit, type Format } from './md-format';
 import { OCTICONS, type Octicon } from './octicons';
-import { CHANGE_WRAPPER, MDF_ATTR } from './selectors';
+import { CHANGE_WRAPPER, MDF_ATTR } from './prose-markup';
 
 export const ADD = 'add-comment';
 export const FORM = 'comment-form';
@@ -97,6 +97,10 @@ export interface FormOptions {
   preview?: Preview;
   /** 코멘트를 다는 오른쪽 줄의 원문 — 있으면 도구 막대 맨 앞에 제안 버튼을 둔다(GitHub처럼 지운 쪽 줄에는 없다) */
   suggestion?: string;
+  /** 'github'(기본): 단일·리뷰 버튼 / 'local': singleLabel 버튼 하나(주 버튼), onSubmit(text, 'single') */
+  buttons?: 'github' | 'local';
+  /** 기본 true. false면 아바타를 넣지 않는다(로컬 페이지) */
+  showAvatar?: boolean;
 }
 
 /** 글 → GitHub가 렌더링한 HTML */
@@ -281,16 +285,18 @@ export function commentForm(doc: Document, opt: FormOptions, h: FormHandlers): H
   const box = el(doc, 'div', 'mdf-comment-form');
   box.setAttribute(MDF_ATTR, FORM);
   const head = el(doc, 'div', 'mdf-comment-head');
-  const avatar = viewerAvatar(doc);
+  const avatar = opt.showAvatar === false ? null : viewerAvatar(doc);
   head.append(...(avatar ? [avatar] : []), el(doc, 'strong', 'mdf-comment-label', opt.label));
   const { wrap, area } = editor(doc, '', opt.preview, opt.suggestion);
   const error = el(doc, 'div', 'mdf-comment-error');
   error.hidden = true;
   const actions = el(doc, 'div', 'mdf-comment-actions');
   const cancel = button(doc, t('cancel'));
-  const single = opt.pendingReview ? null : button(doc, opt.singleLabel);
-  const review = button(doc, opt.pendingReview ? t('commentReviewAdd') : t('commentReviewStart'), 'mdf-btn mdf-btn-primary');
-  actions.append(cancel, ...(single ? [single] : []), review);
+  // 로컬 페이지: 버튼 하나("Add comment")가 주 버튼이고 늘 single로 부른다. 확장: 바로 올리기 + 리뷰(보류 중 리뷰가 있으면 리뷰만)
+  const local = opt.buttons === 'local';
+  const single = local ? button(doc, opt.singleLabel, 'mdf-btn mdf-btn-primary') : opt.pendingReview ? null : button(doc, opt.singleLabel);
+  const review = local ? null : button(doc, opt.pendingReview ? t('commentReviewAdd') : t('commentReviewStart'), 'mdf-btn mdf-btn-primary');
+  actions.append(cancel, ...[single, review].filter((b): b is HTMLButtonElement => b !== null));
   box.append(head, wrap, error, actions);
 
   const buttons = [cancel, single, review].filter((b): b is HTMLButtonElement => b !== null);
@@ -329,11 +335,12 @@ export function commentForm(doc: Document, opt: FormOptions, h: FormHandlers): H
   };
   cancel.addEventListener('click', () => h.onCancel());
   single?.addEventListener('click', () => void submit('single', single));
-  review.addEventListener('click', () => void submit('review', review));
+  review?.addEventListener('click', () => void submit('review', review));
   area.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      void (single ? submit('single', single) : submit('review', review));
+      if (single) void submit('single', single);
+      else if (review) void submit('review', review);
     } else if (e.key === 'Escape' && !area.value.trim()) {
       e.preventDefault();
       h.onCancel();
@@ -342,15 +349,18 @@ export function commentForm(doc: Document, opt: FormOptions, h: FormHandlers): H
   return box;
 }
 
+/** 없는 핸들러의 버튼(답글·해결·편집·삭제)은 그리지 않는다 — 로컬 페이지는 편집·삭제만 넘긴다 */
 export interface ThreadHandlers {
-  onReply(thread: ReviewThread, text: string, mode: PostMode): Promise<void>;
-  onResolve(thread: ReviewThread, resolved: boolean): Promise<void>;
+  onReply?(thread: ReviewThread, text: string, mode: PostMode): Promise<void>;
+  onResolve?(thread: ReviewThread, resolved: boolean): Promise<void>;
   /** 내 코멘트 고치기·지우기(성공하면 스레드를 다시 그린다) */
-  onEdit(comment: ReviewComment, text: string): Promise<void>;
-  onDelete(comment: ReviewComment): Promise<void>;
+  onEdit?(comment: ReviewComment, text: string): Promise<void>;
+  onDelete?(comment: ReviewComment): Promise<void>;
   preview?: Preview;
   /** 스레드가 가리키는 오른쪽 줄의 원문 — 있으면 답글 상자에도 제안 버튼(GitHub 답글 상자와 같다) */
   suggestion?(thread: ReviewThread): string | undefined;
+  /** threadBox가 만드는 답글 상자에 넘길 FormOptions 일부(로컬: buttons 'local', showAvatar false) */
+  form?: Pick<FormOptions, 'buttons' | 'showAvatar'>;
 }
 
 /** 지우기는 두 번 눌러야 — 처음 누르면 "정말 삭제"로 바뀌고 4초 안에 다시 누를 때만 지운다 */
@@ -377,7 +387,7 @@ function commentView(doc: Document, c: ReviewComment, h?: ThreadHandlers): HTMLE
     body.classList.add('mdf-plain');
   }
   item.append(meta, body);
-  if (h && (c.canEdit || c.canDelete)) item.append(...ownActions(doc, c, h, meta, body));
+  if (h && ((c.canEdit && h.onEdit) || (c.canDelete && h.onDelete))) item.append(...ownActions(doc, c, h, meta, body));
   return item;
 }
 
@@ -390,7 +400,7 @@ function ownActions(doc: Document, c: ReviewComment, h: ThreadHandlers, meta: HT
     error.hidden = false;
   };
   const tools = el(doc, 'span', 'mdf-comment-tools');
-  if (c.canEdit) {
+  if (c.canEdit && h.onEdit) {
     const edit = button(doc, t('edit'), 'mdf-link');
     edit.addEventListener('click', () => {
       const { wrap, area } = editor(doc, c.body, h.preview);
@@ -414,7 +424,7 @@ function ownActions(doc: Document, c: ReviewComment, h: ThreadHandlers, meta: HT
         save.disabled = cancel.disabled = true;
         error.hidden = true;
         try {
-          await h.onEdit(c, text);
+          await h.onEdit?.(c, text);
           close();
         } catch (e) {
           fail(e);
@@ -438,7 +448,7 @@ function ownActions(doc: Document, c: ReviewComment, h: ThreadHandlers, meta: HT
     });
     tools.append(edit);
   }
-  if (c.canDelete) {
+  if (c.canDelete && h.onDelete) {
     const del = button(doc, t('delete'), 'mdf-link');
     let timer: ReturnType<typeof setTimeout> | undefined;
     const reset = () => {
@@ -456,7 +466,7 @@ function ownActions(doc: Document, c: ReviewComment, h: ThreadHandlers, meta: HT
       del.disabled = true;
       error.hidden = true;
       try {
-        await h.onDelete(c);
+        await h.onDelete?.(c);
       } catch (e) {
         fail(e);
         del.disabled = false;
@@ -490,20 +500,25 @@ export function threadBox(doc: Document, thread: ReviewThread, pendingReview: bo
   const actions = el(doc, 'div', 'mdf-comment-actions');
   const error = el(doc, 'div', 'mdf-comment-error');
   error.hidden = true;
-  const resolve = button(doc, thread.resolved ? t('unresolve') : t('resolve'));
-  resolve.addEventListener('click', async () => {
-    resolve.disabled = true;
-    error.hidden = true;
-    try {
-      await h.onResolve(thread, !thread.resolved);
-    } catch (e) {
-      error.textContent = e instanceof Error ? e.message : String(e);
-      error.hidden = false;
-      resolve.disabled = false;
-    }
-  });
+  // 핸들러는 h.onX?.()로 부른다 — 메서드로 넘긴 핸들러도 this를 잃지 않게
+  let resolve: HTMLButtonElement | null = null;
+  if (h.onResolve) {
+    const b = button(doc, thread.resolved ? t('unresolve') : t('resolve'));
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      error.hidden = true;
+      try {
+        await h.onResolve?.(thread, !thread.resolved);
+      } catch (e) {
+        error.textContent = e instanceof Error ? e.message : String(e);
+        error.hidden = false;
+        b.disabled = false;
+      }
+    });
+    resolve = b;
+  }
   let openReply: ((text: string) => void) | null = null;
-  if (thread.canReply) {
+  if (thread.canReply && h.onReply) {
     const reply = button(doc, t('reply'));
     openReply = (text: string) => {
       reply.hidden = true;
@@ -513,10 +528,10 @@ export function threadBox(doc: Document, thread: ReviewThread, pendingReview: bo
       };
       const form = commentForm(
         doc,
-        { label: t('replyTo'), pendingReview, singleLabel: t('reply'), preview: h.preview, suggestion: h.suggestion?.(thread) },
+        { label: t('replyTo'), pendingReview, singleLabel: t('reply'), preview: h.preview, suggestion: h.suggestion?.(thread), ...h.form },
         {
           onSubmit: async (body, mode) => {
-            await h.onReply(thread, body, mode);
+            await h.onReply?.(thread, body, mode);
             close();
           },
           onCancel: close,
@@ -532,8 +547,8 @@ export function threadBox(doc: Document, thread: ReviewThread, pendingReview: bo
     reply.addEventListener('click', () => openReply?.(''));
     actions.append(reply);
   }
-  actions.append(resolve);
-  inner.append(error, actions);
+  if (resolve) actions.append(resolve);
+  inner.append(error, ...(actions.childElementCount ? [actions] : []));
   const setOpen = (open: boolean) => {
     head.setAttribute('aria-expanded', String(open));
     inner.hidden = !open;

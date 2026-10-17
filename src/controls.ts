@@ -1,7 +1,7 @@
 import { foldBars, setFoldExpanded } from './fold';
 import { t } from './i18n';
 import { jump, summaryOf } from './nav';
-import { MDF_ATTR } from './selectors';
+import { MDF_ATTR } from './prose-markup';
 import { setTableAllRows } from './table-render';
 
 const TOOLBAR = 'file-toolbar';
