@@ -7,8 +7,8 @@ import type { DiffOptions, FileDiff, RenderContext } from './types';
 
 export * from './types';
 
-/** 바뀐 낱말 비율이 이를 넘으면 통째로 — M1 패리티 뒤 정한 값(Task 18에서 갱신) */
-export const DEFAULT_WHOLE_BLOCK_RATIO = 0.6;
+/** 바뀐 낱말 비율이 이를 넘으면 통째로 — M1 끝에 GitHub 패리티 자료로 정했다(packages/engine/parity/run.ts의 단어 표시 표) */
+export const DEFAULT_WHOLE_BLOCK_RATIO = 0.45;
 
 /** diffMarkdown이 만든 그리기 계획 — 모델을 JSON으로 주고받은 뒤에는 기본 옵션으로 다시 만든다 */
 const plans = new WeakMap<FileDiff, Plan>();

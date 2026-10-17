@@ -127,9 +127,12 @@ describe('엔진 함정 — 놓치기 쉬운 렌더링 변경', () => {
   });
 
   it('`✅` → `❌` — 기호도 한 단위', () => {
-    const c = check(md('✅ Done'), md('❌ Done'));
+    const c = check(md('✅ Done today'), md('❌ Done today'));
     expect(c.body.querySelector('del')!.textContent).toBe('✅');
     expect(c.body.querySelector('ins')!.textContent).toBe('❌');
+    // 두 단위 중 하나가 바뀐 줄(비율 0.5)은 기준 0.45를 넘어 통째로 — 그래도 표시는 보인다(check의 hunk 불변식)
+    const short = check(md('✅ Done'), md('❌ Done'));
+    expect(short.diff.blocks[0].leaves[0]).toMatchObject({ op: 'changed', wholeBlock: true });
   });
 
   it('`300ms,` → `300ms.` — 문장부호도 한 단위', () => {
