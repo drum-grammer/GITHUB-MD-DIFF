@@ -70,8 +70,10 @@ describe('렌더링 파서 — 플러그인 1순위(스펙 §4-4)', () => {
     expect(render('```mermaid\ngraph TD\n```\n')).toBe('<section class="js-render-needs-enrichment render-needs-enrichment" data-type="mermaid"><pre lang="mermaid" aria-label="Raw mermaid code">graph TD\n</pre></section>\n');
   });
 
-  it('자동 링크 — https는 링크, www.는 linkify-it v6 기본값대로 글자(패리티로 정한다)', () => {
-    expect(render('https://example.com and www.example.com')).toBe('<p><a href="https://example.com">https://example.com</a> and www.example.com</p>\n');
+  it('자동 링크 — GFM처럼 https·www.·메일은 링크, 스킴 없는 맨 도메인은 글자', () => {
+    expect(render('https://example.com and www.example.com and example.org and a@example.com')).toBe(
+      '<p><a href="https://example.com">https://example.com</a> and <a href="http://www.example.com">www.example.com</a> and example.org and <a href="mailto:a@example.com">a@example.com</a></p>\n',
+    );
   });
 
   it('위험한 마크다운 링크는 링크가 되지 않는다', () => {

@@ -76,6 +76,26 @@ export function markdown(): MarkdownIt {
   m.use(katex, { throwOnError: false });
   m.use(emoji);
 
+  // GFM 자동 링크 — www.로 시작하면 링크(linkify-it v6 기본값은 꺼짐), 스킴 없는 맨 도메인(example.org)은 글자 그대로(패리티 포착본 autolinks)
+  m.linkify.set({ fuzzyLink: true });
+  m.core.ruler.after('linkify', 'mdc_gfm_autolink', (state) => {
+    for (const block of state.tokens) {
+      if (block.type !== 'inline' || !block.children) continue;
+      const kids = block.children;
+      const out: Token[] = [];
+      for (let i = 0; i < kids.length; i++) {
+        const text = kids[i + 1];
+        if (kids[i].type === 'link_open' && kids[i].markup === 'linkify' && text?.type === 'text' && kids[i + 2]?.type === 'link_close' && !/^(?:www\.|[a-z][a-z0-9+.-]*:|[^@\s]+@)/i.test(text.content)) {
+          out.push(text);
+          i += 2;
+          continue;
+        }
+        out.push(kids[i]);
+      }
+      block.children = out;
+    }
+  });
+
   // 알림 표시 줄([!NOTE]) 바로 뒤가 목록·코드면 플러그인이 빈 문단을 남긴다 — GitHub에는 없고, 짝 잎이 없어 줄 속성도 못 단다
   m.core.ruler.push('mdc_alert_empty_paragraph', (state) => {
     const t = state.tokens;
