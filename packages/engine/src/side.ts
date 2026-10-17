@@ -6,7 +6,7 @@ import type { Token } from 'markdown-it';
 import { alignBlocks } from '../../../src/align';
 import { domBlocks } from '../../../src/dom-blocks';
 import { frontMatterLines, sourceBlocks, type BlockKind } from '../../../src/source-blocks';
-import { escapeHtml, fragment } from './dom';
+import { TEXT_NODE, escapeHtml, fragment } from './dom';
 import { leafKey, topKey, visibleText } from './keys';
 import { markdown, newEnv } from './markdown';
 import type { Kind, Range } from './types';
@@ -97,6 +97,15 @@ function frontMatterTable(lines: string[], count: number): string {
 /** 과제 상자 id(task-item-N)는 문서 안 순번이라 앞에 항목이 늘면 바뀐다 — 렌더링 비교를 흔들지 않게 지운다 */
 function tidy(container: HTMLDivElement): HTMLDivElement {
   for (const box of container.querySelectorAll('input.task-list-item-checkbox')) box.removeAttribute('id');
+  // 문단 중간의 블록 HTML(<details>·<div>)은 브라우저 파서가 문단을 쪼갠다 — 남은 </p>가 만든 빈 문단은 지우고,
+  // 문단 밖으로 밀려난 글은 span에 담는다(줄 속성 없는 COMMENT_BLOCK이 없게, 접을 때 같이 숨게)
+  for (const p of [...container.querySelectorAll(':scope > p')]) if (!p.childNodes.length) p.remove();
+  for (const n of [...container.childNodes]) {
+    if (n.nodeType !== TEXT_NODE || !(n.textContent ?? '').trim()) continue;
+    const span = container.ownerDocument.createElement('span');
+    n.replaceWith(span);
+    span.append(n);
+  }
   return container;
 }
 

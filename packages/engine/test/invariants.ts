@@ -14,6 +14,7 @@ import { domBlocks } from '../../../src/dom-blocks';
 import { foldBars } from '../../../src/fold';
 import { changeTargets } from '../../../src/nav';
 import { diffMarkdown, renderProseDiff, type FileDiff, type Range } from '../src/index';
+import { INVISIBLE } from '../src/keys';
 import { buildSide } from '../src/side';
 import { CTX, bodyOf } from './helpers';
 
@@ -57,17 +58,35 @@ const parse = (v: string | null): Range | null => {
 };
 const meets = (a: Range | undefined | null, b: Range | undefined | null): boolean => Boolean(a && b && a.start <= b.end && b.start <= a.end);
 
-/** 표시 요소의 줄 범위 — 자기 속성과 안쪽 잎들의 범위를 합친 것(쪽마다) */
+/**
+ * 표시 요소의 줄 범위 — 자기 속성과 안쪽 잎들의 범위를 합친 것(쪽마다). 안쪽에 줄 속성이 없으면(문단 안 낱말 ins·del) 감싼 잎의 범위
+ */
 function spanOf(el: Element, side: 'new' | 'old'): Range | null {
-  const all = [el, ...el.querySelectorAll(`[data-mdc-${side}]`)].map((x) => parse(x.getAttribute(`data-mdc-${side}`))).filter((r): r is Range => r !== null);
+  const attr = `data-mdc-${side}`;
+  let all = [el, ...el.querySelectorAll(`[${attr}]`)].map((x) => parse(x.getAttribute(attr))).filter((r): r is Range => r !== null);
+  if (!all.length) {
+    const up = el.parentElement?.closest(`[${attr}]`);
+    all = up ? [parse(up.getAttribute(attr))].filter((r): r is Range => r !== null) : [];
+  }
   if (!all.length) return null;
   return { start: Math.min(...all.map((r) => r.start)), end: Math.max(...all.map((r) => r.end)) };
 }
 
-const MARKER = 'ins, del, .changed, .added, .removed, .mdc-source-only, .mdf-row-added, .mdf-row-removed, .mdf-row-changed, [data-mdf="table"]';
+const MARKER = 'ins, del, .changed, .added, .removed, .mdc-source-only, .mdf-row-added, .mdf-row-removed, .mdf-row-changed';
+/** 감싸기만 하는 것 — 바뀐 목록·인용문·알림을 감싼 div.changed. 안의 모든 줄을 덮지 않는다(안쪽 표시가 저마다 센다) */
+const WRAPPER = 'div.changed:not(.mdc-source-only)';
+/** 브라우저가 그리지 않는 것 — 원문 막대의 숨긴 원문(pre.mdc-source-diff)은 막대 문구가 보이므로 막대 자체는 보인다 */
+const UNRENDERED = '[hidden], [popover], title, datalist, template';
+/** 글이 없어도 보이는 요소 */
+const ATOMIC = 'img, input, br, hr, svg, video, audio, span.katex';
 
-/** 화면에 보이는가 — 확장이 숨긴 것(mdf-hidden) 안이 아니다 */
-const shown = (el: Element): boolean => !el.closest('.mdf-hidden');
+/** 화면에 보이는가 — 확장이 숨긴 것(mdf-hidden)·브라우저가 그리지 않는 것 안이 아니고, 보이는 글이나 원자 요소가 있다 */
+function shown(el: Element): boolean {
+  if (el.closest('.mdf-hidden') || el.closest(UNRENDERED)) return false;
+  const c = el.cloneNode(true) as Element;
+  for (const n of c.querySelectorAll(UNRENDERED)) n.remove();
+  return (c.textContent ?? '').replace(INVISIBLE, '').trim() !== '' || c.matches(ATOMIC) || c.querySelector(ATOMIC) !== null;
+}
 
 /** 쪽마다 표시가 덮는 줄 번호 */
 function markedLines(markers: Element[], side: 'new' | 'old'): Set<number> {
@@ -81,7 +100,7 @@ function markedLines(markers: Element[], side: 'new' | 'old'): Set<number> {
 
 /**
  * 이동처럼 최소 diff가 둘 이상이면 git과 엔진이 서로 다른 블록을 "바뀜"으로 고른다(git: A를 지우고 뒤에 넣음, 엔진: B를 앞에 넣고 뒤에서 지움).
- * 그래서 hunk를 양쪽 다 바뀌지 않았다고 보는 글 있는 줄 사이로 넓혀 본다
+ * 그래서 옮긴 hunk(글 있는 줄이 모두 다른 쪽에도 있다)만 양쪽 다 바뀌지 않았다고 보는 글 있는 줄 사이로 넓혀 본다
  */
 function widen(r: Range, lines: string[], gitChanged: Set<number>, marked: Set<number>): Range {
   const anchor = (n: number): boolean => !gitChanged.has(n) && !marked.has(n) && (lines[n - 1] ?? '').trim() !== '';
@@ -94,17 +113,24 @@ function widen(r: Range, lines: string[], gitChanged: Set<number>, marked: Set<n
 
 /** ① hunk 불변식 — 덮이지 않은 hunk 목록(비어야 한다) */
 export function uncovered(diff: FileDiff, body: HTMLElement): GitHunk[] {
-  const markers = [...body.querySelectorAll(MARKER)].filter(shown);
+  const markers = [...body.querySelectorAll(MARKER)].filter((m) => !m.matches(WRAPPER) && shown(m));
   // 줄 끝 모양이 바뀐 파일은 모든 줄이 hunk다 — 줄 끝(CR·공백)만 다른 줄은 line-endings 알림 하나가 맡고, 남은 hunk에는 여전히 표시가 있어야 한다
   const all = gitHunks(diff.oldText ?? '', diff.newText ?? '', diff.notices.some((n) => n.kind === 'line-endings'));
   const lines = { old: (diff.oldText ?? '').split('\n'), new: (diff.newText ?? '').split('\n') };
   const changed = { old: new Set<number>(), new: new Set<number>() };
   for (const h of all) for (const side of ['old', 'new'] as const) if (h[side]) for (let n = h[side]!.start; n <= h[side]!.end; n++) changed[side].add(n);
   const marked = { old: markedLines(markers, 'old'), new: markedLines(markers, 'new') };
-  const hit = (side: 'old' | 'new', r: Range | undefined): boolean => Boolean(r && (markers.some((m) => meets(spanOf(m, side), r)) || diff.notices.some((n) => meets(n[side], r))));
+  // 파일 알림 중 source-only는 본문 막대와 하나씩 짝이다 — 막대가 없으면 덮이지 않은 것으로 센다(알림만 있고 막대를 빠뜨려도 통과하지 않게)
+  const fileNotices = diff.notices.filter((x) => x.kind !== 'source-only');
+  const hit = (side: 'old' | 'new', r: Range | undefined): boolean => Boolean(r && (markers.some((m) => meets(spanOf(m, side), r)) || fileNotices.some((x) => meets(x[side], r))));
+  const moved = (side: 'old' | 'new', r: Range): boolean => {
+    const other = new Set(lines[side === 'old' ? 'new' : 'old'].map((l) => l.trim()).filter(Boolean));
+    const own = lines[side].slice(r.start - 1, r.end).map((l) => l.trim()).filter(Boolean);
+    return own.length > 0 && own.every((l) => other.has(l));
+  };
   return all.filter((h) => {
     if (hit('new', h.new) || hit('old', h.old)) return false;
-    return !(['old', 'new'] as const).some((side) => h[side] && hit(side, widen(h[side]!, lines[side], changed[side], marked[side])));
+    return !(['old', 'new'] as const).some((side) => h[side] && moved(side, h[side]!) && hit(side, widen(h[side]!, lines[side], changed[side], marked[side])));
   });
 }
 
@@ -113,16 +139,24 @@ export function unitSeq(diff: FileDiff): Array<'S' | 'C'> {
   const ns = diff.newText === null ? null : buildSide(diff.newText);
   const topAt = (r?: Range) => ns?.tops.find((t) => r && t.range.start === r.start);
   const empty = (r?: Range): boolean => !topAt(r)?.container.innerHTML.trim();
+  // 블록 안 잎에 붙은 "원문만 바뀜" 막대 — 블록의 마지막 단위 뒤에 바뀐 단위로 온다
+  const within = (r: Range | undefined, outer: Range | undefined): boolean => Boolean(r && outer && r.start >= outer.start && r.end <= outer.end);
+  const hasBar = (b: FileDiff['blocks'][number]): boolean => diff.notices.some((n) => n.kind === 'source-only' && (within(n.new, b.new) || within(n.old, b.old)));
   const seq: Array<'S' | 'C'> = [];
   for (const b of diff.blocks) {
-    if (b.tokenType === 'footnote_block') seq.push(b.op === 'same' ? 'S' : 'C');
+    if (b.tokenType === 'footnote_block') {
+      seq.push(b.op === 'same' ? 'S' : 'C');
+      if (b.sourceOnly) seq.push('C');
+    }
     else if (b.tokenType === 'alert_open' && b.op === 'changed') {
       // 고친 알림은 묶음 없이 제목 문단(변경 없음이면 S) + 본문(모두 같으면 자식마다 S, 아니면 .changed 하나)
       const [title, ...body] = b.leaves;
       seq.push(title.op === 'same' ? 'S' : 'C');
       const box = topAt(b.new)!.container.querySelector('.markdown-alert')!;
-      if (body.every((l) => l.op === 'same')) for (let k = 1; k < box.children.length; k++) seq.push('S');
-      else seq.push('C');
+      if (body.every((l) => l.op === 'same')) {
+        for (let k = 1; k < box.children.length; k++) seq.push('S');
+        if (hasBar(b)) seq.push('C');
+      } else seq.push('C');
     } else if (b.op === 'same') {
       if (!empty(b.new)) seq.push('S');
       if (b.sourceOnly) seq.push('C');

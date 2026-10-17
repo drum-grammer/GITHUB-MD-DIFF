@@ -5,8 +5,8 @@
 import { diffRows, normalizeCell, type Row } from '../../../src/table-diff';
 import { eolCanon, eolStyle, hunks } from './lines';
 import { alignLeaves, type PairOptions } from './pair';
-import { invisibleChars } from './keys';
-import { buildSide, type LeafUnit, type Side, type TopUnit } from './side';
+import { hiddenComments, hiddenSignature, invisibleChars } from './keys';
+import { LEAF_ATTR, buildSide, type LeafUnit, type Side, type TopUnit } from './side';
 import type { FileDiff, FileNotice, Leaf, LeafOp, Range, TopBlock } from './types';
 import { wordDiff } from './words';
 
@@ -33,7 +33,7 @@ export interface RemovedInside {
 export type PlanItem =
   | { type: 'top'; block: TopBlock; newTop: number; oldTop: number | null; exclusive: boolean; removedInside: RemovedInside[]; bars: Bar[] }
   | { type: 'removed'; block: TopBlock; oldTop: number; bars: Bar[] }
-  | { type: 'footnotes'; block: TopBlock; entries: Array<{ newLeaf?: number; oldLeaf?: number; op: LeafOp['op'] }> };
+  | { type: 'footnotes'; block: TopBlock; entries: Array<{ newLeaf?: number; oldLeaf?: number; op: LeafOp['op'] }>; bars: Bar[] };
 
 export interface Plan {
   oldSide: Side | null;
@@ -51,6 +51,12 @@ export interface Plan {
 const WORD_KINDS = new Set(['heading', 'paragraph', 'item']);
 
 const blank = (s: string): boolean => s.trim() === '';
+/** 목록 항목의 깊이 — 바깥 li 수 */
+const depth = (el: Element): number => {
+  let d = 0;
+  for (let e = el.parentElement?.closest('li'); e; e = e.parentElement?.closest('li')) d++;
+  return d;
+};
 const item = (l: LeafUnit) => ({ kind: l.kind, text: l.text });
 const lineSlice = (side: Side, r: Range): string[] => side.lines.slice(r.start - 1, r.end);
 
@@ -91,10 +97,18 @@ export function makeDiff(input: { oldText: string | null; newText: string | null
     plan.oldToNew.set(j, i);
   });
 
+  // 줄 끝(CR)·줄 끝 공백만 다른 원문 — 블록마다 막대를 달지 않고 파일 알림(line-endings) 하나가 맡는다(편집기가 저장할 때 줄 끝 공백을 지우는 경우)
+  let eolOnly = false;
+  const sourceDiffers = (a: string, b: string): boolean => {
+    if (a === b) return false;
+    if (eolCanon(a) !== eolCanon(b)) return true;
+    eolOnly = true;
+    return false;
+  };
   const classify = (n: LeafUnit, o: LeafUnit | undefined): LeafOp => {
     const leaf: Leaf = { kind: n.kind, new: n.range, ...(o ? { old: o.range } : {}), headingPath: n.headingPath };
     if (!o) return { op: 'added', leaf };
-    if (n.key === o.key) return n.source !== o.source ? { op: 'same', leaf, sourceOnly: true } : { op: 'same', leaf };
+    if (n.key === o.key) return sourceDiffers(n.source, o.source) ? { op: 'same', leaf, sourceOnly: true } : { op: 'same', leaf };
     const op: Extract<LeafOp, { op: 'changed' }> = { op: 'changed', leaf };
     if (n.visible === o.visible) op.invisible = true;
     if (WORD_KINDS.has(n.kind) && n.el && o.el) {
@@ -108,6 +122,20 @@ export function makeDiff(input: { oldText: string | null; newText: string | null
     return op;
   };
   const removedOp = (o: LeafUnit): LeafOp => ({ op: 'removed', leaf: { kind: o.kind, old: o.range, headingPath: o.headingPath } });
+  const nside = ns;
+  // 잎 하나의 "원문만 바뀜" 막대 — 렌더링은 같고 원문만 다름(sourceOnly), 보이는 글은 같은 고침(invisible), 보이지 않는 글자가 늘거나 준 고침·추가.
+  // 다른 잎이 바뀐 블록 안과 각주에서도 단다(그 블록의 다른 표시가 이 잎의 숨은 변경을 드러내지 않는다)
+  const leafBar = (n: LeafUnit, op: LeafOp): Bar | null => {
+    const j = plan.newToOld.get(n.index);
+    const o = j === undefined || !os ? undefined : leafOf(os, j);
+    if (op.op === 'added') return invisibleChars(n.source) || hiddenComments(n.source, n.kind).length ? { new: n.range, oldLines: [], newLines: lineSlice(nside, n.range) } : null;
+    if (!o) return null;
+    const hidden =
+      op.op === 'same'
+        ? op.sourceOnly === true
+        : op.op === 'changed' && (op.invisible === true || invisibleChars(n.source) !== invisibleChars(o.source) || hiddenSignature(n.el, n.source, n.kind) !== hiddenSignature(o.el, o.source, o.kind));
+    return hidden ? { old: o.range, new: n.range, oldLines: lineSlice(os!, o.range), newLines: lineSlice(nside, n.range) } : null;
+  };
   for (const n of newLeaves) plan.newOps.set(n.index, classify(n, os && plan.newToOld.has(n.index) ? oldLeaves[plan.newToOld.get(n.index)!] : undefined));
 
   // 지운 잎의 자리 — 같은 옛 최상위 블록의 다른 잎에 짝이 있으면 그 짝이 든 새 블록 안, 없으면 옛 블록 통째로 지움
@@ -123,7 +151,15 @@ export function makeDiff(input: { oldText: string | null; newText: string | null
       if (plan.oldToNew.has(j)) continue;
       const before = paired.filter((k) => k < j).pop();
       const anchorOld = before ?? paired.find((k) => k > j)!;
-      const anchor = plan.oldToNew.get(anchorOld)!;
+      let anchor = plan.oldToNew.get(anchorOld)!;
+      // 지운 목록 항목은 자기 단계에 — 기준이 더 깊은 항목(앞 항목의 자식·다음 부모의 자식)이면 같은 단계의 바깥 항목으로 올린다
+      const gone = oldLeaves[j];
+      if (gone.kind === 'item' && gone.el && newLeaves[anchor].el) {
+        let a: Element | null = newLeaves[anchor].el;
+        while (a && depth(a) > depth(gone.el)) a = a.parentElement?.closest('li') ?? null;
+        const k = a?.getAttribute(LEAF_ATTR);
+        if (k !== null && k !== undefined) anchor = Number(k);
+      }
       const nt = newLeaves[anchor].top;
       inside.set(nt, [...(inside.get(nt) ?? []), { old: j, anchor, after: before !== undefined }]);
     }
@@ -170,14 +206,15 @@ export function makeDiff(input: { oldText: string | null; newText: string | null
     const empty = !nt.container.innerHTML.trim();
     if (!ot) {
       block.op = 'added';
-      if (empty || invisibleChars(nt.source)) bars.push({ new: nt.range, oldLines: [], newLines: lineSlice(ns, nt.range) });
+      const code = nt.tokenType === 'fence' || nt.tokenType === 'code_block';
+      if (empty || invisibleChars(nt.source) || hiddenComments(nt.source, code ? 'code' : 'html').length) bars.push({ new: nt.range, oldLines: [], newLines: lineSlice(ns, nt.range) });
     } else if (ops.every((o) => o.op === 'same') && removedInside.length === 0) {
       if (exclusive && nt.key !== ot.key) {
         // 잎은 모두 같은데 블록 HTML이 다르다 — 잎 밖의 내용(<summary>·<img src>·표 정렬)
         block.op = 'changed';
         block.wholeBlock = true;
       } else {
-        const sourceOnly = exclusive ? nt.source !== ot.source : ops.some((o) => o.op === 'same' && o.sourceOnly);
+        const sourceOnly = exclusive ? sourceDiffers(nt.source, ot.source) : ops.some((o) => o.op === 'same' && o.sourceOnly);
         if (sourceOnly) {
           block.sourceOnly = true;
           if (exclusive) bars.push({ old: ot.range, new: nt.range, oldLines: lineSlice(os!, ot.range), newLines: lineSlice(ns, nt.range) });
@@ -193,12 +230,8 @@ export function makeDiff(input: { oldText: string | null; newText: string | null
     }
     if (block.op === 'changed') {
       for (const i of nt.leaves) {
-        const op = plan.newOps.get(i)!;
-        const n = newLeaves[i];
-        if (op.op === 'added' && invisibleChars(n.source)) bars.push({ new: n.range, oldLines: [], newLines: lineSlice(ns, n.range) });
-        if (op.op !== 'changed') continue;
-        const o = oldLeaves[plan.newToOld.get(i)!];
-        if (op.invisible || invisibleChars(n.source) !== invisibleChars(o.source)) bars.push({ old: o.range, new: n.range, oldLines: lineSlice(os!, o.range), newLines: lineSlice(ns, n.range) });
+        const bar = leafBar(newLeaves[i], plan.newOps.get(i)!);
+        if (bar) bars.push(bar);
       }
       if (ot && soleTable(nt) && soleTable(ot)) block.rows = diffRows(bodyRows(ot), bodyRows(nt));
     }
@@ -216,6 +249,7 @@ export function makeDiff(input: { oldText: string | null; newText: string | null
     const usedOld = new Set<number>();
     const entries: Array<{ newLeaf?: number; oldLeaf?: number; op: LeafOp['op'] }> = [];
     const leaves: LeafOp[] = [];
+    const fbars: Bar[] = [];
     const flushOld = (upto: number): void => {
       for (const [k, o] of of.entries()) {
         if (k >= upto || usedOld.has(k)) continue;
@@ -235,13 +269,18 @@ export function makeDiff(input: { oldText: string | null; newText: string | null
       }
       const op = classify(n, o);
       plan.newOps.set(n.index, op);
+      const bar = leafBar(n, op);
+      if (bar) fbars.push(bar);
       entries.push({ newLeaf: n.index, ...(o ? { oldLeaf: o.index } : {}), op: op.op });
       leaves.push(op);
     });
     flushOld(of.length);
     const ops = leaves.map((l) => l.op);
     const op: TopBlock['op'] = ops.every((x) => x === 'same') ? 'same' : nf.length === 0 ? 'removed' : of.length === 0 ? 'added' : 'changed';
-    plan.items.push({ type: 'footnotes', block: { op, tokenType: 'footnote_block', leaves }, entries });
+    const block: TopBlock = { op, tokenType: 'footnote_block', leaves };
+    // 원문만 바뀐 각주가 있으면 변경 없음 묶음에 넣지 않는다(막대가 뒤에 붙는다)
+    if (op === 'same' && leaves.some((l) => l.op === 'same' && l.sourceOnly)) block.sourceOnly = true;
+    plan.items.push({ type: 'footnotes', block, entries, bars: fbars });
   }
 
   diff.blocks = plan.items.map((x) => x.block);
@@ -255,10 +294,10 @@ export function makeDiff(input: { oldText: string | null; newText: string | null
         delete b.sourceOnly;
         for (const l of b.leaves) if (l.op === 'same') delete l.sourceOnly;
       }
-      for (const x of plan.items) if (x.type !== 'footnotes') x.bars = [];
+      for (const x of plan.items) x.bars = [];
       notices.push({ kind: 'line-endings' });
     } else {
-      if (eolStyle(oldText!) !== eolStyle(newText!)) notices.push({ kind: 'line-endings' });
+      if (eolStyle(oldText!) !== eolStyle(newText!) || eolOnly) notices.push({ kind: 'line-endings' });
       // 파일 끝 줄바꿈만 더하거나 뺀 것 — git은 마지막 줄을 hunk로 낸다(split('\n')이 만든 빈 끝 줄이 아니라)
       const body = (ls: string[]): string[] => (ls.length && ls[ls.length - 1] === '' ? ls.slice(0, -1) : ls);
       const ob = body(os.lines);
@@ -282,7 +321,7 @@ export function makeDiff(input: { oldText: string | null; newText: string | null
     }
     for (const o of ou) if (!nu.some((x) => x.label === o.label) && !nRef.has(o.label)) notices.push({ kind: 'unreferenced-footnote', old: o.range });
   }
-  for (const x of plan.items) if (x.type !== 'footnotes') for (const b of x.bars) notices.push({ kind: 'source-only', ...(b.old ? { old: b.old } : {}), ...(b.new ? { new: b.new } : {}) });
+  for (const x of plan.items) for (const b of x.bars) notices.push({ kind: 'source-only', ...(b.old ? { old: b.old } : {}), ...(b.new ? { new: b.new } : {}) });
   diff.notices = notices;
   return { diff, plan };
 }

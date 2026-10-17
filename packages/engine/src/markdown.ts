@@ -26,7 +26,7 @@ export function newEnv(): RenderEnv {
 }
 
 /** 원문 HTML이 섞인 인라인에서 정화를 건너뛸 토큰 — 엔진·플러그인이 만든 마크업(클래스·스타일이 있다). 할 일 상자(checkbox_input)는 input이라 정화하면 지워진다 */
-const TRUSTED_INLINE = new Set(['math_inline', 'footnote_ref', 'emoji', 'image', 'checkbox_input']);
+const TRUSTED_INLINE = new Set(['math_inline', 'math_block', 'footnote_ref', 'emoji', 'image', 'checkbox_input']);
 
 function inlineText(tokens: Token[] | null): string {
   return (tokens ?? []).map((t) => (t.type === 'text' || t.type === 'code_inline' ? t.content : t.children ? inlineText(t.children) : '')).join('');
@@ -74,6 +74,13 @@ export function markdown(): MarkdownIt {
   // GitHub에는 인라인 각주(^[…])가 없다 — 글자 그대로 둔다(켜 두면 label 없는 각주가 생겨 렌더러가 멈춘다)
   m.inline.ruler.disable('footnoteInline');
   m.use(katex, { throwOnError: false });
+  // 문단 안의 한 줄 $$…$$ — 플러그인은 인라인 토큰(math_block, 줄 범위 map 없음)에도 <p class="katex-block">을 내서 브라우저 파서가 문단을 쪼갠다
+  // (빈 문단·줄 속성 없는 블록). 문단 안에서는 span으로
+  const mathBlock = m.renderer.rules.math_block!;
+  m.renderer.rules.math_block = (tokens, idx, options, env, self) => {
+    const html = mathBlock(tokens, idx, options, env, self);
+    return tokens[idx].map ? html : html.replace(/^<p class="katex-block/, '<span class="katex-block').replace(/<\/p>\s*$/, '</span>');
+  };
   m.use(emoji);
 
   // GFM 자동 링크 — www.로 시작하면 링크(linkify-it v6 기본값은 꺼짐), 스킴 없는 맨 도메인(example.org)은 글자 그대로(패리티 포착본 autolinks)

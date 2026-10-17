@@ -113,11 +113,12 @@ class Emitter {
     for (const b of list) this.units.push({ kind: 'change', nodes: [this.bar(b)] });
   }
 
-  /** 옛 잎 요소 사본(지운 표시용) */
+  /** 옛 잎 요소 사본(지운 표시용). 목록 항목은 자기 글만 — 안쪽 목록·코드·표·인용문은 따로 잎이라 사본에 넣으면 두 번 보인다 */
   private oldLeafClone(j: number): HTMLElement | null {
-    const el = leafOf(this.os!, j).el;
-    if (!el) return null;
-    const c = el.cloneNode(true) as HTMLElement;
+    const leaf = leafOf(this.os!, j);
+    if (!leaf.el) return null;
+    const c = leaf.el.cloneNode(true) as HTMLElement;
+    if (leaf.kind === 'item' || leaf.kind === 'footnote') for (const n of [...c.children]) if (ITEM_NESTED.has(n.tagName)) n.remove();
     this.markOld(c);
     return c;
   }
@@ -286,6 +287,7 @@ class Emitter {
     }
     section.append(h2, ol);
     this.units.push({ kind: item.block.op === 'same' ? 'same' : 'change', nodes: [section] });
+    this.bars(item.bars);
   }
 }
 

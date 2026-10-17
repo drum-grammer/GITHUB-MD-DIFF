@@ -3,8 +3,13 @@ import type { Kind } from './types';
 
 /** 목록 항목의 자기 글에서 빼는 것 — 안쪽 목록·코드·표·인용문은 따로 잎이다(확장 dom-blocks의 ITEM_NESTED와 같은 기준) */
 export const ITEM_NESTED = new Set(['UL', 'OL', 'PRE', 'TABLE', 'BLOCKQUOTE']);
-/** 보이지 않는 글자 — 폭 없는 문자·양방향 제어 문자·BOM·소프트 하이픈 */
-export const INVISIBLE = /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
+/**
+ * 보이지 않는 글자 — 유니코드 기본 무시 글자(폭 없는 문자·소프트 하이픈·BOM·태그 문자·변형 선택자·한글 채움 문자 등)와 양방향 제어 문자.
+ * 태그 문자(U+E0000~)는 글 뒤에 안 보이는 지시를 숨기는 데 쓰인다
+ */
+export const INVISIBLE = /[\p{Default_Ignorable_Code_Point}\p{Bidi_Control}]/gu;
+/** 이모지 순서 — 그 안의 ZWJ·VS16·태그 문자(지역 깃발)는 보이는 그림의 일부라 보이지 않는 글자로 세지 않는다 */
+const EMOJI = new RegExp('\\p{RGI_Emoji}', 'gv');
 
 const squash = (s: string): string => s.replace(/\s+/g, ' ').trim();
 
@@ -56,7 +61,33 @@ export function visibleText(el: Element, kind: Kind): string {
 
 /** 원문에 든 보이지 않는 글자 — 옛·새가 다르면 보이는 글이 달라도 막대로 드러낸다(양방향 제어 문자로 "001"을 "100"처럼 보이게 하는 것) */
 export function invisibleChars(source: string): string {
-  return (source.match(INVISIBLE) ?? []).join('');
+  return (source.replace(EMOJI, '').match(INVISIBLE) ?? []).join('');
+}
+
+/** 원문의 HTML 주석 — 렌더링에 없다. 코드 안(코드 블록·인라인 코드)의 주석 글자는 보이는 글이라 뺀다 */
+export function hiddenComments(source: string, kind: Kind): string[] {
+  if (kind === 'code') return [];
+  return source.replace(/(`+)[\s\S]*?\1/g, '').match(/<!--[\s\S]*?-->/g) ?? [];
+}
+
+/** 링크·이미지 주소·제목·글 방향처럼 그려진 글에 안 보이는 속성 */
+const HIDDEN_ATTRS = ['href', 'src', 'title', 'dir'];
+
+/**
+ * 잎의 숨은 부분 — HTML 주석과 안 보이는 속성. 고친 잎에서 이것이 달라지면 보이는 낱말 표시만으로는 리뷰어가 못 본다
+ * (낱말 하나 고치며 주석 지시를 더함·링크 글과 주소를 함께 바꿈·bdo로 숫자를 뒤집음)
+ */
+export function hiddenSignature(el: Element | null, source: string, kind: Kind): string {
+  const attrs: string[] = [];
+  if (el) {
+    for (const e of [el, ...el.querySelectorAll('*')]) {
+      for (const name of HIDDEN_ATTRS) {
+        const v = e.getAttribute(name);
+        if (v !== null) attrs.push(`${e.tagName}:${name}=${v}`);
+      }
+    }
+  }
+  return [...hiddenComments(source, kind), ...attrs].join('\u0001');
 }
 
 /** 최상위 블록의 렌더링 키 — 제목 앵커(슬러그 번호가 문서마다 다를 수 있다)와 순서 목록 시작 번호는 뺀다 */

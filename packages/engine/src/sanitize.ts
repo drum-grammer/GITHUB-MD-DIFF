@@ -9,8 +9,15 @@ import { safeUrl } from './safe-url';
 
 /** 원문에서 받지 않는 요소 — 스크립트·스타일·폼·삽입 요소, 그리고 이름공간이 바뀌는 svg·math(mXSS 표면을 줄인다) */
 const FORBID_TAGS = ['script', 'style', 'link', 'meta', 'base', 'form', 'input', 'button', 'textarea', 'select', 'option', 'iframe', 'frame', 'frameset', 'object', 'embed', 'template', 'noscript', 'dialog', 'svg', 'math'];
-/** 페이지 로직이 믿는 표기(data-mdc-*·data-mdf·unchanged·sr-only 등)를 원문이 흉내 내지 못하게. srcset·background·poster·ping은 바깥 주소를 부른다 */
-const FORBID_ATTR = ['class', 'style', 'srcset', 'background', 'poster', 'ping'];
+/**
+ * 페이지 로직이 믿는 표기(data-mdc-*·data-mdf·unchanged·sr-only 등)를 원문이 흉내 내지 못하게. srcset·background·poster·ping은 바깥 주소를 부른다.
+ * hidden·popover는 브라우저가 그 내용을 그리지 않는다 — 리뷰에서 안 보이는 지시가 되지 않게 지운다
+ */
+const FORBID_ATTR = ['class', 'style', 'srcset', 'background', 'poster', 'ping', 'hidden', 'popover'];
+/** 브라우저가 안의 글을 그리지 않는 요소 — 벗겨서 글이 보이게 한다 */
+const UNWRAP = 'title, datalist, canvas';
+/** 대체 내용을 그리지 않는 요소(재생할 수 있으면) — source·track 밖의 자식은 요소 뒤로 꺼낸다 */
+const MEDIA_FALLBACK = 'audio, video';
 const URL_ATTRS = ['href', 'src', 'xlink:href', 'action', 'formaction', 'poster', 'cite', 'background', 'longdesc'];
 
 const CONFIG: Config & { RETURN_DOM_FRAGMENT: true } = {
@@ -41,6 +48,11 @@ export function sanitizeHtml(html: string): string {
       const v = el.getAttribute(name);
       if (v !== null && !safeUrl(v)) el.removeAttribute(name);
     }
+  }
+  for (const el of [...frag.querySelectorAll(UNWRAP)]) el.replaceWith(...el.childNodes);
+  for (const el of [...frag.querySelectorAll(MEDIA_FALLBACK)]) {
+    const fallback = [...el.childNodes].filter((n) => !(n.nodeType === 1 && /^(SOURCE|TRACK)$/.test((n as Element).tagName)));
+    el.after(...fallback);
   }
   // 그대로 두면 페이지가 사용자 글을 "지운 블록"(<del>)으로 읽는다
   for (const el of [...frag.querySelectorAll('ins, del')]) {
