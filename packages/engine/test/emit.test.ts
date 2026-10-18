@@ -60,14 +60,34 @@ describe('renderProseDiff — GitHub rich diff 표기(스펙 §4-3)', () => {
     expect([...section.querySelectorAll('li')].map((li) => li.className)).toEqual(['removed', 'added']);
   });
 
-  it('코드 블록 — 옛 블록 <del>과 새 블록 <ins>', () => {
-    const b = render(md('```sh', 'npm test', '```'), md('```sh', 'npm ci', '```'));
-    expect(top(b)).toEqual(['del', 'ins']);
+  it('코드 블록 — GitHub처럼 바뀐 블록 하나(div.changed > pre.rich-diff-level-one), 안에 줄 단위로 넣은 줄 <ins> 먼저·지운 줄 <del>', () => {
+    const b = render(md('```sh', 'npm install', 'npm test', '```'), md('```sh', 'npm install', 'npm ci', '```'));
+    expect(top(b)).toEqual(['div.changed.rich-diff-level-zero']);
+    const pre = b.querySelector('.changed > pre.rich-diff-level-one')!;
+    expect([pre.getAttribute('data-mdc-new'), pre.getAttribute('data-mdc-old')]).toEqual(['1-4', '1-4']);
+    expect(pre.querySelector('code')!.innerHTML).toBe('npm install\n<ins>npm ci\n</ins><del>npm test\n</del>');
   });
 
-  it('Mermaid — section.js-render-needs-enrichment > pre[lang=mermaid]에 줄 속성', () => {
-    const b = render(md('```mermaid', 'graph TD', '```'), md('```mermaid', 'graph LR', '```'));
-    expect(b.querySelector('ins section.js-render-needs-enrichment > pre[lang="mermaid"]')!.getAttribute('data-mdc-new')).toBe('1-3');
+  it('코드 언어(info string)만 바뀌면 줄 diff가 비므로 옛 블록 <del> + 새 블록 <ins>', () => {
+    const b = render(md('```sh', 'x', '```'), md('```bash', 'x', '```'));
+    expect(top(b).slice(0, 2)).toEqual(['del', 'ins']);
+  });
+
+  it('Mermaid — 바뀌면 section.js-render-needs-enrichment.changed 하나, pre에 줄 diff와 새 원문(data-mdc-source — 페이지가 그림을 그린다)', () => {
+    const b = render(md('```mermaid', 'graph TD', '  A --> B', '```'), md('```mermaid', 'graph TD', '  A --> C', '```'));
+    const section = b.querySelector(':scope > section.js-render-needs-enrichment')!;
+    expect(section.classList.contains('changed')).toBe(true);
+    const pre = section.querySelector('pre[lang="mermaid"]')!;
+    expect(pre.getAttribute('data-mdc-new')).toBe('1-4');
+    expect(pre.getAttribute('data-mdc-source')).toBe('graph TD\n  A --> C\n');
+    expect(pre.innerHTML).toBe('graph TD\n<ins>  A --&gt; C\n</ins><del>  A --&gt; B\n</del>');
+  });
+
+  it('알림 종류를 바꾸면 GitHub처럼 옛 제목 <del> + 새 제목 <ins>, 본문은 변경 없음', () => {
+    const b = render(md('Intro.', '', '> [!WARNING]', '> Deleting a workspace cannot be undone.'), md('Intro.', '', '> [!CAUTION]', '> Deleting a workspace cannot be undone.'));
+    expect(top(b)).toEqual(['p.vicinity.rich-diff-level-zero', 'del', 'ins', 'p.vicinity.rich-diff-level-zero']);
+    expect(b.querySelector(':scope > del > p.markdown-alert-title')!.textContent).toBe('Warning');
+    expect(b.querySelector(':scope > ins > p.markdown-alert-title')!.textContent).toBe('Caution');
   });
 
   it('원문만 바뀜 막대 — 계약의 모양 그대로', () => {

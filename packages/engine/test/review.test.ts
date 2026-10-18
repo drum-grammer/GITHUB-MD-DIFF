@@ -166,3 +166,11 @@ describe('#8 부모 항목을 고쳐 써도 자식은 한 번만, 지운 부모�
     expect(count(c, 'child one')).toBe(1);
   });
 });
+
+describe('M2 전 — GitHub 포착본과 맞춘 표기도 불변식을 지킨다', () => {
+  it('바뀐 코드·Mermaid 블록 하나, 알림 종류 바꿈', () => {
+    check(md('```py', 'if ready:', '  sync()', '```'), md('```py', 'if ready:', '    sync()', '```'));
+    check(md('```mermaid', 'graph TD', '  A --> B', '```'), md('```mermaid', 'graph TD', '  A --> B', '  B --> C', '```'));
+    check(md('> [!WARNING]', '> Careful.'), md('> [!CAUTION]', '> Careful.'));
+  });
+});

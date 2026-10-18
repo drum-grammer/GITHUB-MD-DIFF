@@ -76,10 +76,10 @@ describe('엔진 함정 — 원문만 바뀐 것', () => {
 });
 
 describe('엔진 함정 — 놓치기 쉬운 렌더링 변경', () => {
-  it('코드 들여쓰기 — 옛·새 블록 통째로', () => {
+  it('코드 들여쓰기 — 바뀐 블록 하나 안에서 그 줄만 넣음·지움', () => {
     const c = check(md('```', 'if x:', '  y()', '```'), md('```', 'if x:', '    y()', '```'));
     expect(leafOps(c)).toEqual(['code:changed']);
-    expect(c.body.querySelectorAll(':scope > del > pre, :scope > ins > pre').length).toBe(2);
+    expect([...c.body.querySelectorAll(':scope > .changed > pre ins, :scope > .changed > pre del')].map((e) => `${e.tagName}:${e.textContent}`)).toEqual(['INS:    y()\n', 'DEL:  y()\n']);
   });
 
   it('두 칸 줄바꿈 — <br>이 생긴다', () => {
