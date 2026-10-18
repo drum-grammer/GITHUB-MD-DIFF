@@ -200,3 +200,27 @@ test('추적 안 하는 새 md를 mv해도 --since-last에서 이름 바꿈으�
   await expect(p.locator('.mdc-filerow .mdc-path')).toHaveText(['draft.md → final.md']);
   await review.stop();
 });
+
+test('바뀐 단어는 GitHub rich diff와 같은 모양 — 더한 것은 밑줄·옅은 바탕, 지운 것은 줄 긋기, 글자색은 본문 그대로(밝음·어두움)', async ({ page }) => {
+  repo = makeRepo({ 'a.md': '# A\n\nInstall from the downloads page and sign in.\n' });
+  repo.write('a.md', '# A\n\nInstall from the downloads page or your app store, then sign in.\n');
+  const review = await startReview(repo);
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    if (scheme === 'light') await page.goto(review.url);
+    const look = (sel: string) =>
+      page.locator(sel).first().evaluate((el) => {
+        const c = getComputedStyle(el);
+        const body = getComputedStyle(el.closest('.markdown-body')!);
+        return { td: c.textDecorationLine, sameColor: c.color === body.color, bg: c.backgroundColor };
+      });
+    const ins = await look('.changed ins');
+    const del = await look('.changed del');
+    expect(ins.td).toBe('underline');
+    expect(del.td).toBe('line-through');
+    expect(ins.sameColor && del.sameColor).toBe(true);
+    // 옅은 바탕(muted) — 단어 강조색(diffBlob …-word)보다 옅다
+    expect(ins.bg).toBe(scheme === 'light' ? 'rgb(218, 251, 225)' : 'rgba(46, 160, 67, 0.15)');
+    expect(del.bg).toBe(scheme === 'light' ? 'rgb(255, 235, 233)' : 'rgba(248, 81, 73, 0.1)');
+  }
+});

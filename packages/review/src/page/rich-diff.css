@@ -2,9 +2,9 @@
 .prose-diff { padding: 16px 32px 24px; background: var(--bgColor-default); }
 .prose-diff > .markdown-body { background: transparent; }
 
-/* 글자 단위 변경 */
-.prose-diff .markdown-body ins { text-decoration: none; background: var(--diffBlob-addition-bgColor-word); }
-.prose-diff .markdown-body del { text-decoration: line-through; background: var(--diffBlob-deletion-bgColor-word); color: var(--fgColor-muted); }
+/* 글자 단위 변경 — GitHub rich diff와 같게(2026-10-18 GitHub 계산 모양 확인): 밑줄·옅은 바탕·아래 가는 선, 지운 글자는 줄 긋기. 글자색은 본문 그대로 */
+.prose-diff .markdown-body ins { text-decoration: underline; color: var(--fgColor-default); background: var(--bgColor-success-muted); border-bottom: 1px solid var(--borderColor-success-muted); }
+.prose-diff .markdown-body del { text-decoration: line-through; color: var(--fgColor-default); background: var(--bgColor-danger-muted); }
 
 /* 블록째 더한·지운 것 — 왼쪽 막대와 옅은 바탕. 안쪽 글자는 다시 칠하지 않는다 */
 .prose-diff .markdown-body > ins,
@@ -15,6 +15,9 @@
 .prose-diff .markdown-body .added { border-left-color: var(--borderColor-success-emphasis); background: var(--bgColor-success-muted); }
 .prose-diff .markdown-body > del,
 .prose-diff .markdown-body .removed { border-left-color: var(--borderColor-danger-emphasis); background: var(--bgColor-danger-muted); color: var(--fgColor-default); text-decoration: none; }
+.prose-diff .markdown-body > ins,
+.prose-diff .markdown-body > ins ins,
+.prose-diff .markdown-body .added ins { text-decoration: none; border-bottom: 0; }
 .prose-diff .markdown-body > ins ins,
 .prose-diff .markdown-body .added ins { background: transparent; }
 .prose-diff .markdown-body > del del,

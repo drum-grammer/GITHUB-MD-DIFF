@@ -7,6 +7,7 @@
   --bgColor-accent-muted: #ddf4ff;
   --bgColor-accent-emphasis: #0969da;
   --bgColor-success-muted: #dafbe1;
+  --borderColor-success-muted: rgba(74, 194, 107, 0.4);
   --bgColor-success-emphasis: #1f883d;
   --bgColor-danger-muted: #ffebe9;
   --bgColor-attention-muted: #fff8c5;
@@ -50,6 +51,7 @@
     --bgColor-accent-muted: rgba(56, 139, 253, 0.1);
     --bgColor-accent-emphasis: #1f6feb;
     --bgColor-success-muted: rgba(46, 160, 67, 0.15);
+    --borderColor-success-muted: rgba(46, 160, 67, 0.4);
     --bgColor-success-emphasis: #238636;
     --bgColor-danger-muted: rgba(248, 81, 73, 0.1);
     --bgColor-attention-muted: rgba(187, 128, 9, 0.15);
