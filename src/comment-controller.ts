@@ -75,6 +75,8 @@ export class CommentController {
   /** 열린 코멘트 상자 → 그 상자가 가리키는 블록. 상자가 열려 있는 동안 노란 음영을 둔다(GitHub 원문 보기처럼) */
   private readonly formBlocks = new Map<HTMLElement, HTMLElement[]>();
   private disposed = false;
+  /** 다시 그리기 세대 — 겹친 load·줄 연결 기다림 가운데 마지막에 시작한 것만 그린다(빠른 백엔드에서 refresh 둘이 같은 틱에 겹치면 상자가 두 번 그려졌다) */
+  private drawGen = 0;
 
   constructor(
     private readonly body: HTMLElement,
@@ -125,8 +127,10 @@ export class CommentController {
 
   /** 지금 스레드를 다시 읽어 다시 그린다. 실패하면 콘솔에만 남긴다(그리던 것은 그대로) */
   async refresh(): Promise<void> {
+    const gen = ++this.drawGen;
     try {
-      await this.showThreads(await this.backend.load());
+      const s = await this.backend.load();
+      if (gen === this.drawGen) await this.showThreads(s, gen);
     } catch (e) {
       console.warn(LOG, e);
     }
@@ -134,6 +138,7 @@ export class CommentController {
 
   /** 스레드가 있으면 바로 원문 줄을 연결해 붙인다. 없으면 마우스를 올릴 때까지 기다린다 */
   private async start(): Promise<void> {
+    const gen = ++this.drawGen;
     let s: CommentState;
     try {
       s = await this.backend.load();
@@ -144,20 +149,24 @@ export class CommentController {
     }
     this.state = s;
     if (this.disposed) return;
-    if (s.threads.length) await this.showThreads(s);
-    else if (this.backend.expectThreads) this.backend.unavailable?.(); // 스레드가 있어야 하는데 여기서 못 찾았다(파일 코멘트 등)
+    if (s.threads.length) {
+      if (gen === this.drawGen) await this.showThreads(s, gen);
+    } else if (this.backend.expectThreads) this.backend.unavailable?.(); // 스레드가 있어야 하는데 여기서 못 찾았다(파일 코멘트 등)
   }
 
   /** 실패하면 다음에 다시 시도한다(잠깐의 요청 실패로 "+"가 영영 안 나오지 않게) */
   private ensureMapping(): Promise<Map<HTMLElement, BlockTarget> | null> {
-    this.loading ??= this.backend.mapping(this.body).then(
-      (m) => (this.mapping = m),
-      (e: unknown) => {
-        console.warn(LOG, e);
-        this.loading = null;
-        return null;
-      },
-    );
+    // 백엔드가 동기로 던져도 거부된 약속으로 받는다(처음 그리기에서 unhandled rejection이 되고 unavailable이 안 불렸다)
+    this.loading ??= Promise.resolve()
+      .then(() => this.backend.mapping(this.body))
+      .then(
+        (m) => (this.mapping = m),
+        (e: unknown) => {
+          console.warn(LOG, e);
+          this.loading = null;
+          return null;
+        },
+      );
     return this.loading;
   }
 
@@ -353,7 +362,7 @@ export class CommentController {
     };
   }
 
-  private async showThreads(s: CommentState): Promise<void> {
+  private async showThreads(s: CommentState, gen: number): Promise<void> {
     this.state = s;
     const threads = s.threads;
     const old = [...this.body.querySelectorAll(`[${MDF_ATTR}="${THREAD}"], [${MDF_ATTR}="${UNPLACED}"], [${MDF_ATTR}="${FILE_THREADS}"], [${MDF_ATTR}="${NOTICE}"]`)];
@@ -368,7 +377,7 @@ export class CommentController {
       return;
     }
     const mapping = await this.ensureMapping();
-    if (this.disposed) return;
+    if (this.disposed || gen !== this.drawGen) return;
     if (!mapping) {
       this.backend.unavailable?.();
       return;
