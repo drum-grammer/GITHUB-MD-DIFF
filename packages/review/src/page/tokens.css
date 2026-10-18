@@ -1,0 +1,87 @@
+/* Primer 변수 — github.com이 주던 것을 로컬 페이지가 직접 둔다. 확장 styles.css의 var(--x, 밝은 대체값)이 어두운 화면에서도 맞게 */
+:root {
+  color-scheme: light dark;
+  --bgColor-default: #ffffff;
+  --bgColor-muted: #f6f8fa;
+  --bgColor-emphasis: #25292e;
+  --bgColor-accent-muted: #ddf4ff;
+  --bgColor-accent-emphasis: #0969da;
+  --bgColor-success-muted: #dafbe1;
+  --bgColor-success-emphasis: #1f883d;
+  --bgColor-danger-muted: #ffebe9;
+  --bgColor-attention-muted: #fff8c5;
+  --fgColor-default: #1f2328;
+  --fgColor-muted: #59636e;
+  --fgColor-accent: #0969da;
+  --fgColor-success: #1a7f37;
+  --fgColor-danger: #d1242f;
+  --fgColor-attention: #9a6700;
+  --fgColor-disabled: #818b98;
+  --fgColor-onEmphasis: #ffffff;
+  --borderColor-default: #d1d9e0;
+  --borderColor-muted: #d8dee4;
+  --borderColor-success-emphasis: #1a7f37;
+  --borderColor-danger-emphasis: #cf222e;
+  --borderColor-attention-emphasis: #9a6700;
+  --button-default-bgColor-rest: #f6f8fa;
+  --button-default-bgColor-hover: #eff2f5;
+  --button-default-bgColor-disabled: #eff2f5;
+  --button-default-borderColor-rest: #d1d9e0;
+  --button-default-borderColor-disabled: #d1d9e0;
+  --button-default-fgColor-rest: #25292e;
+  --button-primary-bgColor-rest: #1f883d;
+  --button-primary-bgColor-hover: #1c8139;
+  --button-primary-borderColor-rest: rgba(31, 35, 40, 0.15);
+  --button-primary-fgColor-rest: #ffffff;
+  --control-transparent-bgColor-hover: rgba(208, 215, 222, 0.32);
+  --focus-outlineColor: #0969da;
+  --avatar-borderColor: rgba(31, 35, 40, 0.15);
+  --shadow-resting-small: 0 1px 1px rgba(31, 35, 40, 0.15);
+  --shadow-floating-large: 0 8px 24px rgba(140, 149, 159, 0.2);
+  --diffBlob-addition-bgColor-word: #aceebb;
+  --diffBlob-deletion-bgColor-word: #ffcecb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bgColor-default: #0d1117;
+    --bgColor-muted: #151b23;
+    --bgColor-emphasis: #3d444d;
+    --bgColor-accent-muted: rgba(56, 139, 253, 0.1);
+    --bgColor-accent-emphasis: #1f6feb;
+    --bgColor-success-muted: rgba(46, 160, 67, 0.15);
+    --bgColor-success-emphasis: #238636;
+    --bgColor-danger-muted: rgba(248, 81, 73, 0.1);
+    --bgColor-attention-muted: rgba(187, 128, 9, 0.15);
+    --fgColor-default: #f0f6fc;
+    --fgColor-muted: #9198a1;
+    --fgColor-accent: #4493f8;
+    --fgColor-success: #3fb950;
+    --fgColor-danger: #f85149;
+    --fgColor-attention: #d29922;
+    --fgColor-disabled: #656c76;
+    --fgColor-onEmphasis: #ffffff;
+    --borderColor-default: #3d444d;
+    --borderColor-muted: rgba(61, 68, 77, 0.7);
+    --borderColor-success-emphasis: #238636;
+    --borderColor-danger-emphasis: #da3633;
+    --borderColor-attention-emphasis: #9e6a03;
+    --button-default-bgColor-rest: #212830;
+    --button-default-bgColor-hover: #262c36;
+    --button-default-bgColor-disabled: #212830;
+    --button-default-borderColor-rest: #3d444d;
+    --button-default-borderColor-disabled: #3d444d;
+    --button-default-fgColor-rest: #f0f6fc;
+    --button-primary-bgColor-rest: #238636;
+    --button-primary-bgColor-hover: #29903b;
+    --button-primary-borderColor-rest: rgba(240, 246, 252, 0.1);
+    --button-primary-fgColor-rest: #ffffff;
+    --control-transparent-bgColor-hover: rgba(101, 108, 118, 0.2);
+    --focus-outlineColor: #1f6feb;
+    --avatar-borderColor: rgba(255, 255, 255, 0.15);
+    --shadow-resting-small: 0 1px 1px rgba(1, 4, 9, 0.6);
+    --shadow-floating-large: 0 0 0 1px #3d444d, 0 24px 48px #010409;
+    --diffBlob-addition-bgColor-word: rgba(46, 160, 67, 0.4);
+    --diffBlob-deletion-bgColor-word: rgba(248, 81, 73, 0.4);
+  }
+}

@@ -35,4 +35,19 @@ describe('단일 파일 빌드', () => {
     expect(assets()['skill.md.tmpl'].type).toBe('text/plain; charset=utf-8');
     expect(assets()['licenses.txt'].bytes).toBeGreaterThan(1000);
   });
+
+  it('페이지 자산이 다 있다 — 번들·CSS·KaTeX CSS와 woff2 폰트·mermaid', () => {
+    const list = assets();
+    for (const name of ['page.js', 'page.css', 'katex.css', 'mermaid.js']) expect(list[name], name).toBeDefined();
+    expect(list['page.css'].type).toBe('text/css; charset=utf-8');
+    expect(Object.keys(list).filter((n) => /^fonts\/KaTeX_.+\.woff2$/.test(n)).length).toBeGreaterThanOrEqual(10);
+    expect(list['mermaid.js'].bytes).toBeGreaterThan(1_000_000);
+  });
+  it('라이선스 고지에 github-markdown-css·katex·mermaid가 있다', () => {
+    const text = readFileSync('dist/licenses-check.txt', 'utf8');
+    for (const name of ['== github-markdown-css@5.9.0 ==', '== katex@', '== mermaid@12.2.0 ==']) expect(text).toContain(name);
+  });
+  it('크기 예산 10MiB 안이다', () => {
+    expect(statSync(OUT).size).toBeLessThanOrEqual(10 * 1024 * 1024);
+  });
 });
