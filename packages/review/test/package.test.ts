@@ -9,7 +9,7 @@ describe('npm 패키지 markdown-diff-cat', () => {
     expect(pkg).not.toHaveProperty('private');
     expect(pkg.type).toBe('module');
     expect(pkg.bin).toEqual({ 'markdown-diff-cat': 'dist/markdown-diff-cat.mjs' });
-    expect(pkg.engines).toEqual({ node: '>=22' });
+    expect(pkg.engines).toEqual({ node: '>=22.19' });
     expect(pkg.license).toBe('MIT');
     expect(pkg.files).toEqual(['dist/markdown-diff-cat.mjs', 'README.md', 'LICENSE']);
   });

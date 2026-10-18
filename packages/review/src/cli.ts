@@ -63,7 +63,7 @@ Usage:
   markdown-diff-cat skill install [--user|--project] [--check]       install or check the agent skill
   markdown-diff-cat --version
 
-Needs macOS or Linux, Node 22 or newer, and git.
+Needs macOS or Linux, Node 22.19 or newer, and git.
 State lives in \${XDG_STATE_HOME:-~/.local/state}/markdown-diff-cat (MDC_STATE_DIR overrides it).`;
 
 export class CliError extends Error {

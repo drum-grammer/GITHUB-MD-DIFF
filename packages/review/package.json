@@ -5,7 +5,7 @@
   "type": "module",
   "bin": { "markdown-diff-cat": "dist/markdown-diff-cat.mjs" },
   "files": ["dist/markdown-diff-cat.mjs", "README.md", "LICENSE"],
-  "engines": { "node": ">=22" },
+  "engines": { "node": ">=22.19" },
   "license": "MIT",
   "repository": { "type": "git", "url": "git+https://github.com/drum-grammer/GITHUB-MD-DIFF.git", "directory": "packages/review" },
   "homepage": "https://github.com/drum-grammer/GITHUB-MD-DIFF/tree/main/packages/review#readme",

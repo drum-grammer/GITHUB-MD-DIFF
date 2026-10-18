@@ -5,7 +5,7 @@ const readme = readFileSync('README.md', 'utf8');
 
 describe('npm README', () => {
   it('요구 사항·명령·에이전트 설정·개인정보를 다 적는다', () => {
-    expect(readme).toContain('Node.js 22 or newer');
+    expect(readme).toContain('Node.js 22.19 or newer');
     for (const cmd of ['review [--base <ref>] [--since-last] [--open]', 'review --reopen', 'comments [--json] [--round N]', '`wait`', 'mark --rev <id>', 'show --rev <id> <path>', 'stop [--clean]', 'skill install']) expect(readme).toContain(cmd);
     expect(readme).toContain('## Privacy and security');
     expect(readme).toContain('Nothing leaves your machine by default.');

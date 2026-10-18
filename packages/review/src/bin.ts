@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // 배포 파일의 진입점 — 시험은 cli.ts의 main을 바로 부른다
-const major = Number(process.versions.node.split('.')[0]);
-if (major < 22) {
-  console.error(`markdown-diff-cat needs Node 22 or newer (this is ${process.version})`);
+const [maj, min] = process.versions.node.split('.').map(Number);
+if (maj < 22 || (maj === 22 && min < 19)) {
+  console.error(`markdown-diff-cat needs Node 22.19 or newer (this is ${process.version})`);
   process.exit(1);
 }
 const { main, processIo } = await import('./cli');

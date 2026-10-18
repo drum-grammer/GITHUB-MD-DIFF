@@ -11,7 +11,7 @@ It is the command-line companion of [Markdown Diff Cat for GitHub](https://chrom
 ## Requirements
 
 - macOS or Linux (Windows is not supported yet)
-- Node.js 22 or newer
+- Node.js 22.19 or newer
 - git
 
 ## Quick start
