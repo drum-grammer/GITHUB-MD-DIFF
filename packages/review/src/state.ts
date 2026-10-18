@@ -3,6 +3,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { chmodSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import type { Draft, Mark, RenderRecord, Round } from './records';
 
 export type StateErrorCode = 'unwritable' | 'not-owner' | 'busy' | 'no-render';
 
@@ -38,6 +39,8 @@ export function stateDirFor(base: string, repo: { root: string; commonDir: strin
 }
 
 const sleepSync = (ms: number): void => void Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const RENDER_ID = /^r[0-9a-z]{5}$/;
+const ROUND_FILE = /^\d{4,}-[0-9T]+\.json$/;
 
 export class StateStore {
   constructor(
@@ -131,6 +134,119 @@ export class StateStore {
 
   removeServer(): void {
     this.remove('server.json');
+  }
+
+  // ── 렌더 판 ──
+
+  newRenderId(): string {
+    for (;;) {
+      const id = `r${randomBytes(4).readUInt32BE(0).toString(36).padStart(5, '0').slice(-5)}`;
+      if (!existsSync(this.file(`renders/${id}.json`))) return id;
+    }
+  }
+
+  saveRender(r: RenderRecord): void {
+    this.writeJson(`renders/${r.id}.json`, r);
+  }
+
+  /** 모양이 맞는 id만 읽는다 — 경로를 흉내 낸 값('../server')으로 다른 파일을 읽지 않게 */
+  loadRender(id: string): RenderRecord | null {
+    return RENDER_ID.test(id) ? this.readJson<RenderRecord | null>(`renders/${id}.json`, null) : null;
+  }
+
+  renderIds(): string[] {
+    try {
+      return readdirSync(this.file('renders'))
+        .filter((f) => f.endsWith('.json'))
+        .map((f) => f.slice(0, -5))
+        .filter((id) => RENDER_ID.test(id));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * 라운드(와 그 코멘트)·마지막 mark·초안·alsoPinned(지금 화면)이 가리키는 판은 지우지 않고, 아무도 가리키지 않는 판만 최근 keep개로 자른다.
+   * 순서는 파일 mtime(ms) — 같은 초에 여러 번 다시 그려도 순서가 선다
+   */
+  pruneRenders(keep = 20, alsoPinned: string[] = []): string[] {
+    const pinned = new Set<string>(alsoPinned);
+    for (const r of this.rounds()) {
+      pinned.add(r.rev);
+      for (const c of r.comments) pinned.add(c.rev);
+    }
+    for (const d of this.drafts()) pinned.add(d.rev);
+    const last = this.marks().at(-1);
+    if (last) pinned.add(last.rev);
+    const loose = this.renderIds()
+      .filter((id) => !pinned.has(id))
+      .map((id) => ({ id, at: statSync(this.file(`renders/${id}.json`)).mtimeMs }))
+      .sort((a, b) => b.at - a.at);
+    const gone = loose.slice(keep).map((x) => x.id);
+    for (const id of gone) this.remove(`renders/${id}.json`);
+    return gone;
+  }
+
+  // ── 초안 ──
+
+  drafts(): Draft[] {
+    return this.readJson<Draft[]>('drafts.json', []);
+  }
+
+  saveDrafts(list: Draft[]): void {
+    this.writeJson('drafts.json', list);
+  }
+
+  // ── 라운드 ──
+
+  rounds(): Round[] {
+    let names: string[];
+    try {
+      names = readdirSync(this.file('rounds'));
+    } catch {
+      return [];
+    }
+    return names
+      .filter((f) => ROUND_FILE.test(f))
+      .map((f) => this.readJson<Round | null>(`rounds/${f}`, null))
+      .filter((r): r is Round => r !== null)
+      .sort((a, b) => a.round - b.round);
+  }
+
+  nextRoundNumber(): number {
+    return (this.rounds().at(-1)?.round ?? 0) + 1;
+  }
+
+  /** rounds/0002-20261016T140300.json(정본)과 .md(넘기기 형식). 정본 경로를 돌려준다 */
+  saveRound(round: Round, markdown: string): string {
+    const stamp = round.createdAt.slice(0, 19).replace(/[-:]/g, '');
+    const name = `rounds/${String(round.round).padStart(4, '0')}-${stamp}`;
+    this.writeJson(`${name}.json`, round);
+    this.writeText(`${name}.md`, markdown);
+    return this.file(`${name}.json`);
+  }
+
+  // ── 넘김 ──
+
+  delivered(): number[] {
+    return this.readJson<{ rounds: number[] }>('delivered.json', { rounds: [] }).rounds;
+  }
+
+  markDelivered(nums: number[]): void {
+    this.writeJson('delivered.json', { rounds: [...new Set([...this.delivered(), ...nums])].sort((a, b) => a - b) });
+  }
+
+  // ── mark(Codex 주석을 처리할 때 그 판을 "지난 리뷰"로) ──
+
+  marks(): Mark[] {
+    return this.readJson<Mark[]>('marks.json', []);
+  }
+
+  addMark(rev: string, at: string): Mark {
+    if (!this.loadRender(rev)) throw new StateError('no-render', `review render ${rev} does not exist — run markdown-diff-cat review to draw the files again`);
+    const mark: Mark = { rev, at };
+    this.writeJson('marks.json', [...this.marks(), mark]);
+    return mark;
   }
 }
 
