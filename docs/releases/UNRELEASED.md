@@ -2,6 +2,10 @@
 
 1.5.1 was submitted to the Chrome Web Store on 2026-10-14 ([notes](v1.5.1.md)). When the next version is submitted, its release notes (`pnpm release notes` → `docs/releases/vX.Y.Z.md`) start from this list; empty this file in the same pull request.
 
+## New
+
+- The local review command-line tool `markdown-diff-cat` (npm, same version number as the extension) — rendered Markdown diffs of your working tree in a local page, with block comments handed to coding agents. See [packages/review/README.md](../../packages/review/README.md).
+
 ## Internal — groundwork for a local review tool (no visible change)
 
 - markdown-it 15 with its own TypeScript types (`@types/markdown-it` removed). Splitting Markdown into source blocks gives the same result as before on every Markdown file in this repository and on the test repository documents, and a snapshot test now pins it

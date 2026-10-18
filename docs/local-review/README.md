@@ -29,13 +29,13 @@
 
 ## 2. 지금 어디까지 왔나 (2026-10-18)
 
-설계만 한 것이 아니다. 확장 리팩터(M0)는 병합됐고, 엔진(M1)은 구현을 끝내 PR이 열려 있다. 사람이 실제로 쓰는 도구(M2)는 아직 없다.
+설계만 한 것이 아니다. 확장 리팩터(M0)와 엔진(M1)은 병합됐고, 사람이 실제로 쓰는 도구(M2)는 브랜치 `feat/local-review-m2`에서 구현 중이다.
 
 | 마일스톤 | 무엇 | 상태 |
 |---|---|---|
 | **M0** | 확장 리팩터(동작 그대로) — markdown-it 15, 공용 타입(`src/types.ts`)·렌더링 표기(`src/prose-markup.ts`), `align` 한도 인자, `i18n` 밖에서 쓰기, `comment-ui` 옵션, `comments.ts`의 화면 동작을 `CommentController` + `CommentBackend`로 분리, `packages/*` 워크스페이스 | ✅ **병합** — [#47](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/47)(2026-10-17). 관문: `pnpm verify pr` 7/7, 연결률 기준선 그대로 |
-| **M1** | 렌더링 diff 엔진 `packages/engine` + GitHub 패리티 하네스(`pnpm parity`·`parity:capture`·`parity:setup`) + 정화 | 🔵 **PR 열림** — [#48](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/48). 시험 670개(엔진 272) · 패리티 87.0% · 줄 속성 빠짐 0 · `pnpm verify pr` 7/7 |
-| **M2** | 작업 트리 모드 — `packages/review`(CLI·로컬 서버·리뷰 페이지·코멘트 저장·에이전트에게 넘기기·skill) + npm 게시 | ⬜ **다음**(M1 병합 뒤) |
+| **M1** | 렌더링 diff 엔진 `packages/engine` + GitHub 패리티 하네스(`pnpm parity`·`parity:capture`·`parity:setup`) + 정화 | ✅ **병합** — [#48](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/48)(2026-10-17). 시험 670개(엔진 272) · 패리티 87.0% · 줄 속성 빠짐 0 · `pnpm verify pr` 7/7 |
+| **M2** | 작업 트리 모드 — `packages/review`(CLI·로컬 서버·리뷰 페이지·코멘트 저장·에이전트에게 넘기기·skill) + npm 게시 | 🔵 **구현 중** — 브랜치 `feat/local-review-m2`. M2 전 수정 5개 끝 · 패리티 91.1% |
 | **M3** | Codex 주석 속성 + Codex용 skill | ⬜ |
 | **M4** | GitHub PR 모드(`review --pr`) | ⬜ |
 | 다음 | VS Code 확장 → JetBrains 플러그인 | ⬜ 따로 설계 |
@@ -89,17 +89,17 @@ M1 끝에 정한 값(패리티 첫 보고서 근거):
 - `pnpm parity:capture` — 로그인 테스트 프로필로 testbed PR의 rich diff를 **읽기만** 해서 `packages/engine/test/parity/<시나리오>/`에 고정 자료로 저장한다.
 - `pnpm parity` — 네트워크 없이 고정 자료와 엔진 HTML을 (표시, 종류, 정규화 글자)로 견주고 `.scratch/parity/report.md`를 쓴다.
 
-첫 보고서: **87.0%**(168/193) · 줄 속성 빠짐 0 · `mapBlocks` 교차 확인 불일치 1(같은 제목 둘 — 엔진 줄 속성이 맞다). 남은 차이 가운데 받아들인 것은 [KNOWN-DIFFERENCES](../../packages/engine/parity/KNOWN-DIFFERENCES.md)에 적었다. 포착본으로 두 미확인도 정했다 — 목록 변경은 `div.changed > ul > li.*`(감싼 모양), `www.` 자동 링크는 링크로 그린다.
+첫 보고서: **87.0%**(168/193) · 줄 속성 빠짐 0 · `mapBlocks` 교차 확인 불일치 1(같은 제목 둘 — 엔진 줄 속성이 맞다). M2 전 수정(바뀐 코드·Mermaid 블록, 알림 종류 변경) 뒤 **91.1%**(173/190) — 알림·Mermaid·공백·handbook 시나리오가 100%가 됐다. 남은 차이 가운데 받아들인 것은 [KNOWN-DIFFERENCES](../../packages/engine/parity/KNOWN-DIFFERENCES.md)에 적었다. 포착본으로 두 미확인도 정했다 — 목록 변경은 `div.changed > ul > li.*`(감싼 모양), `www.` 자동 링크는 링크로 그린다.
 
 ## 6. 남은 일
 
-**M2 전에 막을 것**(M2 첫 Task로):
+**M2 전에 막을 것** — ✅ 모두 끝(M2 Task 0·13):
 
-1. `CommentController.refresh()` 둘이 같은 틱에 겹치면 스레드 상자가 두 번 그려진다 — 세대 카운터로(M0 검토, 빠른 로컬 백엔드에서 닿는다)
-2. 동기로 던지는 `mapping()`이 처음 그리기에서 unhandled rejection이 된다 — `Promise.resolve().then(…)`으로(M0 검토)
-3. 바뀐 코드·Mermaid 블록을 GitHub처럼 바뀐 블록 하나로(`div.changed > pre.rich-diff-level-one`) — 지금은 옛 `<del>` + 새 `<ins>`(패리티)
-4. 알림 종류를 바꾸면(WARNING→CAUTION) GitHub처럼 옛 제목 `<del>` + 새 제목 `<ins>`, 본문은 변경 없음으로(패리티)
-5. 고친 잎의 옛 사본(`.removed`)은 `data-mdc-new`·`data-mdc-old`를 둘 다 단다 — 로컬 백엔드는 `REMOVED_BLOCK`으로 왼쪽(옛) 쪽을 고른다(M1 검토)
+1. ✅ `CommentController.refresh()` 둘이 같은 틱에 겹치면 스레드 상자가 두 번 그려진다 — 세대 카운터로(M0 검토, 빠른 로컬 백엔드에서 닿는다) · 732fa1b
+2. ✅ 동기로 던지는 `mapping()`이 처음 그리기에서 unhandled rejection이 된다 — `Promise.resolve().then(…)`으로(M0 검토) · 732fa1b
+3. ✅ 바뀐 코드·Mermaid 블록을 GitHub처럼 바뀐 블록 하나로(`div.changed > pre.rich-diff-level-one`, 안에 줄 단위 `<ins>`·`<del>`) — 전에는 옛 `<del>` + 새 `<ins>`(패리티) · 518194c
+4. ✅ 알림 종류를 바꾸면(WARNING→CAUTION) GitHub처럼 옛 제목 `<del>` + 새 제목 `<ins>`, 본문은 변경 없음으로(패리티) · 518194c
+5. ✅ 고친 잎의 옛 사본(`.removed`)은 `data-mdc-new`·`data-mdc-old`를 둘 다 단다 — 로컬 백엔드는 `REMOVED_BLOCK`으로 왼쪽(옛) 쪽을 고른다(M1 검토) · Task 13 시험
 
 **M2 — 작업 트리 모드**(`packages/review`, 브랜치 `feat/local-review-m2`):
 

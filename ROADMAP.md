@@ -12,7 +12,7 @@
 |---|---|
 | 크롬 웹 스토어(공개) | **1.5.1** — 2026-10-14 제출·게시(2026-10-15 `pnpm release status`·스토어 페이지 확인). 태그 [`v1.5.1`](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases/tag/v1.5.1)(`0873956`)·GitHub Release **Latest**. v1.5.0은 로그인 화면에서 멈춘 판이라 pre-release로 둔다 |
 | `main` | **1.5.1** |
-| 진행 중 | **로컬 리뷰** — GitHub PR 밖에서 로컬 git 변경을 같은 렌더링 diff로 보고 코멘트해 에이전트에게 넘기는 도구. M0 확장 리팩터 병합([#47](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/47), 동작·버전 그대로) · M1 렌더링 diff 엔진·GitHub 패리티 PR [#48](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/48) · 설계·진행·남은 일: [docs/local-review](docs/local-review/README.md) |
+| 진행 중 | 로컬 리뷰 M2 — 명령줄 도구 `markdown-diff-cat`(작업 트리 모드, [packages/review](packages/review/README.md)). 다음: M3 Codex 주석 · M4 PR 모드 · 설계·진행·남은 일: [docs/local-review](docs/local-review/README.md) |
 | 관리자 크롬 | 1.5.1 게시 뒤 스토어판으로 돌아간다(개발 빌드 끄기) — 다음 개발은 다시 `pnpm dev:chrome` |
 | 주간 카나리 | 상시 켜 둔 맥의 예약이 아직 돌지 않는다(그 맥의 화면 로그인·알림 토큰 대기). 2026-10-14 손으로 돌림: 1.5.0 깨짐 3/7 → 1.5.1 정상 9/9. `pnpm canary:status`로 멈춤을 본다 |
 
@@ -20,7 +20,7 @@
 
 1. **canary가 매일 실제로 돌게** — 상시 켠 맥의 화면 로그인 → 예약 확인. `pnpm canary:status`(2일 넘게 안 돌았거나 깨졌으면 종료 코드 1)를 정기 점검에 붙인다. 클래스 형식이 또 바뀌면 "클래스 이름 형식" 점검이 사용자보다 먼저 깨진다
 2. **로컬 사용 점검 — 2026-10-16** — 1주 동안 쓰며 나온 불편·오류를 1.5.x로 고친다(PATCH)
-3. **로컬 리뷰 M2 — 작업 트리 모드** — #48이 병합되면 `main`에서 `feat/local-review-m2`. `packages/review`: CLI `markdown-diff-cat`(`review`·`comments`·`wait`·`mark`·`--since-last`)·로컬 서버(루프백·1회용 코드·CSP)·리뷰 페이지(엔진 HTML + 확장 화면 모듈)·코멘트 저장(`.git` 밖)·에이전트에게 넘기기·skill `markdown-diff-review`, npm `markdown-diff-cat`(확장과 같은 버전). 먼저 막을 것 다섯과 범위: [docs/local-review §6](docs/local-review/README.md#6-남은-일). M2 끝 패리티 87% 이상이 MVP 조건
+3. **로컬 리뷰 — M2 병합 뒤 릴리스, 그다음 M3·M4** — M2(`markdown-diff-cat` 작업 트리 모드)가 병합되면 확장과 같은 다음 minor로 스토어·Release·npm `markdown-diff-cat`을 함께 낸다(바깥으로 나가는 단계는 매번 확인). 그다음 M3 Codex 주석 · M4 PR 모드. 범위: [docs/local-review §6](docs/local-review/README.md#6-남은-일)
 4. **쓰지 않은 1.1.1 초안 Release 정리** — 1.1.1은 스토어에 내지 않았다(내용은 1.5.0에 포함). 초안을 지울지는 관리자가 정한다
 5. **개선 후보**(수요·여유에 따라, 위에서부터)
 

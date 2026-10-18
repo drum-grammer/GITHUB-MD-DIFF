@@ -25,12 +25,15 @@ const STEPS = {
   explore: { name: '공개 PR 16개 재탐험(읽기만)', cmd: null, summary: explore },
   perf: { name: '성능(확장 끔·켬, 2회)', cmd: ['node', ['scripts/perf.mjs', '--reps', '2', ...PERF_PRS]], summary: perf },
   package: { name: '스토어 패키지', cmd: ['node', ['scripts/package.mjs']], summary: pkgSummary },
+  'review-typecheck': { name: '로컬 리뷰 타입 검사', cmd: ['pnpm', ['--silent', '--filter', 'markdown-diff-cat', 'typecheck']] },
+  'review-unit': { name: '로컬 리뷰 단위·통합 테스트', cmd: ['pnpm', ['--silent', '--filter', 'markdown-diff-cat', 'test']], summary: vitest },
+  'review-e2e': { name: '로컬 리뷰 E2E(임시 저장소)', cmd: ['pnpm', ['--silent', '--filter', 'markdown-diff-cat', 'e2e']], summary: playwright },
 };
 
 export const TIERS = {
-  quick: { name: '최소(개발 중)', steps: ['typecheck', 'unit', 'build', 'testbed-setup', 'testbed-quick'] },
-  pr: { name: '중간(PR 병합 전)', steps: ['typecheck', 'unit', 'build', 'e2e', 'canary', 'testbed-setup', 'testbed-split'] },
-  release: { name: '전체(검수 요청 전)', steps: ['typecheck', 'unit', 'build', 'e2e', 'canary', 'testbed-setup', 'testbed-all', 'explore', 'perf', 'package'] },
+  quick: { name: '최소(개발 중)', steps: ['typecheck', 'unit', 'build', 'testbed-setup', 'testbed-quick', 'review-typecheck', 'review-unit'] },
+  pr: { name: '중간(PR 병합 전)', steps: ['typecheck', 'unit', 'build', 'e2e', 'canary', 'testbed-setup', 'testbed-split', 'review-typecheck', 'review-unit', 'review-e2e'] },
+  release: { name: '전체(검수 요청 전)', steps: ['typecheck', 'unit', 'build', 'e2e', 'canary', 'testbed-setup', 'testbed-all', 'explore', 'perf', 'package', 'review-typecheck', 'review-unit', 'review-e2e'] },
 };
 
 function last(out, re) {
