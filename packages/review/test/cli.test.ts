@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createServer, type AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { main, parseArgs, type Io } from '../src/cli';
@@ -310,5 +311,53 @@ describe('Review Focus', () => {
     expect(existsSync(storeOf(r, state).file('server.starting'))).toBe(false);
     expect(await main(['stop'], testIo(r.dir, state))).toBe(0);
     expect(await quick.run).toBe(0);
+  });
+});
+
+describe('최종 검토 고침', () => {
+  it('바빠서 늦게 답하는 서버는 낡은 것으로 보지 않는다 — server.json을 지우지 않고 바쁘다고 말한다(review·stop 모두)', async () => {
+    const r = repoWith({ 'a.md': 'a\n' }, { 'a.md': 'b\n' });
+    const state = tempDir();
+    const store = storeOf(r, state);
+    store.ensure('test');
+    // 연결은 받지만 답하지 않는 서버(그리는 동안 이벤트 루프가 막힌 서버와 같다)
+    const sockets: import('node:net').Socket[] = [];
+    const busy = createServer((s) => void sockets.push(s));
+    await new Promise<void>((ok) => busy.listen(0, '127.0.0.1', ok));
+    const port = (busy.address() as AddressInfo).port;
+    store.writeServer({ port, pid: process.pid, startedAt: '2026-10-18T00:00:00Z', controlSecret: 'x'.repeat(64), root: r.dir, version: 'test' });
+    try {
+      const io = testIo(r.dir, state);
+      expect(await main(['review'], io)).toBe(1);
+      expect(io.errs.join('\n')).toContain('busy');
+      expect(existsSync(store.file('server.json'))).toBe(true);
+      const stop = testIo(r.dir, state);
+      expect(await main(['stop'], stop)).toBe(1);
+      expect(stop.errs.join('\n')).toContain('busy');
+      expect(existsSync(store.file('server.json'))).toBe(true);
+    } finally {
+      for (const s of sockets) s.destroy();
+      await new Promise((ok) => busy.close(ok));
+    }
+  }, 20_000);
+  it('다시 review를 부를 때 --base를 주지 않으면 떠 있는 서버의 기준을 그대로 둔다', async () => {
+    const r = repoWith({ 'a.md': 'a\n' }, {});
+    r.git('tag', 'upstream-point');
+    r.write('a.md', 'b\n');
+    r.commit();
+    r.write('a.md', 'c\n');
+    const state = tempDir();
+    const io = testIo(r.dir, state);
+    const running = main(['review', '--base', 'upstream-point'], io);
+    await io.waitFor(URL_RE);
+    const again = testIo(r.dir, state);
+    expect(await main(['review'], again)).toBe(0);
+    const url = await again.waitFor(URL_RE);
+    const port = Number(URL_RE.exec(url)![1]);
+    const secret = await exchange(port, url);
+    const view = JSON.parse((await request(port, { method: 'GET', path: '/api/view', headers: pageHeaders(port, secret) })).text);
+    expect(view.baseText).toContain('upstream-point');
+    io.abort();
+    expect(await running).toBe(0);
   });
 });

@@ -250,8 +250,31 @@ export class StateStore {
   }
 }
 
-/** 시작할 때 — worktree가 더는 없는 저장 폴더를 지운다. 지운 worktree 경로를 돌려준다(출력에 적는다) */
-export function cleanupStale(base: string): string[] {
+/** 보내지 않은 초안이나 에이전트가 아직 읽지 않은 라운드가 있는가 — 있으면 정리하지 않는다(폴더를 옮긴 사람의 코멘트를 지우지 않게) */
+function hasUnsentWork(dir: string): boolean {
+  const read = <T>(name: string, fallback: T): T => {
+    try {
+      return JSON.parse(readFileSync(join(dir, name), 'utf8')) as T;
+    } catch {
+      return fallback;
+    }
+  };
+  if (read<unknown[]>('drafts.json', []).length > 0) return true;
+  const delivered = new Set(read<{ rounds: number[] }>('delivered.json', { rounds: [] }).rounds);
+  let names: string[] = [];
+  try {
+    names = readdirSync(join(dir, 'rounds'));
+  } catch {
+    return false;
+  }
+  return names.filter((f) => ROUND_FILE.test(f)).some((f) => {
+    const round = read<{ round?: number } | null>(`rounds/${f}`, null)?.round;
+    return typeof round === 'number' && !delivered.has(round);
+  });
+}
+
+/** 시작할 때 — worktree가 더는 없는 저장 폴더를 지운다. 지운 worktree 경로를 돌려준다(출력에 적는다). 보내지 않은 것이 있는 폴더는 두고 kept에 그 폴더를 적는다 */
+export function cleanupStale(base: string, kept: string[] = []): string[] {
   const removed: string[] = [];
   let repos: string[];
   try {
@@ -276,6 +299,10 @@ export function cleanupStale(base: string): string[] {
         continue; // 우리 폴더가 아니거나 아직 쓰는 중
       }
       if (root && !existsSync(root)) {
+        if (hasUnsentWork(dir)) {
+          kept.push(dir);
+          continue;
+        }
         rmSync(dir, { recursive: true, force: true });
         removed.push(root);
       }

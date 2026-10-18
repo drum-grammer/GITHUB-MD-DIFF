@@ -90,6 +90,30 @@ describe('cleanupStale', () => {
     expect(existsSync(join(ghost.dir, '..'))).toBe(false);
     expect(existsSync(alive.dir)).toBe(true);
   });
+  it('보내지 않은 초안이나 넘기지 않은 라운드가 있으면 worktree가 없어도 지우지 않고 남긴 목록에 적는다', () => {
+    const base = tempDir('mdc-state-');
+    const ghost = (name: string): StateStore => {
+      const root = join(tempDir('mdc-gone-'), name);
+      const g = new StateStore(base, stateDirFor(base, { root, commonDir: `/somewhere/${name}/.git` }), root);
+      mkdirSync(g.dir, { recursive: true });
+      g.writeJson('worktree.json', { root, version: '1.5.1' });
+      return g;
+    };
+    const withDraft = ghost('with-draft');
+    withDraft.writeJson('drafts.json', [{ id: 'd1' }]);
+    const withRound = ghost('with-round');
+    mkdirSync(withRound.file('rounds'), { recursive: true });
+    withRound.writeJson('rounds/0001-20261018T000000.json', { round: 1 });
+    const delivered = ghost('delivered');
+    mkdirSync(delivered.file('rounds'), { recursive: true });
+    delivered.writeJson('rounds/0001-20261018T000000.json', { round: 1 });
+    delivered.writeJson('delivered.json', { rounds: [1] });
+    const kept: string[] = [];
+    expect(cleanupStale(base, kept)).toEqual([delivered.root]);
+    expect(kept.sort()).toEqual([withDraft.dir, withRound.dir].sort());
+    expect(existsSync(withDraft.dir)).toBe(true);
+    expect(existsSync(withRound.dir)).toBe(true);
+  });
   it('저장 폴더가 아직 없으면 아무것도 하지 않는다', () => {
     expect(cleanupStale(join(tempDir(), 'none'))).toEqual([]);
   });

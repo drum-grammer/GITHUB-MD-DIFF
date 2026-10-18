@@ -134,16 +134,22 @@ function stateFor(io: Io, repo: RepoInfo): StateStore {
 const control = (info: ServerInfo, path: string, init: RequestInit = {}, timeoutMs = 30_000): Promise<Response> =>
   fetch(`http://127.0.0.1:${info.port}${path}`, { ...init, headers: { 'x-mdc-control': info.controlSecret, 'content-type': 'application/json', ...(init.headers as Record<string, string>) }, signal: AbortSignal.timeout(timeoutMs) });
 
-/** server.json의 서버가 살아 있고 이 worktree의 것인가 — 아니면 낡은 파일을 지운다(pid로 죽이지 않는다) */
-async function liveServer(store: StateStore, repo: RepoInfo): Promise<ServerInfo | null> {
+/** 연결은 됐는데 제때 답하지 않음 — 서버가 그리는 중이라 이벤트 루프가 막혔을 수 있다(낡은 것과 다르다) */
+const timedOut = (e: unknown): boolean => e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError');
+const busyText = (info: ServerInfo, again: string): string =>
+  `the review server on port ${info.port} is busy (it may still be drawing a large change) — wait a moment and run markdown-diff-cat ${again}`;
+
+/** server.json의 서버가 살아 있고 이 worktree의 것인가 — 아니면 낡은 파일을 지운다(pid로 죽이지 않는다). 늦게 답하면 바쁜 것으로 보고 파일을 둔다 */
+async function liveServer(store: StateStore, repo: RepoInfo, again: string): Promise<ServerInfo | null> {
   const info = store.readServer();
   if (!info) return null;
   try {
     const res = await control(info, '/control/ping', {}, 1500);
     const body = (await res.json()) as { root?: string };
     if (res.ok && body.root === repo.root) return info;
-  } catch {
-    // 응답 없음 — 낡은 상태 파일
+  } catch (e) {
+    if (timedOut(e)) throw new CliError(1, busyText(info, again));
+    // 연결 거부 등 — 낡은 상태 파일
   }
   store.removeServer();
   return null;
@@ -173,9 +179,9 @@ async function startOrReuse(args: Args, io: Io, repo: RepoInfo, store: StateStor
   const view: ViewKind = args.flags.has('since-last') ? 'since-last' : 'merge-base';
   const base = args.flags.get('base');
   const baseRef = typeof base === 'string' ? base : undefined;
-  const running = await liveServer(store, repo);
+  const running = await liveServer(store, repo, args.flags.has('reopen') ? 'review --reopen' : 'review');
   if (running) {
-    const url = args.flags.has('reopen') ? await newUrl(running, '/control/code', {}) : await newUrl(running, '/control/base', { view, base: baseRef ?? null });
+    const url = args.flags.has('reopen') ? await newUrl(running, '/control/code', {}) : await newUrl(running, '/control/base', { view, base: baseRef });
     io.out(`A review server is already running for this worktree (port ${running.port}).`);
     io.out(`Review page (one-time link, valid 2 minutes): ${url}`);
     if (args.flags.has('open')) io.open(url);
@@ -198,8 +204,10 @@ async function review(args: Args, io: Io): Promise<number> {
   if (args.flags.has('pr')) throw new CliError(2, 'PR mode (--pr) is not available in this version yet');
   const repo = repoInfo(io.cwd);
   const store = stateFor(io, repo);
-  const removed = cleanupStale(store.base);
+  const kept: string[] = [];
+  const removed = cleanupStale(store.base, kept);
   if (removed.length) io.out(`Removed the review state of worktrees that no longer exist: ${removed.join(', ')}`);
+  for (const dir of kept) io.out(`Kept the review state of a worktree that no longer exists, because it has unsent comments or rounds not yet read: ${dir}`);
   const claim = store.file('server.starting');
   claimStart(claim);
   let started: Awaited<ReturnType<typeof startOrReuse>>;
@@ -319,7 +327,8 @@ async function stop(args: Args, io: Io): Promise<number> {
     try {
       const res = await control(info, '/control/stop', { method: 'POST' }, 3000);
       io.out(res.ok ? `Stopped the review server on port ${info.port}.` : `The review server on port ${info.port} refused to stop (HTTP ${res.status}); removed its state file.`);
-    } catch {
+    } catch (e) {
+      if (timedOut(e)) throw new CliError(1, busyText(info, 'stop'));
       io.out(`The review server on port ${info.port} did not answer — it has probably exited. Removed its state file.`);
     }
     store.removeServer();
