@@ -265,6 +265,7 @@ export class ReviewPage {
     }
     if (file.error) section.append(el(doc, 'p', 'mdc-file-notice mdc-error', t('reviewRenderFailed', [file.error])));
     const prose = el(doc, 'div', 'prose-diff');
+    prose.setAttribute('oai-annotation-container', ''); // Codex 주석 UI가 이 안의 oai-annotatable만 짚는다(스펙 §7-2)
     const body = el(doc, 'div', 'markdown-body');
     prose.append(body);
     section.append(prose);

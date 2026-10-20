@@ -39,6 +39,14 @@ function mount(v: ViewPayload, opts: { remote?: boolean; poll?: { changed: boole
 }
 
 describe('ReviewPage', () => {
+  it('파일마다 렌더링 본문을 Codex 주석 컨테이너로 감싼다(스펙 §7-2)', async () => {
+    const { root, page } = mount(view());
+    await page.load();
+    const prose = root.querySelectorAll('.prose-diff');
+    expect(prose.length).toBe(1);
+    expect(prose[0].hasAttribute('oai-annotation-container')).toBe(true);
+  });
+
   it('머리·파일 목록(상태·바뀐 곳·보이지 않는 변경)·확장 접기와 툴바를 그린다', async () => {
     const { root, page, mermaid } = mount(view());
     await page.load();

@@ -224,3 +224,33 @@ test('바뀐 단어는 GitHub rich diff와 같은 모양 — 더한 것은 밑�
     expect(del.bg).toBe(scheme === 'light' ? 'rgb(255, 235, 233)' : 'rgba(248, 81, 73, 0.1)');
   }
 });
+
+test('Codex 주석 — 컨테이너·잎 메타데이터, 그 줄을 show로 대조하고 mark로 기준 삼기', async ({ page }) => {
+  repo = makeRepo({ 'docs/guide.md': GUIDE });
+  repo.write('docs/guide.md', GUIDE2);
+  const review = await startReview(repo);
+  await page.goto(review.url);
+  const file = fileSection(page, 'docs/guide.md');
+  await expect(file.locator('.prose-diff[oai-annotation-container]')).toHaveCount(1);
+
+  const para = file.locator('p', { hasText: 'Install the tool' }).first();
+  await expect(para).toHaveAttribute('oai-annotatable', 'docs/guide.md L3');
+  const meta = JSON.parse((await para.getAttribute('oai-annotation-metadata'))!);
+  expect(meta).toMatchObject({ path: 'docs/guide.md', side: 'new', start: 3, end: 3, kind: 'paragraph' });
+  expect(meta.rev).toMatch(/^r[0-9a-z]{5}$/);
+
+  // 합친 표의 행(확장이 복제한 것)도 메타데이터를 들고 있다
+  const rows = file.locator('[data-mdf="table"] tr[oai-annotation-metadata]');
+  expect(await rows.count()).toBeGreaterThan(0);
+
+  const shown = cli(repo, 'show', '--rev', meta.rev, 'docs/guide.md', '3-3');
+  expect(shown.code).toBe(0);
+  expect(shown.stdout.trim()).toBe('Install the tool with a single command.');
+  const old = cli(repo, 'show', '--rev', meta.rev, '--side', 'old', 'docs/guide.md', '3-3');
+  expect(old.code).toBe(0);
+  expect(old.stdout.trim()).toBe('Install the tool with one command.');
+
+  const marked = cli(repo, 'mark', '--rev', meta.rev);
+  expect(marked.code).toBe(0);
+  await review.stop();
+});
