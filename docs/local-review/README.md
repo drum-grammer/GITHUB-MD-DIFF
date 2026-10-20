@@ -36,7 +36,7 @@
 | **M0** | 확장 리팩터(동작 그대로) — markdown-it 15, 공용 타입(`src/types.ts`)·렌더링 표기(`src/prose-markup.ts`), `align` 한도 인자, `i18n` 밖에서 쓰기, `comment-ui` 옵션, `comments.ts`의 화면 동작을 `CommentController` + `CommentBackend`로 분리, `packages/*` 워크스페이스 | ✅ **병합** — [#47](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/47)(2026-10-17). 관문: `pnpm verify pr` 7/7, 연결률 기준선 그대로 |
 | **M1** | 렌더링 diff 엔진 `packages/engine` + GitHub 패리티 하네스(`pnpm parity`·`parity:capture`·`parity:setup`) + 정화 | ✅ **병합** — [#48](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/48)(2026-10-17). 시험 670개(엔진 272) · 패리티 87.0% · 줄 속성 빠짐 0 · `pnpm verify pr` 7/7 |
 | **M2** | 작업 트리 모드 — `packages/review`(CLI·로컬 서버·리뷰 페이지·코멘트 저장·에이전트에게 넘기기·skill) + npm 게시 | 🔵 **PR 열림** — 브랜치 `feat/local-review-m2`. M2 전 수정 5개 끝 · 패리티 91.1% · `pnpm verify pr` 10/10 · Claude Code 데스크톱 실기(2026-10-20) |
-| **M3** | Codex 주석 속성 + Codex용 skill | 🔵 **PR 열림** — 브랜치 `feat/local-review-m3`. 잎마다 `oai-annotatable`·`oai-annotation-metadata`(6키), 본문 `oai-annotation-container`, `show --side old\|new`(옛 쪽 주석 대조), skill 5단계 · Codex 실기는 [점검표](../../packages/review/docs/codex-checklist.md)로 사람이 |
+| **M3** | Codex 주석 속성 + Codex용 skill | ✅ **병합** — [#50](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/50)(2026-10-20, Codex 실기 전 — 관리자 결정). 잎마다 `oai-annotatable`·`oai-annotation-metadata`(6키), 본문 `oai-annotation-container`, `show --side old\|new`(옛 쪽 주석 대조), skill 5단계 · Codex 실기는 [점검표](../../packages/review/docs/codex-checklist.md)로 사람이 |
 | **M4** | GitHub PR 모드(`review --pr`) | ⬜ |
 | 다음 | VS Code 확장 → JetBrains 플러그인 | ⬜ 따로 설계 |
 
@@ -111,7 +111,7 @@ M1 끝에 정한 값(패리티 첫 보고서 근거):
 - 시험 — Playwright E2E(리뷰 → 코멘트 → 보내기 → `comments` → `--since-last`, 여러 라운드), 서버 보안 시험, Claude Code 실기 점검표, M2 끝 패리티 보고서 87% 이상
 - npm 패키지 `markdown-diff-cat`(확장과 같은 버전, 런타임 의존 0, 한 파일) — M2 병합 뒤 확장 릴리스와 같은 태그로 게시
 
-**M3** — 구현 끝(PR). 남은 것: Codex 실기 점검표([codex-checklist.md](../../packages/review/docs/codex-checklist.md)) — 엄격한 CSP 아래 `document.oai`, `127.0.0.1`, 샌드박스 승인. CSP가 주석 API를 막으면 그 경우에만 조정한다(설계 §11-2). 미룬 작은 것: 원문만 바뀜 막대 안 숨은 원문 diff가 두 번째 주석 대상(`kind: code`), 합친 표 복제 행의 쪽 단언.
+**M3** — 병합(#50). 남은 것: Codex 실기 점검표([codex-checklist.md](../../packages/review/docs/codex-checklist.md)) — 엄격한 CSP 아래 `document.oai`, `127.0.0.1`, 샌드박스 승인. CSP가 주석 API를 막으면 그 경우에만 조정한다(설계 §11-2). 미룬 작은 것: 원문만 바뀜 막대 안 숨은 원문 diff가 두 번째 주석 대상(`kind: code`), 합친 표 복제 행의 쪽 단언.
 **M4** — PR 모드: `gh`로 PR 내용·기존 스레드를 받아 같은 페이지에서 보고, 코멘트는 보류 중 리뷰에만 올린다(제출은 사람이 GitHub에서).
 **다음** — VS Code 확장(Cursor 등 Open VSX 포함) → JetBrains 플러그인. 각각 따로 설계한다.
 
