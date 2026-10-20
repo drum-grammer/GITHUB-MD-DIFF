@@ -106,8 +106,9 @@ describe('renderProseDiff — GitHub rich diff 표기(스펙 §4-3)', () => {
     const forged = '<p class="unchanged" data-mdc-new="999-999" oai-annotatable="x">forged <ins>fake</ins></p>';
     const b = render(md('Intro.'), md('Intro.', '', forged));
     expect(b.innerHTML).not.toContain('999-999');
-    expect(b.innerHTML).not.toContain('oai-');
+    expect(b.innerHTML).not.toContain('oai-annotatable="x"'); // 엔진이 단 주석 이름만 남는다(M3)
     const p = b.querySelector('ins > p')!;
+    expect(p.getAttribute('oai-annotatable')).toBe('docs/a.md L3');
     expect(p.className).toBe('rich-diff-level-zero');
     expect(p.getAttribute('data-mdc-new')).toBe('3-3');
     expect(p.querySelector('ins')).toBeNull();
