@@ -1,0 +1,49 @@
+/* rich diff 표시 — 엔진이 GitHub와 같은 표기(ins·del·changed·added·removed·vicinity·expandable)를 낸다. 모양은 직접 쓴다 */
+.prose-diff { padding: 16px 32px 24px; background: var(--bgColor-default); }
+.prose-diff > .markdown-body { background: transparent; }
+
+/* 글자 단위 변경 — GitHub rich diff와 같게(2026-10-18 GitHub 계산 모양 확인): 밑줄·옅은 바탕·아래 가는 선, 지운 글자는 줄 긋기. 글자색은 본문 그대로 */
+.prose-diff .markdown-body ins { text-decoration: underline; color: var(--fgColor-default); background: var(--bgColor-success-muted); border-bottom: 1px solid var(--borderColor-success-muted); }
+.prose-diff .markdown-body del { text-decoration: line-through; color: var(--fgColor-default); background: var(--bgColor-danger-muted); }
+
+/* 블록째 더한·지운 것 — 왼쪽 막대와 옅은 바탕. 안쪽 글자는 다시 칠하지 않는다 */
+.prose-diff .markdown-body > ins,
+.prose-diff .markdown-body > del,
+.prose-diff .markdown-body .added,
+.prose-diff .markdown-body .removed { display: block; margin-left: -16px; padding-left: 12px; border-left: 4px solid transparent; }
+.prose-diff .markdown-body > ins,
+.prose-diff .markdown-body .added { border-left-color: var(--borderColor-success-emphasis); background: var(--bgColor-success-muted); }
+.prose-diff .markdown-body > del,
+.prose-diff .markdown-body .removed { border-left-color: var(--borderColor-danger-emphasis); background: var(--bgColor-danger-muted); color: var(--fgColor-default); text-decoration: none; }
+.prose-diff .markdown-body > ins,
+.prose-diff .markdown-body > ins ins,
+.prose-diff .markdown-body .added ins { text-decoration: none; border-bottom: 0; }
+.prose-diff .markdown-body > ins ins,
+.prose-diff .markdown-body .added ins { background: transparent; }
+.prose-diff .markdown-body > del del,
+.prose-diff .markdown-body .removed del { background: transparent; }
+.prose-diff .markdown-body li.added,
+.prose-diff .markdown-body li.removed { display: list-item; margin-left: 0; }
+
+/* 고친 블록 — 바뀐 단어만 칠하고 왼쪽에 가는 막대 */
+.prose-diff .markdown-body > .changed { margin-left: -16px; padding-left: 12px; border-left: 4px solid var(--borderColor-attention-emphasis); }
+
+/* 원문만 바뀐 곳(스펙 §4-2 7) — 막대를 누르면 원문 줄 diff */
+.prose-diff .markdown-body > .mdc-source-only { margin: 8px 0 16px -16px; padding: 6px 12px; border-left: 4px dashed var(--borderColor-attention-emphasis); background: var(--bgColor-attention-muted); }
+.mdc-source-only-toggle { padding: 0; border: 0; background: none; color: var(--fgColor-attention); font: inherit; font-size: 12px; cursor: pointer; }
+.mdc-source-only-toggle::before { content: '▸ '; }
+.mdc-source-only-toggle[aria-expanded='true']::before { content: '▾ '; }
+.markdown-body .mdc-source-diff { margin: 8px 0 0; font-size: 12px; }
+.mdc-source-diff .mdc-del { color: var(--fgColor-danger); }
+.mdc-source-diff .mdc-ins { color: var(--fgColor-success); }
+
+/* 원문에 사람이 쓴 <ins>·<del> — 엔진이 다른 요소로 바꿨다. 브라우저 기본 모양 그대로(diff 색 없음) */
+.mdc-user-ins { text-decoration: underline; }
+.mdc-user-del { text-decoration: line-through; }
+
+/* 막은 이미지(저장소 밖·원격) — 자리만 */
+.markdown-body img[data-mdc-blocked],
+.markdown-body img[data-mdc-remote]:not([src^='https:']) { min-width: 16px; min-height: 16px; outline: 1px dashed var(--borderColor-default); }
+
+/* mermaid */
+.mdc-mermaid { margin: 0 0 16px; overflow-x: auto; }

@@ -384,3 +384,39 @@ describe('CommentController', () => {
     expect(ctrl.alive()).toBe(false);
   });
 });
+
+// M2 전에 막을 것(M0 최종 검토) — 확장은 네트워크 대기 때문에 닿지 않지만 빠른 로컬 백엔드(M2 페이지)에서 닿는다
+describe('CommentController — 빠른 백엔드에서 닿는 경합', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('refresh 둘이 같은 틱에 겹쳐도 스레드 상자는 한 번만 그린다', async () => {
+    const b = new FakeBackend();
+    b.state = { threads: [thread('t1')], pendingReview: false };
+    const { body, ctrl } = setup(b);
+    await settle();
+    await Promise.all([ctrl.refresh(), ctrl.refresh()]);
+    await settle();
+    expect(body.querySelectorAll('[data-mdf="thread"]').length).toBe(1);
+  });
+
+  it('mapping이 동기로 던져도 unhandled rejection 없이 unavailable을 부른다', async () => {
+    const b = new FakeBackend();
+    b.state = { threads: [thread('t1')], pendingReview: false };
+    b.mapping = () => {
+      throw new Error('sync mapping failure');
+    };
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      setup(b);
+      await settle();
+      await settle();
+      expect(b.unavailable).toHaveBeenCalled();
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
+  });
+});

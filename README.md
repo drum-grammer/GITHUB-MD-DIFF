@@ -77,10 +77,15 @@ No data collected and no remote code. The extension reads the open GitHub page i
 - Commenting uses the same internal requests as GitHub's own "Files changed" page, which are not a public API. They live only in `src/github-api.ts`. If GitHub changes them, the extension turns commenting off on its own: no **+**, files with review threads stay in the source view as before, and folding and tables keep working. The toolbar icon shows `!`, and a note in the corner of the page has a **Report on GitHub** link that opens a prefilled issue (no repository name or URL in it). A comment that fails to post stays in its box so you can copy it
 - A block gets **+** only when it can be matched to its source lines. Blocks GitHub draws from HTML or diagrams may not get one; use the source diff for those
 
+## Local review (outside GitHub)
+
+[`markdown-diff-cat`](packages/review/README.md) is a command-line companion for Markdown you change locally — before you commit, or while a coding agent edits your docs. It shows the same rendered diff in a page on your own computer and hands your block comments to the agent with the exact source lines. It sends nothing outside by default. Until its first release, build it with `pnpm --filter markdown-diff-cat build` and run `node packages/review/dist/markdown-diff-cat.mjs review`.
+
 ## Develop
 
 - `pnpm test` — unit and DOM tests (vitest + jsdom)
 - `pnpm typecheck`
+- `pnpm --filter markdown-diff-cat <test|typecheck|build|e2e>` — the local review CLI in `packages/review` (unit tests with vitest, end-to-end tests with Playwright on temporary git repositories)
 - `pnpm e2e:login` once — sign in to GitHub in the window that opens, then close it. The profile lives in `~/.cache/github-md-diff/e2e-profile` (outside the repo)
 - `pnpm e2e` — real Chromium with the extension against public pull requests, signed in and signed out
 - `GMD_E2E_WRITE=1 pnpm e2e` — also posts comments from the rendered view to the demo pull request as a pending review, checks their source lines, and deletes the review with `gh` (needs `gh` signed in as the repository owner)
@@ -200,6 +205,10 @@ Markdown Diff Cat은 두 장점을 합쳤어요. 렌더링된 문서를 보면�
 ### 개인정보
 
 수집하는 데이터와 원격 코드가 없어요. 열린 GitHub 페이지는 보여 주는 모양을 바꾸려고 브라우저 안에서 읽어요. 로그인한 경우에는 이미 있는 세션으로 GitHub하고만 통신해요 — PR의 리뷰 스레드와 보여 주는 마크다운 파일을 읽고, 내가 쓴 코멘트를 올려요. 개발자나 다른 곳으로는 아무것도 보내지 않고 토큰도 쓰지 않아요. 설정 하나(켜짐·꺼짐)만 `chrome.storage.local`에 저장해요. 전문: [PRIVACY.md](PRIVACY.md).
+
+### 로컬 리뷰(GitHub 밖)
+
+[`markdown-diff-cat`](packages/review/README.md)은 로컬에서 고친 마크다운(커밋 전, 또는 코딩 에이전트가 문서를 고치는 동안)을 같은 렌더링 diff로 내 컴퓨터의 페이지에 보여 주고, 블록 코멘트를 정확한 원문 줄과 함께 에이전트에게 넘기는 명령줄 도구예요. 기본 상태에서는 바깥으로 아무것도 보내지 않아요. 첫 릴리스 전에는 `pnpm --filter markdown-diff-cat build` 뒤 `node packages/review/dist/markdown-diff-cat.mjs review`로 써요.
 
 ### 로드맵·조사·테스트
 

@@ -150,7 +150,9 @@ export function unitSeq(diff: FileDiff): Array<'S' | 'C'> {
     }
     else if (b.tokenType === 'alert_open' && b.op === 'changed') {
       // 고친 알림은 묶음 없이 제목 문단(변경 없음이면 S) + 본문(모두 같으면 자식마다 S, 아니면 .changed 하나)
-      const [title, ...body] = b.leaves;
+      const [title, ...rest] = b.leaves;
+      // 알림 종류를 바꿨다 — 옛 제목(지움)은 새 제목과 한 단위(del + ins)
+      const body = title.op === 'added' && rest[0]?.op === 'removed' && rest[0].leaf.old?.start === b.old?.start ? rest.slice(1) : rest;
       seq.push(title.op === 'same' ? 'S' : 'C');
       const box = topAt(b.new)!.container.querySelector('.markdown-alert')!;
       if (body.every((l) => l.op === 'same')) {

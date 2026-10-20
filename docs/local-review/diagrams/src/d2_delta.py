@@ -104,7 +104,7 @@ def heads():
     out = []
     for x, h, s in [(24, '기존 — 확장 1.5.1', 'GitHub가 그린 diff를 확장이 다듬는다'),
                     (344, '바뀐 것', '요소 4 · 관계 4'),
-                    (632, '지금 — M0 병합 + M1(이 PR)', '로컬 원문을 엔진이 같은 표기로 그린다')]:
+                    (632, 'M1 뒤 — M0 + M1 병합', '로컬 원문을 엔진이 같은 표기로 그린다')]:
         out.append(f'<text x="{x}" y="28" fill="{INK}" font-size="14" font-weight="600" font-family="{KO}">{h}</text>')
         out.append(f'<text x="{x}" y="52" fill="{MUTED}" font-size="12" font-family="{KO}">{s}</text>')
     return '\n'.join(out)
@@ -122,8 +122,8 @@ def bottom():
         out.append(f'<text x="{x+32}" y="{y+28}" fill="{MUTED}" font-size="12" font-family="{KO}">{mark} {text}</text>')
         x += 120
     out.append(f'<rect x="{x}" y="{y+16}" width="20" height="16" rx="3" fill="{KINDS["focal"][0]}" stroke="{ACCENT}" stroke-width="1"/>')
-    out.append(f'<text x="{x+32}" y="{y+28}" fill="{MUTED}" font-size="12" font-family="{KO}">이 PR의 핵심</text>')
-    out.append(f'<text x="24" y="{y+56}" fill="{MUTED}" font-size="12" font-family="{KO}">같은 id는 두 그림에서 같은 것이다. 로컬 리뷰 페이지·CLI(M2)는 이 다음 마일스톤이다.</text>')
+    out.append(f'<text x="{x+32}" y="{y+28}" fill="{MUTED}" font-size="12" font-family="{KO}">M1의 핵심</text>')
+    out.append(f'<text x="24" y="{y+56}" fill="{MUTED}" font-size="12" font-family="{KO}">같은 id는 두 그림에서 같은 것이다. 로컬 리뷰 페이지·CLI는 M2에서 이 엔진 위에 얹는다.</text>')
     out.append(f'<text x="936" y="{y+56}" fill="{MUTED}" font-size="9" font-family="{MONO}" text-anchor="end">6 components · 6 relationships · 8 changes</text>')
     return '\n'.join(out)
 
@@ -140,7 +140,7 @@ html = page(
     'local-review-delta', 'Architecture delta · 1.5.1 → M1', '기존과 지금 — GitHub 화면 다듬기에서 로컬 렌더링까지',
     '확장 1.5.1은 GitHub가 그린 rich diff를 확장 화면 모듈로 다듬었고, M0과 M1 뒤에는 로컬 원문을 새 엔진이 같은 표기로 그려 같은 모듈에 넘기며 패리티 하네스가 GitHub 포착본과 비교한다.',
     VW, VH, body,
-    '<p class="note">왼쪽은 지금 스토어에 있는 확장(1.5.1), 오른쪽은 M0(병합)과 M1(이 PR) 뒤다. 확장 화면 모듈은 M0에서 코멘트 동작을 백엔드 인터페이스 뒤로 떼어 내고 markdown-it 15로 올렸을 뿐, 확장 동작은 그대로다. 새 엔진의 HTML이 GitHub와 같은 표기라 같은 모듈이 받는다.</p>')
+    '<p class="note">왼쪽은 스토어에 있는 확장(1.5.1), 오른쪽은 M0과 M1이 병합된 뒤다. 확장 화면 모듈은 M0에서 코멘트 동작을 백엔드 인터페이스 뒤로 떼어 내고 markdown-it 15로 올렸을 뿐, 확장 동작은 그대로다. 새 엔진의 HTML이 GitHub와 같은 표기라 같은 모듈이 받는다.</p>')
 # 계약: 하나의 svg에 data-diagram="architecture-delta", 화살표 표식 이름
 html = html.replace('role="img" aria-labelledby="local-review-delta-title', 'data-diagram="architecture-delta" role="img" aria-labelledby="local-review-delta-title', 1)
 html = html.replace('<marker id="arrow" ', f'<marker id="delta-arrow" markerUnits="userSpaceOnUse" ', 1)

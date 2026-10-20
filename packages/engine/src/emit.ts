@@ -199,6 +199,10 @@ class Emitter {
       this.bars(item.bars);
       return;
     }
+    if (ot && !block.wholeBlock && (nt.tokenType === 'fence' || nt.tokenType === 'code_block') && this.codeInPlace(root, ot)) {
+      this.bars(item.bars);
+      return;
+    }
     const single = nt.leaves.length === 1 && item.removedInside.length === 0 ? nt.leaves[0] : null;
     const singleWords = single !== null ? this.plan.words.get(single) : undefined;
     if (ot && (block.wholeBlock || WHOLE_TYPES.has(nt.tokenType) || (single !== null && singleWords === undefined && !CONTAINER_TYPES.has(nt.tokenType) && nt.tokenType !== 'alert_open'))) {
@@ -222,16 +226,74 @@ class Emitter {
     this.bars(item.bars);
   }
 
+  /**
+   * 바뀐 코드·Mermaid 블록 — GitHub처럼 바뀐 블록 하나 안에서 줄 단위로, 이어진 바뀐 줄마다 넣은 줄 <ins> 먼저·지운 줄 <del> 다음
+   * (GitHub 포착본 whitespace·mermaid·review-docs-handbook). Mermaid는 페이지가 그림을 그리도록 새 원문을 data-mdc-source에 둔다.
+   * 언어(info string)가 바뀌었거나 줄 diff가 비면 false — 옛·새 블록을 통째로 낸다
+   */
+  private codeInPlace(root: HTMLDivElement, ot: TopUnit): boolean {
+    const find = (c: Element) => c.querySelector<HTMLElement>(':scope > pre, :scope > section > pre');
+    const pre = find(root);
+    const oldPre = find(ot.container);
+    if (!pre || !oldPre) return false;
+    const info = (el: Element) => `${el.getAttribute('lang') ?? ''}|${el.querySelector('code')?.getAttribute('class') ?? ''}`;
+    if (info(pre) !== info(oldPre)) return false;
+    const holder = pre.querySelector('code') ?? pre;
+    const oldText = (oldPre.querySelector('code') ?? oldPre).textContent ?? '';
+    const newText = holder.textContent ?? '';
+    const lines = (t: string) => (t.endsWith('\n') ? t.slice(0, -1) : t).split('\n');
+    const ops = lineOps(lines(oldText), lines(newText));
+    if (ops.every((o) => o.op === 'same')) return false;
+    const line = (tag: 'ins' | 'del', text: string) => {
+      const el = this.doc.createElement(tag);
+      el.textContent = `${text}\n`;
+      return el;
+    };
+    holder.replaceChildren();
+    let ins: string[] = [];
+    let del: string[] = [];
+    const flush = () => {
+      for (const l of ins) holder.append(line('ins', l));
+      for (const l of del) holder.append(line('del', l));
+      ins = [];
+      del = [];
+    };
+    for (const o of ops) {
+      if (o.op === 'same') {
+        flush();
+        holder.append(`${o.line}\n`);
+      } else (o.op === 'ins' ? ins : del).push(o.line);
+    }
+    flush();
+    pre.classList.add('rich-diff-level-one');
+    const section = pre.parentElement?.tagName === 'SECTION' ? pre.parentElement : null;
+    if (section) {
+      pre.setAttribute('data-mdc-source', newText);
+      section.classList.add('changed', 'rich-diff-level-zero');
+      this.units.push({ kind: 'change', nodes: [...root.childNodes] });
+    } else this.units.push({ kind: 'change', nodes: [this.changedDiv([...root.childNodes])] });
+    return true;
+  }
+
   /** 고친 알림 — GitHub처럼 묶음 없이 제목 문단과 .changed 본문으로 */
   private alert(root: Element, item: Extract<PlanItem, { type: 'top' }>): void {
     const box = root.querySelector('.markdown-alert') ?? root.firstElementChild!;
     const title = box.querySelector<HTMLElement>(':scope > .markdown-alert-title');
     const rest = [...box.childNodes].filter((n) => n !== title && !(n.nodeType === TEXT_NODE && !(n.textContent ?? '').trim()));
+    const titleIdx = title ? Number(title.getAttribute(LEAF_ATTR)) : -1;
+    // 알림 종류를 바꾸면(WARNING→CAUTION) 제목 잎끼리 짝이 없다 — GitHub처럼 옛 제목 <del> + 새 제목 <ins>, 본문은 따로 본다
+    const swapped =
+      title && this.plan.newOps.get(titleIdx)?.op === 'added'
+        ? item.removedInside.find((r) => leafOf(this.os!, r.old).el?.classList.contains('markdown-alert-title'))
+        : undefined;
     if (title) {
-      const i = Number(title.getAttribute(LEAF_ATTR));
+      const i = titleIdx;
       const words = this.plan.words.get(i);
       const op = this.plan.newOps.get(i);
-      if (op && op.op !== 'same') {
+      const old = swapped ? this.oldLeafClone(swapped.old) : null;
+      if (old) {
+        this.units.push({ kind: 'change', nodes: [this.wrap('del', [old]), this.wrap('ins', [title])] });
+      } else if (op && op.op !== 'same') {
         title.classList.add('rich-diff-level-one');
         if (words !== undefined) title.innerHTML = words;
         this.units.push({ kind: 'change', nodes: [this.changedDiv([title])] });
@@ -240,7 +302,7 @@ class Emitter {
     const holder = this.doc.createElement('div');
     holder.append(...rest);
     const leaves = [...holder.querySelectorAll(`[${LEAF_ATTR}]`)].map((el) => this.plan.newOps.get(Number(el.getAttribute(LEAF_ATTR)))?.op);
-    const removedHere = item.removedInside.filter((r) => holder.querySelector(`[${LEAF_ATTR}="${r.anchor}"]`) || r.anchor === Number(title?.getAttribute(LEAF_ATTR)));
+    const removedHere = item.removedInside.filter((r) => r !== swapped && (holder.querySelector(`[${LEAF_ATTR}="${r.anchor}"]`) || r.anchor === titleIdx));
     if (leaves.every((op) => op === 'same') && removedHere.length === 0) {
       for (const n of [...holder.childNodes]) this.units.push({ kind: 'same', nodes: [n] });
       return;

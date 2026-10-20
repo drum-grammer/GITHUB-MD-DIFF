@@ -4,6 +4,8 @@ Effective date: 2026-10-08
 
 Markdown Diff Cat for GitHub ("the extension") does not collect, store, sell, or share any personal data.
 
+This policy covers the Chrome extension. The command-line tool `markdown-diff-cat` in the same repository (`packages/review`) runs only on your computer and has its own note: [packages/review/README.md](packages/review/README.md#privacy-and-security).
+
 ## What the extension does with data
 
 - **Page content.** On `https://github.com/*` pages, the extension reads the pull request "Files changed" page that is already open in your browser so it can switch Markdown files to the rendered view, fold unchanged sections, and merge changed tables. This happens only inside your browser. Nothing from the page is sent anywhere.
@@ -29,6 +31,8 @@ Questions or concerns: open an issue at https://github.com/drum-grammer/GITHUB-M
 시행일: 2026-10-08
 
 Markdown Diff Cat for GitHub(이하 "확장")은 개인정보를 수집·저장·판매·공유하지 않습니다.
+
+이 방침은 크롬 확장에 대한 것입니다. 같은 저장소의 명령줄 도구 `markdown-diff-cat`(`packages/review`)은 내 컴퓨터에서만 돌고, 안내는 [packages/review/README.md](packages/review/README.md#privacy-and-security)에 따로 있습니다.
 
 - **페이지 내용:** `https://github.com/*`에서 이미 열려 있는 PR "Files changed" 화면을 브라우저 안에서만 읽어, 마크다운 파일을 렌더링 보기로 바꾸고 바뀌지 않은 구간을 접고 바뀐 표를 합칩니다. 페이지 내용은 어디로도 보내지 않습니다.
 - **코멘트(GitHub에 로그인한 경우):** 렌더링 보기에서 코멘트를 달 수 있도록, 이미 로그인된 GitHub 세션으로 `github.com`에만 요청합니다. PR의 리뷰 스레드와 커밋 ID, 화면에 나온 마크다운 파일을 읽고(GitHub가 자체 파일 호스트 `raw.githubusercontent.com`에서 내줄 수 있습니다), 사람이 누를 때만 리뷰 코멘트를 올리거나 답하거나 해결합니다. 요청은 GitHub 화면이 하는 것처럼 브라우저에서 GitHub로 바로 갑니다. 개발자는 아무것도 받지 않고, 토큰을 저장하거나 쓰지 않습니다.

@@ -1,0 +1,36 @@
+/* 페이지 껍데기 — 머리·파일 목록·파일 상자·알림 */
+body { margin: 0; background: var(--bgColor-default); color: var(--fgColor-default); font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif; }
+#mdc-app { max-width: 1280px; margin: 0 auto; padding: 0 16px 64px; }
+.mdc-header { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 0; background: var(--bgColor-default); border-bottom: 1px solid var(--borderColor-default); }
+.mdc-title { margin: 0; font-size: 16px; font-weight: 600; }
+.mdc-base { margin-right: auto; color: var(--fgColor-muted); font-size: 12px; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; }
+.mdc-base-select { padding: 2px 6px; border: 1px solid var(--borderColor-default); border-radius: 6px; background: var(--bgColor-default); color: inherit; font: inherit; font-size: 12px; }
+.mdc-send { padding: 4px 12px; font-size: 14px; }
+.mdc-banner { display: flex; align-items: center; gap: 12px; margin: 12px 0; padding: 8px 12px; border: 1px solid var(--borderColor-attention-emphasis); border-radius: 6px; background: var(--bgColor-attention-muted); }
+.mdc-banner[hidden] { display: none; }
+.mdc-notice { margin: 8px 0; color: var(--fgColor-muted); font-size: 12px; }
+.mdc-earlier, .mdc-offview { margin: 12px 0; padding: 8px 12px; border: 1px dashed var(--borderColor-default); border-radius: 6px; color: var(--fgColor-muted); font-size: 12px; }
+.mdc-earlier ul, .mdc-offview ul { margin: 4px 0 0; padding-left: 18px; }
+.mdc-empty { margin: 32px 0; color: var(--fgColor-muted); text-align: center; }
+.mdc-filelist { margin: 16px 0; border: 1px solid var(--borderColor-default); border-radius: 6px; }
+.mdc-filelist h2 { margin: 0; padding: 8px 12px; border-bottom: 1px solid var(--borderColor-default); background: var(--bgColor-muted); font-size: 12px; font-weight: 600; }
+.mdc-filelist ul { margin: 0; padding: 0; list-style: none; }
+.mdc-filerow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 6px 12px; border-top: 1px solid var(--borderColor-muted); }
+.mdc-filerow:first-child { border-top: 0; }
+.mdc-filerow .mdc-path { margin-right: auto; color: var(--fgColor-accent); font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; text-decoration: none; }
+.mdc-count { color: var(--fgColor-muted); font-size: 12px; }
+.mdc-count:empty { display: none; }
+.mdc-count-invisible { color: var(--fgColor-attention); }
+.mdc-status { padding: 0 6px; border: 1px solid var(--borderColor-default); border-radius: 2em; font-size: 11px; }
+.mdc-status-added { color: var(--fgColor-success); }
+.mdc-status-deleted { color: var(--fgColor-danger); }
+.mdc-file { margin: 16px 0; border: 1px solid var(--borderColor-default); border-radius: 6px; overflow: hidden; scroll-margin-top: 64px; }
+.mdc-file-head { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--borderColor-default); background: var(--bgColor-muted); }
+.mdc-file-head .mdc-path { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; }
+.mdc-file-notice { margin: 8px 16px 0; color: var(--fgColor-attention); font-size: 12px; }
+.mdc-error { color: var(--fgColor-danger); }
+.mdc-badge { margin-left: 8px; padding: 0 6px; border: 1px solid currentColor; border-radius: 2em; font-size: 11px; font-weight: 400; }
+.mdc-badge-sent { color: var(--fgColor-success); }
+.mdc-badge-stale { color: var(--fgColor-attention); }
+.mdc-toast { position: fixed; bottom: 24px; left: 50%; z-index: 30; transform: translateX(-50%); padding: 8px 16px; border-radius: 6px; background: var(--bgColor-emphasis); color: var(--fgColor-onEmphasis); box-shadow: var(--shadow-floating-large); }
+.mdc-expired { max-width: 560px; margin: 96px auto; text-align: center; }
