@@ -29,13 +29,13 @@
 
 ## 2. 지금 어디까지 왔나 (2026-10-18)
 
-설계만 한 것이 아니다. 확장 리팩터(M0)와 엔진(M1)은 병합됐고, 사람이 실제로 쓰는 도구(M2)는 브랜치 `feat/local-review-m2`에서 구현 중이다.
+설계만 한 것이 아니다. 확장 리팩터(M0)와 엔진(M1)은 병합됐고, 사람이 실제로 쓰는 도구(M2)는 구현을 끝내 PR이 열려 있다(브랜치 `feat/local-review-m2`).
 
 | 마일스톤 | 무엇 | 상태 |
 |---|---|---|
 | **M0** | 확장 리팩터(동작 그대로) — markdown-it 15, 공용 타입(`src/types.ts`)·렌더링 표기(`src/prose-markup.ts`), `align` 한도 인자, `i18n` 밖에서 쓰기, `comment-ui` 옵션, `comments.ts`의 화면 동작을 `CommentController` + `CommentBackend`로 분리, `packages/*` 워크스페이스 | ✅ **병합** — [#47](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/47)(2026-10-17). 관문: `pnpm verify pr` 7/7, 연결률 기준선 그대로 |
 | **M1** | 렌더링 diff 엔진 `packages/engine` + GitHub 패리티 하네스(`pnpm parity`·`parity:capture`·`parity:setup`) + 정화 | ✅ **병합** — [#48](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/48)(2026-10-17). 시험 670개(엔진 272) · 패리티 87.0% · 줄 속성 빠짐 0 · `pnpm verify pr` 7/7 |
-| **M2** | 작업 트리 모드 — `packages/review`(CLI·로컬 서버·리뷰 페이지·코멘트 저장·에이전트에게 넘기기·skill) + npm 게시 | 🔵 **구현 중** — 브랜치 `feat/local-review-m2`. M2 전 수정 5개 끝 · 패리티 91.1% |
+| **M2** | 작업 트리 모드 — `packages/review`(CLI·로컬 서버·리뷰 페이지·코멘트 저장·에이전트에게 넘기기·skill) + npm 게시 | 🔵 **PR 열림** — 브랜치 `feat/local-review-m2`. M2 전 수정 5개 끝 · 패리티 91.1% · `pnpm verify pr` 10/10 · Claude Code 데스크톱 실기(2026-10-20) |
 | **M3** | Codex 주석 속성 + Codex용 skill | ⬜ |
 | **M4** | GitHub PR 모드(`review --pr`) | ⬜ |
 | 다음 | VS Code 확장 → JetBrains 플러그인 | ⬜ 따로 설계 |
