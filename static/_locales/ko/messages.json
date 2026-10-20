@@ -42,6 +42,8 @@
   "replyTo": {"message": "답글"},
   "threadsUnplaced": {"message": "이 보기에 나오지 않는 줄의 코멘트"},
   "threadsUnavailable": {"message": "이 파일에는 여기서 보여 줄 수 없는 리뷰 코멘트가 있어요."},
+  "richFailed": {"message": "GitHub가 이 파일을 렌더링하지 못해(큰 파일은 시간 초과가 잦아요) 원문 diff를 보여 줘요."},
+  "tryRichAgain": {"message": "렌더링 다시 시도"},
   "noVisibleChange": {"message": "렌더링 결과에는 바뀐 곳이 표시되지 않아요. 마크다운 문법이나 링크 주소처럼 화면에 드러나지 않는 부분이 바뀌었을 수 있어요."},
   "showSource": {"message": "원문 보기로"},
   "errorLineNotResolved": {"message": "GitHub가 이 줄의 코멘트를 받지 않았어요. 근처의 바뀐 줄에 달거나 원문 보기에서 달아 주세요."},

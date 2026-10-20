@@ -70,7 +70,7 @@ No data collected and no remote code. The extension reads the open GitHub page i
 
 ## Limits
 
-- Files renamed without changes stay in the source view, since there is nothing to render. Large diffs that GitHub hides behind **Load Diff** are still opened in the rendered view. If GitHub fails to build the rendered view of a file (it times out on some large files), the file goes back to the source view after 15 seconds, and it is not reported as a problem
+- Files renamed without changes stay in the source view, since there is nothing to render. Large diffs that GitHub hides behind **Load Diff** are still opened in the rendered view. If GitHub fails to build the rendered view of a file (its server times out on some large files and shows “This rich diff is not supported at the moment.”), the file goes back to the source view as soon as GitHub says so (after 15 seconds if GitHub shows nothing), with the source diff loaded even when GitHub hid it behind **Load Diff**. A one-line note above it says why and offers **Try rich diff again**. It is not reported as a problem
 - When an edit does not change what the page looks like (Markdown syntax, a link URL, an escaped character), the rendered view has nothing to highlight. The file says so at the top, with a **Show source diff** button
 - In a pull request with many Markdown files, it asks GitHub for at most 10 rendered views at a time, starting with the files on screen. Files further down render as you scroll to them
 - It relies on GitHub's page structure. When GitHub changes it, the icon shows `!` until an update ships. Please [open an issue](https://github.com/drum-grammer/GITHUB-MD-DIFF/issues)
@@ -134,7 +134,7 @@ What the research found, and where the code relies on it:
 
 - **GitHub's own requests.** Loading threads, commenting, replying, resolving, editing, deleting, and previewing all use the internal requests of GitHub's "Files changed" page, with the session you already have and no token or CSRF token. A thread's position exists only as a key in the file summary: `R12` (new file, line 12), `L4` (original file, line 4), or `FILE` (whole file). All of this lives in `src/github-api.ts`
 - **Diff layouts.** Split, Unified, and Hide whitespace can be forced through the URL (`?diff=`, `?w=1`) without touching account settings. Minimize comments and Compact line height are account settings only (`POST /users/diffview`), so the test harness records and restores them. The rendered view behaves the same in all five layouts
-- **GitHub's own failures look like ours.** GitHub times out (504) rendering some large files, leaves files below the screen as loading skeletons, and hides large diffs behind **Load Diff**. The extension treats these as normal, not as page changes
+- **GitHub's own failures look like ours.** GitHub times out (504, after about 10 seconds) rendering some large files — size alone does not decide it: on 2026-10-21 a 437 KB file timed out every time while a 261 KB one rendered in 2 seconds — leaves files below the screen as loading skeletons, and hides large diffs behind **Load Diff**. The extension treats these as normal, not as page changes
 - **Speed.** Re-checking settled files was the main cost in large pull requests. Since 1.1.1 folding lands in the same frame as GitHub's rendered diff, and later versions stay within run-to-run noise (`pnpm perf`)
 
 Where to see it:
@@ -171,7 +171,7 @@ Markdown Diff Cat은 두 장점을 합쳤어요. 렌더링된 문서를 보면�
 
 ### 이런 걸 해요
 
-- **렌더링 보기로 자동 전환** — "Files changed" 화면의 `.md`·`.markdown`·`.mdx` 파일
+- **렌더링 보기로 자동 전환** — "Files changed" 화면의 `.md`·`.markdown`·`.mdx` 파일. GitHub가 렌더링을 못 만든 파일(큰 파일에서 GitHub 서버가 시간 초과)은 바로 원문 diff를 펼치고, 그 까닭과 **렌더링 다시 시도** 버튼을 한 줄로 보여 줘요
 - **바뀌지 않은 구간 접기** — 한 줄 막대에 숨긴 블록 수와 마지막 제목이 보여요. 누르면 그 자리만 펼치고, 파일 위 **모두 펼치기**로 한 번에 펼쳐요
 - **표는 바뀐 행만** — 행 하나만 바뀌어도 GitHub는 옛 표 전체와 새 표 전체를 보여 줘요. 바뀐·추가된·삭제된 행만 남긴 표 하나로 합치고, 바뀐 칸은 이전 → 이후로 보여 줘요. 표 위 **전체 행**·**원래 표** 버튼으로 언제든 바꿔 볼 수 있어요
 - **바뀐 곳 사이를 오가기** — 파일 맨 위에 바뀐 곳이 몇 군데인지, 리뷰 스레드가 몇 개이고 그중 몇 개가 미해결인지 보여요("변경 8곳 · 스레드 3개(미해결 3)"). `]`·`[`로 페이지의 다음·이전 바뀐 곳, `}`·`{`로 다음·이전 스레드로 가고, ↑ ↓는 그 파일 안에서만 움직여요. 글을 쓰는 중에는 키를 가로채지 않아요

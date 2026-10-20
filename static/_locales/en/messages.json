@@ -42,6 +42,8 @@
   "replyTo": {"message": "Reply"},
   "threadsUnplaced": {"message": "Comments on lines this view does not show"},
   "threadsUnavailable": {"message": "This file has review comments that could not be shown here."},
+  "richFailed": {"message": "GitHub could not render this file (large files often time out), so the source diff is shown."},
+  "tryRichAgain": {"message": "Try rich diff again"},
   "noVisibleChange": {"message": "The rendered view shows no changes. The edit may be in something that does not render, like Markdown syntax or a link URL."},
   "showSource": {"message": "Show source diff"},
   "errorLineNotResolved": {"message": "GitHub did not accept a comment on this line. Comment on a changed line nearby, or use the source diff."},

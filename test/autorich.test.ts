@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_IN_FLIGHT, createAutoRichState, ensureRich, watchUserViewClicks } from '../src/autorich';
+import { undoAll } from '../src/apply';
+import { MAX_IN_FLIGHT, createAutoRichState, ensureRich, noteRichFailed, watchUserViewClicks } from '../src/autorich';
 import { viewButton } from '../src/selectors';
 import { addProse, fakeClassicFile, fakeFile } from './helpers';
+
+/** GitHub가 렌더링 요청이 504로 끝났을 때 그리는 본문(2026-10-21, 공개 PR에서 504를 흉내 내 받은 그대로) */
+const RICH_FAILED_HTML =
+  '<div class="border position-relative rounded-bottom-2"><div class="d-flex flex-justify-center tmp-p-4">This rich diff is not supported at the moment.</div></div>';
 
 function countClicks(btn: HTMLElement): () => number {
   let n = 0;
@@ -55,6 +60,68 @@ describe('ensureRich', () => {
     expect(ensureRich(file, 'k', state, 20000)).toBe('fallback');
     expect(richClicks()).toBe(1);
     expect(sourceClicks()).toBe(1);
+    stop();
+  });
+
+  it('GitHub가 실패 안내를 그리면(서버 시간 초과) 15초를 기다리지 않고 바로 원문으로 되돌린다', () => {
+    const file = fakeFile();
+    const rich = viewButton(file, 'rich')!;
+    const source = viewButton(file, 'source')!;
+    pressOnClick(rich);
+    source.addEventListener('click', () => {
+      source.setAttribute('aria-pressed', 'true');
+      rich.setAttribute('aria-pressed', 'false');
+    });
+    const richClicks = countClicks(rich);
+    const sourceClicks = countClicks(source);
+    const state = createAutoRichState();
+    expect(ensureRich(file, 'k', state, 0)).toBe('clicked');
+    source.setAttribute('aria-pressed', 'false');
+    const box = file.querySelector('.diff-body')!;
+    box.innerHTML = '<div class="d-flex"><svg class="spinner"></svg><span class="sr-only">Loading</span></div>';
+    expect(ensureRich(file, 'k', state, 5001)).toBe('waiting');
+    box.innerHTML = RICH_FAILED_HTML;
+    expect(ensureRich(file, 'k', state, 11500)).toBe('fallback');
+    expect(sourceClicks()).toBe(1);
+    expect(ensureRich(file, 'k', state, 20000)).toBe('fallback');
+    expect(richClicks()).toBe(1);
+    expect(sourceClicks()).toBe(1);
+  });
+
+  it('되돌린 원문이 큰 diff 자리(Load Diff)면 한 번만 누른다 — GitHub가 원문을 그린 뒤에', () => {
+    const file = fakeFile();
+    const rich = viewButton(file, 'rich')!;
+    const source = viewButton(file, 'source')!;
+    pressOnClick(rich);
+    const state = createAutoRichState();
+    ensureRich(file, 'k', state, 0);
+    source.setAttribute('aria-pressed', 'false');
+    const box = file.querySelector('.diff-body')!;
+    box.innerHTML = RICH_FAILED_HTML;
+    expect(ensureRich(file, 'k', state, 11000)).toBe('fallback');
+    // GitHub가 아직 원문으로 바꾸지 않았다 — 실패 안내만 있다
+    expect(ensureRich(file, 'k', state, 11100)).toBe('fallback');
+    source.setAttribute('aria-pressed', 'true');
+    rich.setAttribute('aria-pressed', 'false');
+    box.innerHTML = '<div class="tmp-px-3 fgColor-muted" data-diff-anchor="diff-abc"><div class="gridColumnTemplate__kXqy-c"><button>Load Diff</button></div></div>';
+    const loads = countClicks(box.querySelector('button')!);
+    expect(ensureRich(file, 'k', state, 11500)).toBe('fallback');
+    expect(ensureRich(file, 'k', state, 12000)).toBe('fallback');
+    expect(loads()).toBe(1);
+  });
+
+  it('사람이 고른 렌더링이 실패 안내로 끝나면 되돌리지 않는다', () => {
+    const file = fakeFile();
+    const rich = viewButton(file, 'rich')!;
+    const sourceClicks = countClicks(viewButton(file, 'source')!);
+    const state = createAutoRichState();
+    const stop = watchUserViewClicks(document, state, () => 'k');
+    rich.click();
+    rich.setAttribute('aria-pressed', 'true');
+    file.querySelector('.diff-body')!.innerHTML = RICH_FAILED_HTML;
+    expect(ensureRich(file, 'k', state, 0)).toBe('idle');
+    expect(ensureRich(file, 'k', state, 20000)).toBe('idle');
+    expect(sourceClicks()).toBe(0);
     stop();
   });
 
@@ -340,5 +407,30 @@ describe('ensureRich — 새 클래스 이름 형식', () => {
     const clicks = countClicks(viewButton(file, 'rich')!);
     expect(ensureRich(file, 'k', createAutoRichState(), 0)).toBe('clicked');
     expect(clicks()).toBe(1);
+  });
+});
+
+describe('noteRichFailed', () => {
+  it('파일 머리 바로 아래에 한 번만 두고, 버튼은 다시 시도, 꺼지면 걷는다', () => {
+    const file = fakeFile('docs/a.md', true, 'new');
+    let retried = 0;
+    noteRichFailed(file, true, () => retried++);
+    noteRichFailed(file, true, () => retried++);
+    const notes = file.querySelectorAll('[data-mdf="rich-failed"]');
+    expect(notes).toHaveLength(1);
+    expect(notes[0].previousElementSibling?.querySelector('h3')).not.toBeNull();
+    expect(notes[0].nextElementSibling?.classList.contains('diff-body')).toBe(true);
+    expect(notes[0].textContent).toContain('richFailed');
+    notes[0].querySelector('button')!.click();
+    expect(retried).toBe(1);
+    noteRichFailed(file, false, () => {});
+    expect(file.querySelector('[data-mdf="rich-failed"]')).toBeNull();
+  });
+
+  it('undoAll이 걷는다', () => {
+    const file = fakeFile();
+    noteRichFailed(file, true, () => {});
+    undoAll(document);
+    expect(file.querySelector('[data-mdf="rich-failed"]')).toBeNull();
   });
 });
