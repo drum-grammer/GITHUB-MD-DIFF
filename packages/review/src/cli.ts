@@ -14,6 +14,7 @@ import { ReviewSession } from './session';
 import { skillCommand } from './skill';
 import { StateStore, cleanupStale, stateBase, stateDirFor, type ServerInfo } from './state';
 import { VERSION } from './version';
+import { oldSideText } from './views';
 
 export interface Io {
   cwd: string;
@@ -58,7 +59,7 @@ Usage:
   markdown-diff-cat comments [--json] [--round N]                    print the rounds not delivered yet
   markdown-diff-cat wait                                             wait for the next "Send to agent", then print it
   markdown-diff-cat mark --rev <id>                                  treat a review render as the last review
-  markdown-diff-cat show --rev <id> <path> [<start>-<end>]           print source lines stored in a review render
+  markdown-diff-cat show --rev <id> [--side old|new] <path> [<start>-<end>]   print source lines of either side of a review render
   markdown-diff-cat stop [--clean]                                   stop the server (--clean also removes this worktree's state)
   markdown-diff-cat skill install [--user|--project] [--check]       install or check the agent skill
   markdown-diff-cat --version
@@ -82,13 +83,13 @@ interface Args {
   rest: string[];
 }
 
-const VALUE_FLAGS = new Set(['base', 'round', 'rev', 'command', 'pr']);
+const VALUE_FLAGS = new Set(['base', 'round', 'rev', 'side', 'command', 'pr']);
 const ALLOWED: Record<string, string[]> = {
   review: ['base', 'since-last', 'open', 'reopen', 'pr'],
   comments: ['json', 'round'],
   wait: [],
   mark: ['rev'],
-  show: ['rev'],
+  show: ['rev', 'side'],
   stop: ['clean'],
   skill: ['user', 'project', 'check', 'command'],
 };
@@ -290,13 +291,21 @@ function mark(args: Args, io: Io): number {
 
 function show(args: Args, io: Io): number {
   const rev = args.flags.get('rev');
+  const sideFlag = args.flags.get('side') ?? 'new';
   const [path, range] = args.rest;
-  if (typeof rev !== 'string' || !path || args.rest.length > 2) throw new CliError(2, 'usage: markdown-diff-cat show --rev <id> <path> [<start>-<end>]');
+  if (typeof rev !== 'string' || !path || args.rest.length > 2) throw new CliError(2, 'usage: markdown-diff-cat show --rev <id> [--side old|new] <path> [<start>-<end>]');
+  if (sideFlag !== 'old' && sideFlag !== 'new') throw new CliError(2, '--side must be old or new');
   const repo = repoInfo(io.cwd);
-  const record = stateFor(io, repo).loadRender(rev);
+  const store = stateFor(io, repo);
+  const record = store.loadRender(rev);
   if (!record) throw new CliError(1, `review render ${rev} does not exist — run markdown-diff-cat review to draw the files again`);
   let text: string | null;
-  if (Object.hasOwn(record.files, path)) {
+  if (sideFlag === 'old') {
+    const old = oldSideText(repo.root, record, (id) => store.loadRender(id), path);
+    if (old === undefined) throw new CliError(1, `the review render that ${rev} was compared with is gone — the old side of ${path} cannot be shown`);
+    if (old === null) throw new CliError(1, `${path} has no old side in review render ${rev} (it was added, or renamed from another path)`);
+    text = old;
+  } else if (Object.hasOwn(record.files, path)) {
     text = record.files[path];
     if (text === null) throw new CliError(1, `${path} was deleted in review render ${rev}`);
   } else {

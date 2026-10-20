@@ -361,3 +361,37 @@ describe('최종 검토 고침', () => {
     expect(await running).toBe(0);
   });
 });
+
+describe('show --side (M3)', () => {
+  it('--side old — 분기점 화면은 기준 커밋, --since-last 화면은 지난 판, old·new 밖은 2', async () => {
+    const r = repoWith({ 'a.md': 'one\ntwo\n' }, { 'a.md': 'one\nTWO\n' });
+    const state = tempDir();
+    const io = testIo(r.dir, state);
+    const running = main(['review'], io);
+    await io.waitFor(URL_RE);
+    const first = storeOf(r, state).renderIds()[0];
+    const show = async (...a: string[]) => {
+      const o = testIo(r.dir, state);
+      const code = await main(['show', ...a], o);
+      return { code, out: o.lines.join('\n'), err: o.errs.join('\n') };
+    };
+    expect(await show('--rev', first, '--side', 'old', 'a.md', '2-2')).toMatchObject({ code: 0, out: 'two' });
+    expect(await show('--rev', first, 'a.md', '2-2')).toMatchObject({ code: 0, out: 'TWO' });
+    expect(await show('--rev', first, '--side', 'left', 'a.md')).toMatchObject({ code: 2 });
+
+    expect(await main(['mark', '--rev', first], testIo(r.dir, state))).toBe(0);
+    r.write('a.md', 'one\nTHREE\n');
+    const again = testIo(r.dir, state);
+    expect(await main(['review', '--since-last'], again)).toBe(0);
+    const url = await again.waitFor(URL_RE);
+    const port = Number(URL_RE.exec(url)![1]);
+    const secret = await exchange(port, url);
+    const view = JSON.parse((await request(port, { method: 'GET', path: '/api/view', headers: pageHeaders(port, secret) })).text);
+    expect(view.rev).not.toBe(first);
+    expect(await show('--rev', view.rev, '--side', 'old', 'a.md', '2-2')).toMatchObject({ code: 0, out: 'TWO' });
+    expect(await show('--rev', view.rev, 'a.md', '2-2')).toMatchObject({ code: 0, out: 'THREE' });
+
+    expect(await main(['stop', '--clean'], testIo(r.dir, state))).toBe(0);
+    expect(await running).toBe(0);
+  });
+});

@@ -99,3 +99,14 @@ export function fingerprint(root: string, baseOid: string): string {
   }
   return h.digest('hex');
 }
+
+/**
+ * 렌더 판의 옛 쪽 원문 — 분기점 화면이면 기준 커밋, --since-last 화면이면 지난 판(그 판에 없는 파일은 그 판의 기준 커밋).
+ * 지난 판이 정리돼 없으면 undefined. 이름 바꾼 파일의 옛 이름은 판에 남지 않아 새 경로로 찾는다(없으면 null).
+ */
+export function oldSideText(root: string, record: RenderRecord, loadRender: (id: string) => RenderRecord | null, path: string): string | null | undefined {
+  if (record.view.kind === 'merge-base') return readTextAt(root, record.baseOid, path);
+  const from = loadRender(record.view.from);
+  if (!from) return undefined;
+  return Object.hasOwn(from.files, path) ? from.files[path] : readTextAt(root, from.baseOid, path);
+}
