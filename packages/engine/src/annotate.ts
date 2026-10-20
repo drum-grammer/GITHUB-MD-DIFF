@@ -41,15 +41,17 @@ function kindOf(el: Element): string {
   return KIND[el.tagName.toUpperCase()] ?? 'block';
 }
 
-export function annotate(body: HTMLElement, path: string, rev: string): void {
+/** oldPath — 이름 바꾼 파일의 옛 이름. 옛 쪽 줄 번호는 그 파일 것이라 옛 쪽 주석은 이 이름을 단다 */
+export function annotate(body: HTMLElement, path: string, rev: string, oldPath?: string | null): void {
   for (const el of body.querySelectorAll('[data-mdc-new], [data-mdc-old]')) {
     const removed = el.closest(REMOVED);
     const side: 'old' | 'new' = removed && body.contains(removed) ? 'old' : 'new';
     const m = RANGE.exec(el.getAttribute(side === 'old' ? 'data-mdc-old' : 'data-mdc-new') ?? '');
     if (!m) continue;
-    const meta: AnnotationMeta = { path, side, start: Number(m[1]), end: Number(m[2]), kind: kindOf(el), rev };
+    const p = side === 'old' ? (oldPath ?? path) : path;
+    const meta: AnnotationMeta = { path: p, side, start: Number(m[1]), end: Number(m[2]), kind: kindOf(el), rev };
     el.setAttribute('oai-annotatable', annotationLabel(meta));
-    if (path.length > ANNOTATION_MAX_VALUE) continue;
+    if (p.length > ANNOTATION_MAX_VALUE) continue;
     const json = JSON.stringify(meta);
     if (new TextEncoder().encode(json).length <= ANNOTATION_MAX_BYTES) el.setAttribute('oai-annotation-metadata', json);
   }

@@ -74,6 +74,15 @@ describe('Codex 주석 속성(스펙 §7-2)', () => {
     expect(b.querySelector('span[oai-annotation-metadata]')).toBeNull();
   });
 
+  it('이름 바꾼 파일 — 옛 쪽 주석은 옛 이름(그 줄 번호가 속한 파일), 새 쪽은 새 이름', () => {
+    const b = bodyOf(renderProseDiff(diffMarkdown({ oldText: md('Keep.', '', 'Gone para.'), newText: md('Keep.', '', 'Added para.'), path: 'docs/new.md', oldPath: 'docs/old.md' }), CTX));
+    const gone = [...b.querySelectorAll('[oai-annotation-metadata]')].find((e) => meta(e).side === 'old')!;
+    expect(meta(gone).path).toBe('docs/old.md');
+    expect(gone.getAttribute('oai-annotatable')).toMatch(/^docs\/old\.md L3 \(old\)$/);
+    const added = [...b.querySelectorAll('[oai-annotation-metadata]')].find((e) => meta(e).side === 'new' && meta(e).start === 3)!;
+    expect(meta(added).path).toBe('docs/new.md');
+  });
+
   it('미리보기(renderMarkdown)에는 달지 않는다', () => {
     expect(renderMarkdown('# A\n\nB\n')).not.toContain('oai-');
   });

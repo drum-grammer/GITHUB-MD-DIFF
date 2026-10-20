@@ -395,3 +395,27 @@ describe('show --side (M3)', () => {
     expect(await running).toBe(0);
   });
 });
+
+describe('show --side old — 이름 바꾼 파일(M3 최종 검토)', () => {
+  it('옛 쪽 주석은 옛 이름을 달고, show --side old <옛 이름>은 기준 커밋의 그 줄', async () => {
+    const r = tempRepo();
+    repos.push(r);
+    r.write('old.md', 'one\ntwo\nthree\n');
+    r.commit();
+    execFileSync('git', ['mv', 'old.md', 'new.md'], { cwd: r.dir });
+    r.write('new.md', 'one\nthree\n');
+    const state = tempDir();
+    const io = testIo(r.dir, state);
+    const running = main(['review'], io);
+    await io.waitFor(URL_RE);
+    const rev = storeOf(r, state).renderIds()[0];
+    const o = testIo(r.dir, state);
+    expect(await main(['show', '--rev', rev, '--side', 'old', 'old.md', '2-2'], o)).toBe(0);
+    expect(o.lines).toEqual(['two']);
+    const e = testIo(r.dir, state);
+    expect(await main(['show', '--rev', rev, '--side', 'old', 'new.md', '2-2'], e)).toBe(1);
+    expect(e.errs.join('\n')).toContain('renamed from another path');
+    expect(await main(['stop', '--clean'], testIo(r.dir, state))).toBe(0);
+    expect(await running).toBe(0);
+  });
+});
