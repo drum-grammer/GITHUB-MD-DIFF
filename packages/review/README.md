@@ -51,7 +51,7 @@ Edits that do not change the rendering (Markdown syntax, a link target, an HTML 
 | `comments [--json] [--round N]` | Print the rounds not delivered yet (oldest first) and mark them delivered. With nothing new, it shows the last round again, marked "already delivered" |
 | `wait` | Wait for the next **Send to agent**, then print it like `comments`. Returns at once if a round is already waiting |
 | `mark --rev <id>` | Treat a review render as the last review, for `--since-last` |
-| `show --rev <id> <path> [<start>-<end>]` | Print the source lines stored in a review render |
+| `show --rev <id> [--side old\|new] <path> [<start>-<end>]` | Print the source lines of either side of a review render (default: new) |
 | `stop [--clean]` | Stop the server. `--clean` also removes this worktree's saved state |
 | `skill install [--user\|--project] [--check]` | Install the agent skill, or check that installed copies match this version |
 
@@ -64,7 +64,7 @@ npx -y markdown-diff-cat skill install
 writes the skill `markdown-diff-review` (Agent Skills format) to `~/.agents/skills/markdown-diff-review/` and links `~/.claude/skills/markdown-diff-review` to it. Every step in the skill uses one exact command, `npx -y markdown-diff-cat@<the version you installed>`. `--project` writes two copies into the current repository instead (commit both); `--check` compares installed copies with this version.
 
 - **Claude Code desktop**: ask it to review your doc changes visually. It starts `review` in the background, opens the link in the Browser pane, and runs `wait` in the background, so it is notified when you press **Send to agent**.
-- **Codex app**: approve running the commands outside the sandbox (they write to a state folder in your home directory, and `review` listens on a local port). Open the link in the in-app browser and say when you are done; Codex then runs `comments`.
+- **Codex app**: approve running the commands outside the sandbox (they write to a state folder in your home directory, and `review` listens on a local port). Open the link in the in-app browser. Either press **Send to agent** and say when you are done (Codex then runs `comments`), or point at a block with Codex's own annotation tool: every rendered block carries its file, side, lines and review render, so Codex can check the lines with `show --rev <rev> --side <side>` before editing.
 - **Terminal or SSH only**: run `review --open`, or open the printed link yourself (forward the port over SSH).
 
 In the handoff, quoted source and comments by others are marked as untrusted data, and invisible content (HTML comments, zero-width and bidi characters) is made visible as `⟦…⟧`.

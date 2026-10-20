@@ -3,6 +3,7 @@
  * 최상위 블록마다 rich-diff-level-zero, 바뀐 곳 앞뒤 vicinity, 이어진 변경 없는 블록은 div.expandable.unchanged.js-expandable,
  * 바뀐 블록은 div.changed > …rich-diff-level-one + ins/del, 통째 추가·삭제는 최상위 <ins>/<del>. 잎마다 data-mdc-new/old
  */
+import { annotate } from './annotate';
 import type { Bar, Plan, PlanItem } from './diff';
 import { leafOf } from './diff';
 import { ELEMENT_NODE, TEXT_NODE, engineDocument } from './dom';
@@ -412,8 +413,9 @@ function images(body: HTMLElement, diff: FileDiff, ctx: RenderContext): void {
   }
 }
 
-function finish(body: HTMLElement, rev: string | null): string {
+function finish(body: HTMLElement, rev: string | null, path?: string, oldPath?: string | null): string {
   if (rev !== null) for (const child of body.children) child.setAttribute('data-mdc-rev', rev);
+  if (rev !== null && path !== undefined) annotate(body, path, rev, oldPath);
   for (const el of body.querySelectorAll(`[${LEAF_ATTR}]`)) el.removeAttribute(LEAF_ATTR);
   return body.innerHTML;
 }
@@ -426,7 +428,7 @@ export function emit(diff: FileDiff, plan: Plan, ctx: RenderContext): string {
     div.className = 'mdc-file-deleted';
     div.textContent = DELETED_LABEL;
     body.append(div);
-    return finish(body, ctx.rev);
+    return finish(body, ctx.rev, diff.path, diff.oldPath);
   }
   const e = new Emitter(plan, plan.newSide);
   for (const item of plan.items) {
@@ -436,7 +438,7 @@ export function emit(diff: FileDiff, plan: Plan, ctx: RenderContext): string {
   }
   assemble(body, e.units);
   images(body, diff, ctx);
-  return finish(body, ctx.rev);
+  return finish(body, ctx.rev, diff.path, diff.oldPath);
 }
 
 /** 코멘트 미리보기 — diff 표시 없이 정화된 HTML. 이미지는 모두 막는다(발급할 서버 문맥이 없다) */

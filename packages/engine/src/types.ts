@@ -64,7 +64,7 @@ export interface DiffOptions {
 }
 
 export interface RenderContext {
-  /** 렌더 판 id — M1은 `data-mdc-rev`로 본문 최상위에만 단다(Codex 속성은 M3) */
+  /** 렌더 판 id — 본문 최상위의 `data-mdc-rev`와 잎마다 Codex 주석 메타데이터(`rev`)에 들어간다 */
   rev: string;
   /** 저장소 상대 경로의 이미지 → 서버가 발급한 id. null이면 그 이미지는 막는다(src를 비우고 data-mdc-blocked) */
   imageId(side: 'old' | 'new', repoPath: string): string | null;

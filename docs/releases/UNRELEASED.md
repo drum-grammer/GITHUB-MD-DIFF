@@ -5,6 +5,7 @@
 ## New
 
 - The local review command-line tool `markdown-diff-cat` (npm, same version number as the extension) — rendered Markdown diffs of your working tree in a local page, with block comments handed to coding agents. See [packages/review/README.md](../../packages/review/README.md).
+- Local review: every rendered block carries Codex annotation attributes (file, side, lines, review render), and `show --side old|new` prints either side of a review render.
 
 ## Internal — groundwork for a local review tool (no visible change)
 

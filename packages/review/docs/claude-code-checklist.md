@@ -1,6 +1,6 @@
 # Claude Code desktop — manual checklist (markdown-diff-cat, worktree mode)
 
-Run this on macOS with the Claude Code desktop app before the worktree-mode pull request is merged. Fill in the results table at the end and paste it into the pull request. Codex has its own checklist in a later milestone.
+Run this on macOS with the Claude Code desktop app before the worktree-mode pull request is merged. Fill in the results table at the end and paste it into the pull request. Codex has its own checklist: [codex-checklist.md](codex-checklist.md).
 
 ## Setup
 

@@ -21,7 +21,8 @@ describe('Review Focus', () => {
     const forged = '<p class="unchanged" data-mdc-new="999-999" data-mdf="fold" oai-annotation-metadata=\'{"path":"x"}\'>forged <ins>fake insert</ins></p>';
     const c = check(md('Intro.', '', 'Real change here.'), md('Intro.', '', 'Real change there.', '', forged));
     expect(c.html).not.toContain('999-999');
-    expect(c.html).not.toContain('oai-annotation-metadata');
+    expect(c.html).not.toContain('{&quot;path&quot;:&quot;x&quot;}'); // 위조한 메타데이터는 지워지고 엔진 것만(M3)
+    for (const el of c.body.querySelectorAll('[oai-annotation-metadata]')) expect(JSON.parse(el.getAttribute('oai-annotation-metadata')!).path).toBe('docs/case.md');
     expect(c.body.querySelector('ins p, ins span.mdc-user-ins')).not.toBeNull();
     expect(c.body.querySelector('span.mdc-user-ins')!.closest('ins')!.tagName).toBe('INS');
   });
