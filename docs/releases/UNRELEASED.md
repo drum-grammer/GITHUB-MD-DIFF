@@ -21,6 +21,8 @@
 
 ## How it was tested
 
+- Rendering in the browser when GitHub cannot: unit tests 751 passed (46 new); end-to-end tests on the test repository with GitHub's rendering request answered by a 504 — the rendered diff, folding, the **+** on the right source line (`R5`), **Show source diff**, math drawn by GitHub's page, coming back from the Conversation tab, and the source-diff fallback when the source text cannot be loaded either; no page errors or Content Security Policy violations. `pnpm verify pr` on `b87c12f`: 10 of 10 steps passed in 8 min 23 s. `pnpm perf` against the previous build: within run-to-run noise
+
 - Unit tests 397 passed (351 before), including new tests that pin the GitHub comment flow with a fake GitHub: posting, a new commit while writing, a pending review, thread placement, the notice when threads cannot be shown
 - Source blocks on 579 Markdown documents (every Markdown file in this repository plus each version of the test repository documents): identical with markdown-it 14 and 15
 - Source-line matching on 7 pull requests (`scripts/mapping-report.mjs`): 5533/5537 (99.9%) before and 5533/5537 (99.9%) after; no file lost a matched block
