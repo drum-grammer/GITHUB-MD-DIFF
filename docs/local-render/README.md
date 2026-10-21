@@ -49,8 +49,9 @@ GitHub 서버가 렌더링 diff를 만들지 못한 md 파일을, 확장이 옛�
 | 2 | GitHub 504 → 실패 안내 한 줄(또는 15초 넘게 빈 상자) | **`local`** — 원문 보기로 되돌리지 않는다. 안내 "GitHub could not render this file. Rendering it in your browser…" |
 | 3 | (보이지 않음) PR 데이터(base·head·옛 경로·종류)와 옛·새 원문을 받고, 한 프레임 쉰 뒤 엔진을 돌린다 | `local` 유지 |
 | 4 | GitHub 안내를 숨기고 그 상자 안에 렌더링 diff 본문을 넣는다. 안내 "GitHub could not render this file, so it was rendered in your browser." + **Show source diff** | 본문이 생겼으니 `rich` → `applyBody`·코멘트가 평소처럼 |
-| 4' | 3이 실패하면 원문 보기 + #51 안내(까닭 + **Try rich diff again**) | `fallback` |
+| 4' | 3이 실패하면 원문 보기 + 안내 "GitHub could not render this file, and it could not be rendered in your browser either, so the source diff is shown." + **Try rich diff again** | `fallback` |
 
+- 엔진은 **화면 근처(위아래 한 화면 안) 파일만** 그린다. 확장은 md 파일을 차례로(최대 10개씩) 렌더링으로 누르므로 GitHub 실패는 화면 밖 파일에서도 돌아온다. 그 파일까지 바로 그리면 사람이 다른 곳을 읽는 동안 안내도 안 보이는 채 화면이 멈춘다. 멀리 있는 파일은 `local`로 두고 스크롤해 오면 그린다(1초마다 다시 본다).
 - 사람이 원문 보기를 고르면(**Show source diff** 포함) 로컬 본문을 걷고 다시 그리지 않는다. 다시 렌더링 보기를 고르면 GitHub에 먼저 맡기고, 또 실패하면 기억해 둔 HTML로 바로 다시 그린다.
 - **Try rich diff again**(4' 뒤)은 #51처럼 사람의 선택이다. GitHub가 또 실패하면 로컬 렌더링을 한 번 더 해 본다(원문 요청이 잠깐 실패했을 수 있다). 그것도 실패하면 렌더링 보기(GitHub 실패 안내)를 그대로 둔다 — 사람의 선택을 되돌리지 않는다.
 - 확장을 끄면 `undoAll`이 로컬 본문과 안내를 걷고 GitHub 안내를 다시 보이게 한다.
@@ -85,6 +86,8 @@ GitHub 서버가 렌더링 diff를 만들지 못한 md 파일을, 확장이 옛�
 
 - **DOM** — 엔진은 `packages/engine/src/dom.ts` 한 곳에서만 DOM을 얻는다(jsdom). 확장 빌드는 이 모듈을 브라우저판 `src/engine-dom.ts`로 바꿔 끼운다(esbuild 플러그인). 브라우저판은 DOMPurify에 실제 `window`를 주고, 엔진이 HTML을 읽고 쓰는 문서는 `document.implementation.createHTMLDocument('')`로 만든 **inert 문서**다 — 그 안의 `<img>`는 불러오지 않고 이벤트 처리기도 돌지 않는다. 엔진이 정화를 끝낸 HTML 문자열만 살아 있는 페이지에 들어간다.
 - **수식** — GitHub rich diff는 수식을 서버에서 그리지 않고 `<math-renderer class="js-inline-math">$…$</math-renderer>`를 내면 페이지가 MathML로 바꾼다. 실측: 확장이 아닌 쪽에서 넣은 `math-renderer`도 GitHub 페이지가 그 자리에서 MathML로 바꿨다(testbed #5·#8, 2026-10-21). 그래서 확장 빌드는 `katex`를 `renderToString`만 있는 작은 대역(`src/engine-math.ts`)으로 바꿔 GitHub와 같은 표기를 낸다. 페이지가 바꾸지 못하면 TeX 원문이 글자로 보인다.
+- **두 번 거른다** — 넣기 전에 로컬 리뷰 페이지처럼 `safeFragment`로 한 번 더 거른다(스크립트·이벤트 속성·위험한 주소). 그리고 GitHub 스크립트가 붙잡는 훅 클래스 가운데 엔진이 흉내 낸 Mermaid 자리(`js-render-needs-enrichment`)는 뗀다 — 붙여 두면 GitHub 스크립트가 그림 iframe을 찾다 페이지 오류를 냈다(testbed #8, 2026-10-21). 표(`markdown-accessiblity-table`)·수식(`math-renderer`)·접기 묶음(`js-expandable`)은 GitHub rich diff와 같은 표기라 그대로 둔다.
+- **엔진만 내는 표기의 모양** — "원문만 바뀜" 막대(`.mdc-source-only`)·사용자 `<ins>`·`<del>`(`.mdc-user-*`)·막은 이미지는 GitHub 스타일에 없다. 로컬 리뷰 페이지의 CSS를 `[data-mdf-local]` 아래로 옮기고, 막대를 펼치는 처리(`wireSourceToggles`)는 `applyBody`가 단다(로컬 리뷰 페이지와 같이 쓴다). 수식은 단어 비교에서 쪼개지 않는다(`math-renderer`를 원자 요소로).
 - **처음 쓸 때만 초기화** — `content.ts`는 엔진을 `import()`로 부른다. esbuild는 IIFE 한 파일 안에서 그 모듈을 지연 초기화(`__esm`)로 묶으므로, 실패한 파일이 없는 페이지에서는 엔진 코드가 한 줄도 돌지 않고 읽기(파싱) 비용만 남는다.
 - **지키는 장치** — 빌드가 content.js에 jsdom·katex가 들어가면 실패한다(`scripts/build-lib.mjs`). `web_accessible_resources`로 엔진을 따로 내려받게 하는 길도 있지만 매니페스트를 바꾸고 페이지가 확장 파일을 알아볼 수 있게 된다 — 640 KB 안이라 쓰지 않는다.
 
@@ -98,7 +101,7 @@ GitHub 서버가 렌더링 diff를 만들지 못한 md 파일을, 확장이 옛�
 | GitHub 실패 | 머리 칸 → `div.border.position-relative.rounded-bottom-2` › `div.d-flex.flex-justify-center` "This rich diff is not supported at the moment." |
 
 - 성공 때와 같은 껍데기를 만들어 같은 상자 안 끝에 넣는다: `div.prose-diff.position-relative[data-mdf-local]` › `div` › `article.markdown-body.entry-content.container-lg`. 그러면 `proseBody`(`.prose-diff .markdown-body`)가 그대로 찾고, 접기·코멘트 상자 위치도 GitHub 렌더링 때와 같다.
-- GitHub의 실패 안내는 지우지 않고 숨긴다(`mdf-hidden`, `undoAll`이 되돌림). React가 관리하는 요소를 지우면 다음 다시 그리기에서 React가 깨질 수 있다.
+- GitHub의 실패 안내는 지우지 않고 숨긴다(`mdf-hidden`, `undoAll`이 되돌림). React가 관리하는 요소를 지우면 다음 다시 그리기에서 React가 깨질 수 있다. 안내는 Primer `.d-flex`(`display: flex !important`)라 `.mdf-hidden` 하나로는 지고, 한 단계 무거운 규칙(`.mdf-hidden.mdf-hidden`)으로 숨긴다(실측).
 - 표시는 `data-mdf`가 아니라 `data-mdf-local`이다 — 확장 모듈은 `[data-mdf]` 안을 "확장이 만든 것"으로 보고 블록·변경 표시를 세지 않는다(`dom-blocks`·`noteNoVisibleChange`).
 - 원문 보기를 고르면 React가 상자 안을 원문 표로 바꾸지만 남의 요소(로컬 본문)는 남겨 둔다. 그래서 훑을 때마다 "렌더링 버튼이 눌려 있지 않은데 로컬 본문이 있다"면 걷는다. GitHub 렌더링이 나중에 성공해 본문이 둘이 되면 로컬 본문을 걷는다.
 - GitHub가 상자를 다시 그려 로컬 본문이 사라지면(접었다 펼치기 등) 다음 훑기에서 기억해 둔 HTML을 다시 넣는다 — 같은 파일·같은 머리 커밋이면 엔진을 다시 돌리지 않는다.
@@ -125,8 +128,9 @@ GitHub 서버가 렌더링 diff를 만들지 못한 md 파일을, 확장이 옛�
 | testbed #5 `docs/large.md` — 2,400문단 모두 고침(158→168 KB) | diffMarkdown 1.1–1.2초 · renderProseDiff 25 ms · 넣기 10 ms | 2.0–2.2초 · 0.4초 |
 | 지어낸 설계 문서(Lantern) 371 KB · 15곳 고침 | 0.5–0.6초 · 40 ms · 30 ms | 2.6초 · 0.4초 |
 
-- 이 시간 동안 화면이 멈추므로, "Rendering it in your browser…" 안내를 먼저 그리고 한 프레임 뒤에 엔진을 돌린다. 한 번에 한 파일씩.
-- 한도: 옛·새 원문을 합쳐 **2 MB**를 넘으면 엔진을 돌리지 않고 원문으로(#51). 엔진의 짝짓기 한도(`ENGINE_MAX_CELLS`)가 최악의 경우를 막지만, 원문 크기에도 선을 둔다.
+- 이 시간 동안 화면이 멈추므로, "Rendering it in your browser…" 안내를 먼저 그리고 한 프레임 뒤에 엔진을 돌린다. 한 번에 한 파일씩, 화면 근처 파일만(§3).
+- 한도: 옛·새 원문을 합쳐 **120만 자**(한 쪽 약 60만 자 — 계기가 된 437 KB 문서가 들어간다)를 넘으면 엔진을 돌리지 않고 원문으로. 고친 곳이 적은 큰 문서는 1초 안팎, 거의 모든 문단을 고친 한도 근처 문서는 몇 초 멈출 수 있다 — GitHub가 이미 10초를 기다리게 한 파일이고 안내가 먼저 보인다. 엔진의 짝짓기 한도(`ENGINE_MAX_CELLS`)가 최악의 경우를 한 번 더 막는다. 블록 사이에 쉬어 가며 그리기(엔진 변경)는 하지 않는다.
+- 엔진 오류도 원문 요청 실패·한도 초과처럼 원문으로 되돌린다. 그때 안내가 "브라우저에서도 못 그렸다"고 말하고, 까닭은 콘솔 경고(`[github-md-diff]`)에 남긴다. 툴바 "!"·문제 보고는 GitHub 화면이 바뀐 신호에만 쓰므로 여기에는 쓰지 않는다.
 - 웹 워커는 쓰지 않는다 — 콘텐츠 스크립트에서 확장 파일로 워커를 만들 수 없고, 정화(DOMPurify)에 DOM이 필요하다.
 
 ### 4-7. 상태 기계(`autorich.ts`)
@@ -141,6 +145,7 @@ GitHub 서버가 렌더링 diff를 만들지 못한 md 파일을, 확장이 옛�
 |---|---|---|
 | `localRendering` | GitHub could not render this file. Rendering it in your browser… | GitHub가 이 파일을 렌더링하지 못해 브라우저에서 렌더링하고 있어요… |
 | `localRendered` | GitHub could not render this file, so it was rendered in your browser. It may differ slightly from GitHub's rendering. | GitHub가 이 파일을 렌더링하지 못해 브라우저에서 렌더링했어요. GitHub 렌더링과 조금 다를 수 있어요. |
+| `richFailedLocal` | GitHub could not render this file, and it could not be rendered in your browser either, so the source diff is shown. | GitHub도, 브라우저에서도 이 파일을 렌더링하지 못해 원문 diff를 보여 줘요. |
 | 버튼 | `showSource` — Show source diff(있는 문구) | 원문 보기로 |
 
 ## 5. 시험
@@ -163,4 +168,5 @@ GitHub 서버가 렌더링 diff를 만들지 못한 md 파일을, 확장이 옛�
 | 결정 | 누가 |
 |---|---|
 | 권한·매니페스트를 늘리지 않는다 · 엔진(`diffMarkdown`·`renderProseDiff`)을 확장 안 대체 렌더러로 · #51 위에서 "되돌리기" 앞에 "로컬로 렌더링" 단계 · 새 기능이라 MINOR · 공개 저장소라 회사 내용 없음 | 요청(2026-10-21) |
-| 원문은 코멘트와 같은 요청·캐시 · KaTeX 대신 GitHub `math-renderer` · 같은 content.js 안에서 지연 초기화(따로 내려받기 안 함) · 성공 때와 같은 껍데기를 상자 안에 · 실패 안내는 숨김 · `data-mdf-local` · 줄은 엔진 속성으로 · 엔진 선택 항목 둘 · 한도 2 MB · 안내 문구 · 사람이 고른 렌더링이 실패해도 로컬로 한 번 더 | 구현 세션 판단(근거는 위 실측) |
+| 원문은 코멘트와 같은 요청·캐시 · KaTeX 대신 GitHub `math-renderer` · 같은 content.js 안에서 지연 초기화(따로 내려받기 안 함) · 성공 때와 같은 껍데기를 상자 안에 · 실패 안내는 숨김 · `data-mdf-local` · 줄은 엔진 속성으로 · 엔진 선택 항목 둘 · 안내 문구 · 사람이 고른 렌더링이 실패해도 로컬로 한 번 더 | 구현 세션 판단(근거는 위 실측) |
+| 설계 검토(처음 보는 구현자 역할의 에이전트)가 물은 셋 — 멈춤 한도(→ 120만 자, 블록 사이 쉬기 없음) · 화면 밖 파일(→ 근처에서만) · 엔진 오류를 문제로 알릴지(→ 안내 문구로만, "!" 없음) | 구현 세션 판단 |

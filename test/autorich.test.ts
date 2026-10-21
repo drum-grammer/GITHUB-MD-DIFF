@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { undoAll } from '../src/apply';
-import { MAX_IN_FLIGHT, createAutoRichState, ensureRich, noteRichFailed, watchUserViewClicks } from '../src/autorich';
+import { MAX_IN_FLIGHT, createAutoRichState, ensureRich, localBody, localFailed, noteRichFailed, watchUserViewClicks } from '../src/autorich';
+import { insertLocalBody } from '../src/local-render';
 import { viewButton } from '../src/selectors';
 import { addProse, fakeClassicFile, fakeFile } from './helpers';
 
@@ -432,5 +433,132 @@ describe('noteRichFailed', () => {
     noteRichFailed(file, true, () => {});
     undoAll(document);
     expect(file.querySelector('[data-mdf="rich-failed"]')).toBeNull();
+  });
+
+  it('브라우저에서도 못 그렸으면 그렇게 말한다', () => {
+    const file = fakeFile();
+    noteRichFailed(file, true, () => {}, true);
+    expect(file.querySelector('[data-mdf="rich-failed"]')!.textContent).toContain('richFailedLocal');
+  });
+});
+
+/** 확장이 누른 렌더링이 GitHub 실패 안내로 끝난 파일 — 원문 버튼은 GitHub처럼 눌림을 바꾼다 */
+function failedFile(): { file: HTMLElement; rich: HTMLElement; source: HTMLElement; sourceClicks: () => number } {
+  const file = fakeFile();
+  const rich = viewButton(file, 'rich')!;
+  const source = viewButton(file, 'source')!;
+  pressOnClick(rich);
+  source.addEventListener('click', () => {
+    source.setAttribute('aria-pressed', 'true');
+    rich.setAttribute('aria-pressed', 'false');
+  });
+  const sourceClicks = countClicks(source);
+  return { file, rich, source, sourceClicks };
+}
+
+describe('ensureRich — 로컬 렌더링(docs/local-render)', () => {
+  it('GitHub 실패 안내 + 엔진으로 그릴 수 있음 → local, 원문으로 되돌리지 않는다', () => {
+    const { file, source, sourceClicks } = failedFile();
+    const state = createAutoRichState();
+    expect(ensureRich(file, 'k', state, 0, true, true)).toBe('clicked');
+    source.setAttribute('aria-pressed', 'false');
+    file.querySelector('.diff-body')!.innerHTML = RICH_FAILED_HTML;
+    expect(ensureRich(file, 'k', state, 11000, true, true)).toBe('local');
+    expect(ensureRich(file, 'k', state, 30000, true, true)).toBe('local'); // 15초가 지나도
+    expect(sourceClicks()).toBe(0);
+    expect(state.clicks.has('k')).toBe(false); // 차례(MAX_IN_FLIGHT)를 붙잡지 않는다
+  });
+
+  it('누른 뒤 15초 넘게 빈 상자여도 local', () => {
+    const { file, source, sourceClicks } = failedFile();
+    const state = createAutoRichState();
+    ensureRich(file, 'k', state, 0, true, true);
+    source.setAttribute('aria-pressed', 'false');
+    file.querySelector('.diff-body')!.innerHTML = '<div class="d-flex"></div>';
+    expect(ensureRich(file, 'k', state, 14000, true, true)).toBe('waiting');
+    expect(ensureRich(file, 'k', state, 15001, true, true)).toBe('local');
+    expect(sourceClicks()).toBe(0);
+  });
+
+  it('엔진 본문이 들어가면 rich, 엔진으로 못 그렸으면 원문으로 되돌리고 다시 그리지 않는다', () => {
+    const { file, source, sourceClicks } = failedFile();
+    const state = createAutoRichState();
+    ensureRich(file, 'k', state, 0, true, true);
+    source.setAttribute('aria-pressed', 'false');
+    file.querySelector('.diff-body')!.innerHTML = RICH_FAILED_HTML;
+    expect(ensureRich(file, 'k', state, 11000, true, true)).toBe('local');
+    expect(localFailed(file, 'k', state)).toBe('fallback');
+    expect(sourceClicks()).toBe(1);
+    expect(ensureRich(file, 'k', state, 12000, true, true)).toBe('fallback');
+    expect(state.local.has('k')).toBe(false);
+  });
+
+  it('엔진으로 그릴 수 없는 화면(canLocal 거짓)이면 지금처럼 원문으로', () => {
+    const { file, source, sourceClicks } = failedFile();
+    const state = createAutoRichState();
+    ensureRich(file, 'k', state, 0, true, false);
+    source.setAttribute('aria-pressed', 'false');
+    file.querySelector('.diff-body')!.innerHTML = RICH_FAILED_HTML;
+    expect(ensureRich(file, 'k', state, 11000, true, false)).toBe('fallback');
+    expect(sourceClicks()).toBe(1);
+  });
+
+  it('그린 본문이 있고 렌더링이 눌려 있으면 rich — 원문 보기로 바뀌면 걷고 실패 안내를 되돌린다', () => {
+    const { file, rich, source } = failedFile();
+    const state = createAutoRichState();
+    const stop = watchUserViewClicks(document, state, () => 'k');
+    ensureRich(file, 'k', state, 0, true, true);
+    source.setAttribute('aria-pressed', 'false');
+    file.querySelector('.diff-body')!.innerHTML = RICH_FAILED_HTML;
+    expect(ensureRich(file, 'k', state, 11000, true, true)).toBe('local');
+    expect(insertLocalBody(file, '<p class="changed" data-mdc-new="1-1">x</p>')).not.toBeNull();
+    expect(ensureRich(file, 'k', state, 11500, true, true)).toBe('rich');
+    const notice = file.querySelector('.diff-body .d-flex')!;
+    expect(notice.classList.contains('mdf-hidden')).toBe(true);
+    source.click(); // 사람이 원문 보기를 골랐다(GitHub는 상자 안을 원문 표로 바꾸지만 남의 요소는 둔다)
+    expect(rich.getAttribute('aria-pressed')).toBe('false');
+    expect(ensureRich(file, 'k', state, 12000, true, true)).toBe('user-source');
+    expect(localBody(file)).toBeNull();
+    expect(notice.classList.contains('mdf-hidden')).toBe(false);
+    stop();
+  });
+
+  it('GitHub가 나중에 렌더링을 그리면 엔진 본문을 걷고 GitHub 본문을 쓴다', () => {
+    const { file, rich } = failedFile();
+    const state = createAutoRichState();
+    rich.setAttribute('aria-pressed', 'true');
+    file.querySelector('.diff-body')!.innerHTML = RICH_FAILED_HTML;
+    insertLocalBody(file, '<p>x</p>');
+    file.querySelector('.diff-body')!.insertAdjacentHTML('afterbegin', '<div class="prose-diff"><div><div class="markdown-body"><p>GitHub</p></div></div></div>');
+    expect(ensureRich(file, 'k', state, 0, true, true)).toBe('rich');
+    expect(localBody(file)).toBeNull();
+    expect(file.querySelector('.prose-diff .markdown-body')!.textContent).toBe('GitHub');
+  });
+
+  it('사람이 고른 렌더링이 실패하면 엔진으로 그리고, 그것도 못 하면 원문으로 되돌리지 않는다', () => {
+    const { file, rich, sourceClicks } = failedFile();
+    const state = createAutoRichState();
+    const stop = watchUserViewClicks(document, state, () => 'k');
+    rich.click();
+    file.querySelector('.diff-body')!.innerHTML = RICH_FAILED_HTML;
+    expect(ensureRich(file, 'k', state, 0, true, true)).toBe('local');
+    expect(localFailed(file, 'k', state)).toBe('idle');
+    expect(ensureRich(file, 'k', state, 1000, true, true)).toBe('idle');
+    expect(sourceClicks()).toBe(0);
+    // 다시 고르면 한 번 더 해 본다
+    rich.click();
+    expect(ensureRich(file, 'k', state, 2000, true, true)).toBe('local');
+    stop();
+  });
+
+  it('접힌 파일은 엔진으로 그리는 중이어도 건드리지 않는다', () => {
+    const { file, source } = failedFile();
+    const state = createAutoRichState();
+    ensureRich(file, 'k', state, 0, true, true);
+    source.setAttribute('aria-pressed', 'false');
+    file.querySelector('.diff-body')!.innerHTML = RICH_FAILED_HTML;
+    expect(ensureRich(file, 'k', state, 11000, true, true)).toBe('local');
+    file.querySelector('h3')!.insertAdjacentHTML('beforebegin', '<button aria-label="Expand file" aria-expanded="false"></button>');
+    expect(ensureRich(file, 'k', state, 11500, true, true)).toBe('idle');
   });
 });

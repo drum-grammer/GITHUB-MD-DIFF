@@ -127,3 +127,19 @@ describe('noteNoVisibleChange', () => {
     expect(noteNoVisibleChange(document.querySelector<HTMLElement>('.markdown-body')!, () => {})).toBe(false);
   });
 });
+
+describe('applyBody — 엔진의 "원문만 바뀜" 막대', () => {
+  it('누르면 원문 줄 diff를 펼치고 다시 누르면 접는다(여러 번 적용해도 한 번만 단다). GitHub 본문에는 없는 표기다', () => {
+    document.body.innerHTML =
+      '<div class="prose-diff"><div class="markdown-body"><div class="changed mdc-source-only rich-diff-level-zero"><button type="button" class="mdc-source-only-toggle" aria-expanded="false">Source changed</button><pre class="mdc-source-diff" hidden>- a</pre></div></div></div>';
+    const b = document.querySelector<HTMLElement>('.markdown-body')!;
+    applyBody(b);
+    applyBody(b);
+    const toggle = b.querySelector<HTMLButtonElement>('.mdc-source-only-toggle')!;
+    toggle.click();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(b.querySelector<HTMLElement>('.mdc-source-diff')!.hidden).toBe(false);
+    toggle.click();
+    expect(b.querySelector<HTMLElement>('.mdc-source-diff')!.hidden).toBe(true);
+  });
+});

@@ -8,6 +8,11 @@ describe('problemsFor', () => {
     expect(problemsFor([{ key: 'a', status: 'fallback' }, { key: 'b', status: 'no-button' }]).size).toBe(0);
   });
 
+  it('GitHub가 렌더링을 못 만들어 엔진으로 그리는 파일(local)은 문제 아님, 버튼을 찾은 것으로 센다', () => {
+    expect(problemsFor([{ key: 'a', status: 'local' }]).size).toBe(0);
+    expect(problemsFor([{ key: 'a', status: 'local' }, { key: 'b', status: 'no-button' }]).size).toBe(0);
+  });
+
   it('렌더링이 모르는 모양으로 나오면(timeout) 그 파일은 문제', () => {
     expect(problemsFor([{ key: 'a', status: 'timeout' }, { key: 'b', status: 'rich' }])).toEqual(
       new Map([['a', 'problemNoProseDiff']]),
