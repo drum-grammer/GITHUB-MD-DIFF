@@ -159,3 +159,30 @@ describe('renderMarkdown — 코멘트 미리보기', () => {
     expect(renderMarkdown('a[^1]\n\n[^1]: n\n')).toContain('section class="footnotes" data-footnotes=""');
   });
 });
+
+describe('RenderContext 선택 항목 — 확장의 로컬 렌더링(docs/local-render §4-5)', () => {
+  it('imageUrl이 있으면 저장소 안 이미지 src를 그 값으로(옛 쪽은 old), null이면 막는다 — imageId는 부르지 않는다', () => {
+    const urls: string[] = [];
+    const ctx = {
+      ...CTX,
+      imageId: () => {
+        throw new Error('imageId를 부르면 안 된다');
+      },
+      imageUrl: (side: 'old' | 'new', p: string) => (p.endsWith('secret.png') ? null : (urls.push(`${side} ${p}`), `/o/r/raw/${side}/${p}`)),
+    };
+    const b = render(md('![a](img/a.png)', '', '![s](secret.png)'), md('![b](img/b.png)', '', '![s](secret.png)'), 'docs/x.md', ctx);
+    expect(b.querySelector('img[alt="b"]')!.getAttribute('src')).toBe('/o/r/raw/new/docs/img/b.png');
+    expect(b.querySelector('img[alt="a"]')!.getAttribute('src')).toBe('/o/r/raw/old/docs/img/a.png');
+    expect(b.querySelector('img[alt="s"]')!.hasAttribute('src')).toBe(false);
+    expect(b.querySelector('img[alt="s"]')!.hasAttribute('data-mdc-blocked')).toBe(true);
+    expect(urls).toEqual(expect.arrayContaining(['new docs/img/b.png', 'old docs/img/a.png']));
+  });
+
+  it('annotations: false면 Codex 주석 속성(oai-*)을 달지 않는다 — 기본은 단다', () => {
+    const on = renderProseDiff(diffMarkdown({ oldText: md('A.'), newText: md('B.'), path: 'docs/a.md' }), CTX);
+    const off = renderProseDiff(diffMarkdown({ oldText: md('A.'), newText: md('B.'), path: 'docs/a.md' }), { ...CTX, annotations: false });
+    expect(on).toMatch(/oai-annotatable/);
+    expect(off).not.toMatch(/oai-/);
+    expect(off).toMatch(/data-mdc-new="1-1"/);
+  });
+});

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   fileElements, fileOf, filePath, hasReviewThreads, hasUnknownRendering, headerBlock, isCollapsed, isFoldable, isLargeDiffPlaceholder, isMarkdownPath, isPressed, loadDiffButton, pageStructure, pageVariant,
-  proseBody, setHidden, showsRichFailure, tablePairs, viewButton,
+  diffBodyBox, proseBody, richFailureNotice, setHidden, showsRichFailure, tablePairs, viewButton,
 } from '../src/selectors';
 import { FILE_FORMATS, addProse, fakeClassicFile, fakeFile, loadFixture } from './helpers';
 
@@ -167,6 +167,15 @@ describe('렌더링 실패 안내 · Load Diff', () => {
     expect(showsRichFailure(file)).toBe(false);
     addProse(file).innerHTML = '<p>This rich diff is not supported at the moment.</p>';
     expect(showsRichFailure(file)).toBe(false);
+  });
+
+  it.each(FILE_FORMATS)('실패 안내 요소와 본문 상자(%s) — 상자는 파일 머리 칸 다음, 확장이 넣은 안내 줄은 건너뛴다', (format) => {
+    const file = fakeFile('docs/a.md', true, format);
+    file.querySelector('.diff-body')!.innerHTML = FAILED;
+    expect(richFailureNotice(file)!.childElementCount).toBe(0);
+    expect(richFailureNotice(file)!.textContent).toBe('This rich diff is not supported at the moment.');
+    headerBlock(file)!.insertAdjacentHTML('afterend', '<div data-mdf="rich-failed"></div>');
+    expect(diffBodyBox(file)).toBe(file.querySelector('.diff-body'));
   });
 
   it.each(FILE_FORMATS)('Load Diff 버튼과 파일 머리 칸(%s)', (format) => {

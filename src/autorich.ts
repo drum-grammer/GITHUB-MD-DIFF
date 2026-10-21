@@ -1,8 +1,8 @@
 import { noticeBox } from './comment-ui';
 import { t } from './i18n';
 import {
-  MDF_ATTR, fileOf, hasReviewThreads, hasUnknownRendering, headerBlock, isCollapsed, isLargeDiffPlaceholder, isLoadingPlaceholder, isPressed,
-  loadDiffButton, proseBody, showsDiffNotice, showsRichFailure, viewButton,
+  LOCAL_ATTR, MDF_ATTR, fileOf, hasReviewThreads, hasUnknownRendering, headerBlock, isCollapsed, isLargeDiffPlaceholder, isLoadingPlaceholder,
+  isPressed, loadDiffButton, proseBody, richFailureNotice, setHidden, showsDiffNotice, showsRichFailure, viewButton,
 } from './selectors';
 
 export const RICH_TIMEOUT_MS = 5000;
@@ -39,6 +39,12 @@ export interface AutoRichState {
   fellBack: Set<string>;
   /** 되돌린 원문이 큰 diff 자리여서 확장이 "Load Diff"를 누른 파일 키 — 한 번만 */
   loadedDiff: Set<string>;
+  /** GitHub가 렌더링을 못 만들어 확장이 엔진으로 그리는(그린) 파일 키 — docs/local-render */
+  local: Set<string>;
+  /** 엔진으로도 못 그린 파일 키 — 다시 하지 않는다(사람이 렌더링을 다시 고르면 지운다) */
+  localFailed: Set<string>;
+  /** 사람이 렌더링 보기를 고른 파일 키 — 로컬 렌더링이 실패해도 원문으로 되돌리지 않는다 */
+  userRich: Set<string>;
   /** 확장이 버튼을 누르는 중 — 그 클릭을 사람의 선택으로 기억하지 않는다 */
   selfClick: boolean;
   /** 파일 키 → 렌더링이 모르는 모양으로 처음 보인 시각 */
@@ -53,6 +59,9 @@ export function createAutoRichState(): AutoRichState {
     hadThreads: new Set(),
     fellBack: new Set(),
     loadedDiff: new Set(),
+    local: new Set(),
+    localFailed: new Set(),
+    userRich: new Set(),
     selfClick: false,
     unknownSince: new Map(),
   };
@@ -86,6 +95,56 @@ function fallBack(file: HTMLElement, key: string, state: AutoRichState): 'fallba
 }
 
 /**
+ * GitHub가 렌더링을 못 만들었다 — 엔진으로 그릴 수 있으면 `local`(content.ts가 그린다), 아니면 원문으로 되돌린다.
+ * 엔진으로 그릴 수 있는지(`canLocal`)는 content.ts가 정한다: 로그인한 새 화면, 커밋 일부 보기가 아님
+ */
+function richFailed(file: HTMLElement, key: string, state: AutoRichState, canLocal: boolean): 'local' | 'fallback' {
+  // 렌더링이 눌려 있어야 그 자리에 넣을 수 있다 — 눌림이 반영되지 않은 채 15초가 지났으면 원문으로
+  if (!canLocal || state.localFailed.has(key) || !richPressed(file)) return fallBack(file, key, state);
+  state.clicks.delete(key);
+  state.unknownSince.delete(key);
+  state.local.add(key);
+  return 'local';
+}
+
+/**
+ * 엔진으로도 못 그렸다(원문을 못 받음·엔진 오류·한도) — 확장이 고른 렌더링이면 원문으로 되돌리고(#51과 같다),
+ * 사람이 고른 렌더링이면 그대로 둔다(GitHub 실패 안내가 남는다)
+ */
+export function localFailed(file: HTMLElement, key: string, state: AutoRichState): 'fallback' | 'idle' {
+  state.local.delete(key);
+  state.localFailed.add(key);
+  return state.userRich.has(key) ? 'idle' : fallBack(file, key, state);
+}
+
+function richPressed(file: HTMLElement): boolean {
+  const rich = viewButton(file, 'rich');
+  return rich !== null && isPressed(rich);
+}
+
+/** 확장이 엔진으로 그린 본문 — `.prose-diff[data-mdf-local]` 안의 `.markdown-body` */
+export function localBody(file: ParentNode): HTMLElement | null {
+  return file.querySelector<HTMLElement>(`[${LOCAL_ATTR}] .markdown-body`);
+}
+
+/** 엔진으로 그린 본문을 걷고 숨긴 GitHub 실패 안내를 되돌린다 */
+export function removeLocalBody(file: Element): void {
+  for (const el of file.querySelectorAll(`[${LOCAL_ATTR}]`)) el.remove();
+  const notice = richFailureNotice(file);
+  if (notice) setHidden(notice, false);
+}
+
+/**
+ * 엔진으로 그린 본문이 낡았으면 걷는다 — 렌더링 버튼이 눌려 있지 않거나(원문으로 바뀜: React는 남의 요소를 그대로 둔다),
+ * GitHub가 나중에 렌더링을 그려 본문이 둘이 됐다
+ */
+function dropStaleLocal(file: HTMLElement): void {
+  if (!file.querySelector(`[${LOCAL_ATTR}]`)) return;
+  const github = [...file.querySelectorAll('.prose-diff')].some((el) => !el.hasAttribute(LOCAL_ATTR));
+  if (github || !richPressed(file)) removeLocalBody(file);
+}
+
+/**
  * 되돌린 원문이 큰 diff의 "Load Diff" 자리면 한 번 누른다 — 렌더링을 기대한 파일이 빈 자리로 끝나지 않게.
  * GitHub가 원문을 그리는 동안은 버튼이 아직 없을 수 있어, 누를 때까지 볼 때마다 찾는다
  */
@@ -105,6 +164,7 @@ export type RichStatus =
   | 'queued' // 렌더링을 기다리는 파일이 많아 차례를 기다린다
   | 'timeout' // 눌렀는데 렌더링이 확장이 모르는 모양으로 나왔다(GitHub 화면 변경)
   | 'fallback' // GitHub가 렌더링을 못 만들어(실패 안내·빈 상자) 원문 보기로 되돌렸다
+  | 'local' // GitHub가 렌더링을 못 만들어 확장이 엔진으로 그리는 중(본문이 아직 없다) — content.ts가 그려 넣는다
   | 'pending' // 버튼이 아직 안 그려졌다
   | 'lazy' // GitHub가 파일 내용을 아직 안 채웠다(뼈대) — 스크롤해 오면 채운다
   | 'notice' // 원문 보기가 줄 대신 안내 글이다 — 이름만 바뀐 파일(렌더링할 것이 없다), 또는 버튼 없이 Load Diff만 있는 큰 diff
@@ -117,9 +177,10 @@ export type RichStatus =
  * md 파일을 렌더링 보기로 맞춘다. 누른 뒤 렌더링이 나타날 때까지는 다시 누르지 않는다 —
  * 단 눌림이 반영되지 않았으면 1초 간격으로 최대 3번까지 다시 누른다.
  * 사람이 원문을 고른 파일, 접힌 파일은 건드리지 않는다. 줄 코멘트가 있는 파일은 렌더링 보기에 스레드를 보여 줄 수 있을 때
- * (`threadsInRich`, 로그인)만 바꾼다.
+ * (`threadsInRich`, 로그인)만 바꾼다. GitHub가 렌더링을 못 만들면 `canLocal`일 때 `local`(엔진으로 그리기), 아니면 원문으로 되돌린다.
  */
-export function ensureRich(file: HTMLElement, key: string, state: AutoRichState, now: number, threadsInRich = false): RichStatus {
+export function ensureRich(file: HTMLElement, key: string, state: AutoRichState, now: number, threadsInRich = false, canLocal = false): RichStatus {
+  dropStaleLocal(file);
   if (proseBody(file)) {
     state.clicks.delete(key); // 나중에 GitHub가 원문으로 다시 그리면 한 번 더 누를 수 있게
     state.missingSince.delete(key);
@@ -131,6 +192,12 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
     loadFallbackDiff(file, key, state);
     return 'fallback';
   }
+  if (state.local.has(key)) {
+    if (canLocal && richPressed(file)) return isCollapsed(file) ? 'idle' : 'local';
+    // 파일이 원문 보기로 다시 그려졌다(Conversation에 갔다 돌아옴 등), 또는 엔진으로 그릴 수 없는 화면(커밋 일부 보기는 키가 같다) —
+    // 평소 길로 다시 간다. 그린 HTML은 local-render가 기억해 두어, GitHub가 또 실패하면 바로 다시 넣는다
+    state.local.delete(key);
+  }
   if (isCollapsed(file)) {
     state.clicks.delete(key);
     return 'idle';
@@ -139,7 +206,7 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
   const rec = state.clicks.get(key);
   if (rec) {
     // GitHub가 이 파일은 렌더링하지 못한다고 그렸다(큰 파일의 서버 시간 초과) — 남은 시간을 기다리지 않는다
-    if (showsRichFailure(file)) return fallBack(file, key, state);
+    if (showsRichFailure(file)) return richFailed(file, key, state, canLocal);
     const waited = now - rec.first;
     if (waited > RICH_TIMEOUT_MS && hasUnknownRendering(file)) {
       const since = state.unknownSince.get(key) ?? now;
@@ -147,7 +214,7 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
       return now - since >= UNKNOWN_HOLD_MS ? 'timeout' : 'waiting';
     }
     state.unknownSince.delete(key);
-    if (waited > FALLBACK_MS) return fallBack(file, key, state);
+    if (waited > FALLBACK_MS) return richFailed(file, key, state, canLocal);
     const lost = button && !isPressed(button);
     if (lost && rec.count < MAX_CLICKS && now - rec.last >= RECLICK_MS) {
       press(state, button);
@@ -172,7 +239,14 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
     return now - since > RICH_TIMEOUT_MS ? 'no-button' : 'pending';
   }
   state.missingSince.delete(key);
-  if (isPressed(button)) return 'idle';
+  if (isPressed(button)) {
+    // 렌더링이 이미 골라진 채 GitHub가 실패를 그렸다(사람이 고른 렌더링 등) — 엔진으로 그릴 수 있으면 그린다. 원문으로 되돌리지는 않는다
+    if (canLocal && !state.localFailed.has(key) && showsRichFailure(file)) {
+      state.local.add(key);
+      return 'local';
+    }
+    return 'idle';
+  }
   // 이름만 바뀐 파일 등 — 눌러도 빈 상자다. 큰 diff의 Load Diff는 렌더링이 대개 되므로 누른다(1차 탐험: 70여 개 정상 렌더링)
   if (showsDiffNotice(file) && !isLargeDiffPlaceholder(file)) return 'notice';
   const threads = hasReviewThreads(file);
@@ -188,9 +262,10 @@ const RICH_FAILED = 'rich-failed';
 
 /**
  * GitHub가 렌더링을 못 만들어 원문 보기로 되돌린 파일에 그 까닭을 파일 머리 바로 아래 한 줄로 둔다(`on`).
+ * 브라우저에서 엔진으로도 못 그렸으면(`localTried`) 그렇게 말한다 — 확장 쪽 실패를 감추지 않는다(까닭은 콘솔 경고에).
  * "다시 시도"는 사람이 렌더링을 고른 것과 같아 또 실패해도 되돌리지 않는다. 되돌린 상태가 아니면 걷는다
  */
-export function noteRichFailed(file: HTMLElement, on: boolean, retry: () => void): void {
+export function noteRichFailed(file: HTMLElement, on: boolean, retry: () => void, localTried = false): void {
   const old = file.querySelector(`[${MDF_ATTR}="${RICH_FAILED}"]`);
   if (!on || old) {
     if (!on) old?.remove();
@@ -198,7 +273,7 @@ export function noteRichFailed(file: HTMLElement, on: boolean, retry: () => void
   }
   const top = headerBlock(file);
   if (!top) return;
-  const box = noticeBox(file.ownerDocument, t('richFailed'), t('tryRichAgain'), retry);
+  const box = noticeBox(file.ownerDocument, t(localTried ? 'richFailedLocal' : 'richFailed'), t('tryRichAgain'), retry);
   box.setAttribute(MDF_ATTR, RICH_FAILED);
   top.after(box);
 }
@@ -215,12 +290,17 @@ export function watchUserViewClicks(
     const file = btn ? fileOf(btn) : null;
     if (!btn || !file) return;
     const key = keyOf(file);
-    if (viewButton(file, 'source') === btn) state.userSource.add(key);
-    else if (viewButton(file, 'rich') === btn) {
-      // 사람이 고른 렌더링 — 늦게 나와도 되돌리지 않는다
+    if (viewButton(file, 'source') === btn) {
+      state.userSource.add(key);
+      state.userRich.delete(key);
+    } else if (viewButton(file, 'rich') === btn) {
+      // 사람이 고른 렌더링 — 늦게 나와도 되돌리지 않는다. GitHub가 또 실패하면 엔진으로 한 번 더 그려 본다
       state.userSource.delete(key);
       state.fellBack.delete(key);
       state.clicks.delete(key);
+      state.local.delete(key);
+      state.localFailed.delete(key);
+      state.userRich.add(key);
     }
   };
   doc.addEventListener('click', onClick, true);

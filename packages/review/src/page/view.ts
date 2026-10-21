@@ -1,5 +1,5 @@
 // 리뷰 페이지 화면 — 머리(기준·보내기)·알림·파일 목록·파일마다 렌더링 diff. 렌더링 diff는 확장과 같은 순서로 다듬는다(applyBody)
-import { applyBody } from '../../../../src/apply';
+import { applyBody, wireSourceToggles } from '../../../../src/apply';
 import { CommentController } from '../../../../src/comment-controller';
 import { safeFragment } from '../../../../src/comment-ui';
 import { t } from '../../../../src/i18n';
@@ -40,20 +40,8 @@ function button(doc: Document, label: string, className = 'mdf-btn'): HTMLButton
   return b;
 }
 
-/** "원문만 바뀜" 막대 — 누르면 원문 줄 diff를 펼친다(스펙 §4-2 7). CSP 때문에 인라인 처리기 없이 여기서 단다 */
-export function wireSourceToggles(body: HTMLElement): void {
-  for (const b of body.querySelectorAll<HTMLButtonElement>('.mdc-source-only-toggle')) {
-    if (b.dataset.mdcWired) continue;
-    b.dataset.mdcWired = '1';
-    b.addEventListener('click', () => {
-      const pre = b.parentElement?.querySelector<HTMLElement>('.mdc-source-diff');
-      if (!pre) return;
-      const open = b.getAttribute('aria-expanded') !== 'true';
-      b.setAttribute('aria-expanded', String(open));
-      pre.hidden = !open;
-    });
-  }
-}
+/** "원문만 바뀜" 막대 — 확장의 로컬 렌더링과 같이 쓰려고 src/apply.ts로 옮겼다(applyBody도 부른다). 예전처럼 여기서도 가져올 수 있다 */
+export { wireSourceToggles };
 
 /** 확장 threadBox 머리에 배지 — 보냄(읽기 전용)·위치 확인 필요(줄이 바뀐 초안) */
 export function decorateThreads(body: HTMLElement, badges: Map<string, Badge>): void {

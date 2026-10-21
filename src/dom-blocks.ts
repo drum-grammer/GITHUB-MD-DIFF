@@ -112,6 +112,25 @@ export function mapBlocks(
   return map;
 }
 
+const LINE_RANGE = /^(\d+)-(\d+)$/;
+
+/**
+ * 엔진 HTML의 블록 → 원문 줄 — 엔진이 잎마다 단 data-mdc-new/old를 읽는다(원문을 다시 맞추지 않는다). 지운 블록(del·.removed 안)은
+ * 옛 쪽(left), 나머지는 새 쪽(right) — domBlocks와 같은 규칙. 로컬 리뷰 페이지와 확장의 로컬 렌더링이 같이 쓴다
+ */
+export function mappingFromAttributes(body: HTMLElement): Map<HTMLElement, BlockTarget> {
+  const map = new Map<HTMLElement, BlockTarget>();
+  for (const el of body.querySelectorAll<HTMLElement>(COMMENT_BLOCK)) {
+    if (el.closest(`[${MDF_ATTR}]`)) continue; // 확장이 만든 것(합친 표의 사본 등) — 합친 행은 originRow로 원래 행을 찾는다
+    if (el.closest('.sr-only')) continue;
+    const removed = el.closest(REMOVED_BLOCK);
+    const side: Side = removed && body.contains(removed) ? 'left' : 'right';
+    const m = LINE_RANGE.exec(el.getAttribute(side === 'left' ? 'data-mdc-old' : 'data-mdc-new') ?? '');
+    if (m) map.set(el, { side, start: Number(m[1]), end: Number(m[2]) });
+  }
+  return map;
+}
+
 /** 블록들의 줄 범위를 하나로 합친다(같은 쪽만) */
 export function spanOf(targets: BlockTarget[]): BlockTarget | null {
   if (targets.length === 0) return null;

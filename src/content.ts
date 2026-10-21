@@ -1,5 +1,5 @@
 import { applyBody, noteNoVisibleChange, undoAll } from './apply';
-import { createAutoRichState, ensureRich, noteRichFailed, watchUserViewClicks, type RichStatus } from './autorich';
+import { createAutoRichState, ensureRich, localFailed, noteRichFailed, watchUserViewClicks, type RichStatus } from './autorich';
 import {
   attachComments,
   commentsBroken,
@@ -9,17 +9,24 @@ import {
   onCommentHealthChange,
   prepareComments,
 } from './comments';
+import { isCommitRangeView, prRef } from './github-api';
 import { t } from './i18n';
+import { LocalRenderer, hideGitHubNotice, noteLocal } from './local-render';
 import { installNavKeys } from './nav';
 import { fileKey, isPrChangesPage } from './page';
 import { problemsFor, structureProblem, type FileResult } from './problems';
 import { browserOf, showProblemToast } from './report';
-import { fileElements, fileOf, filePath, isMarkdownPath, isSignedIn, pageStructure, pageVariant, proseBody, viewButton } from './selectors';
+import { LOCAL_ATTR, fileElements, fileOf, filePath, isMarkdownPath, isSignedIn, pageStructure, pageVariant, proseBody, viewButton } from './selectors';
 
 const LOG = '[github-md-diff]';
 /** 이 상태의 파일이 있으면 화면 변화가 없어도 1초 뒤 다시 본다(시간 판정) */
-const RETRY: ReadonlySet<RichStatus> = new Set<RichStatus>(['clicked', 'waiting', 'pending', 'queued']);
+const RETRY: ReadonlySet<RichStatus> = new Set<RichStatus>(['clicked', 'waiting', 'pending', 'queued', 'local']);
 const state = createAutoRichState();
+/** GitHub가 렌더링을 못 만든 md 파일을 엔진으로 그린다(docs/local-render) — 다 그리면 다시 훑는다 */
+const localRenderer = new LocalRenderer(() => {
+  settled = new WeakMap();
+  schedule();
+});
 const problems = new Map<string, string>(); // 파일 키 → 문제 문구
 const problemDetails = new Set<string>(); // 문제 보고용 진단(영어)
 const warned = new Set<string>();
@@ -113,20 +120,32 @@ function report(force = false): void {
 /**
  * md 파일 하나 처리 — 렌더링 보기로 맞추고, 렌더링이 있으면 접기·표 합치기를 적용한다. md가 아니면 null.
  * `comments`(로그인했고 이 PR의 코멘트 요청이 정상)일 때만 코멘트를 붙이고, 스레드가 있는 파일도 렌더링으로 연다.
+ * GitHub가 렌더링을 못 만든 파일은 `signedIn`(새 화면)이고 PR 전체를 보는 화면이면 엔진으로 그린다.
  */
-function processFile(file: HTMLElement, comments: boolean): FileResult | null {
+function processFile(file: HTMLElement, comments: boolean, signedIn: boolean): FileResult | null {
   const path = pathOf(file);
   if (!path || !isMarkdownPath(path)) return null;
   const key = keyOf(file);
-  const status = ensureRich(file, key, state, Date.now(), comments);
-  noteRichFailed(file, status === 'fallback', () => viewButton(file, 'rich')?.click());
+  const pr = signedIn && !isCommitRangeView(location.href) ? prRef(location.href) : null;
+  let status = ensureRich(file, key, state, Date.now(), comments, pr !== null);
+  // 화면 근처 파일만 그린다 — 엔진이 화면을 붙잡는 동안 보이지 않는 곳의 파일로 멈추지 않게. 멀리 있으면 스크롤해 올 때(1초마다 다시 본다)
+  if (status === 'local' && pr && (!viewObserver || nearView.has(file))) {
+    const step = localRenderer.step(file, key, pr, path);
+    if (step === 'failed') status = localFailed(file, key, state);
+    else if (step === 'ready') status = ensureRich(file, key, state, Date.now(), comments, true);
+  }
+  const showSource = () => viewButton(file, 'source')?.click();
+  noteRichFailed(file, status === 'fallback', () => viewButton(file, 'rich')?.click(), state.localFailed.has(key));
   const body = status === 'rich' ? proseBody(file) : null;
+  const local = body?.closest(`[${LOCAL_ATTR}]`) != null;
+  if (local) hideGitHubNotice(file); // React가 상자를 다시 그려 실패 안내가 다시 나왔을 수 있다
+  noteLocal(file, status === 'local' ? 'rendering' : local ? 'rendered' : null, showSource);
   if (body) {
     if (!applied.has(body)) {
       const r = applyBody(body);
       if (r.errors.length) warnOnce(key, path, r.errors);
       try {
-        noteNoVisibleChange(body, () => viewButton(file, 'source')?.click());
+        noteNoVisibleChange(body, showSource);
       } catch (e) {
         warnOnce(`${key}:no-change`, path, e);
       }
@@ -203,7 +222,7 @@ function scan(): void {
       continue;
     }
     try {
-      const r = processFile(file, comments);
+      const r = processFile(file, comments, signedIn);
       if (r) results.push(r);
       if (!r || STEADY.has(r.status)) settled.set(file, r);
     } catch (e) {

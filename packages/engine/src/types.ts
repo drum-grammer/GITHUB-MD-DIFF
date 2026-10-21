@@ -70,4 +70,11 @@ export interface RenderContext {
   imageId(side: 'old' | 'new', repoPath: string): string | null;
   /** 기본 false. false면 http(s) 이미지는 src를 비우고 data-mdc-remote에 주소를 둔다 */
   allowRemoteImages?: boolean;
+  /**
+   * 있으면 저장소 상대 경로의 이미지 src를 이 값으로 둔다(imageId보다 먼저). null이면 막는다.
+   * 확장의 로컬 렌더링이 github.com의 raw 주소를 준다(docs/local-render §4-5)
+   */
+  imageUrl?(side: 'old' | 'new', repoPath: string): string | null;
+  /** 기본 true. false면 Codex 주석 속성(oai-*)을 달지 않는다 — github.com에서 그릴 때 */
+  annotations?: boolean;
 }

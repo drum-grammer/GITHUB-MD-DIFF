@@ -18,6 +18,10 @@ const html = renderProseDiff(diff, {
 const preview = renderMarkdown(commentText);   // 코멘트 미리보기(정화, diff 표시 없음)
 ```
 
+`RenderContext`의 선택 항목(확장의 [로컬 렌더링](../../docs/local-render/README.md)이 쓴다): `imageUrl(side, repoPath)` — 있으면 저장소 안 이미지 `src`를 그 값으로(`imageId`보다 먼저, `null`이면 막음) · `annotations: false` — Codex 주석 속성(`oai-*`)을 달지 않는다(기본 `true`).
+
+**브라우저에서** — 확장 빌드(`scripts/build-lib.mjs`의 `engineForBrowser`)는 `src/dom.ts`(jsdom)를 확장의 `src/engine-dom.ts`(실제 창 + inert 문서)로, `katex`를 `src/engine-math.ts`(GitHub `math-renderer` 표기)로 바꿔 끼워 content.js에 묶는다. 엔진 코드가 DOM을 얻는 곳은 `src/dom.ts` 하나로 둔다.
+
 `null`은 추가된 파일(`oldText`)·지운 파일(`newText`)이다. 줄은 1부터, 끝 포함이다. 모델 타입은 [src/types.ts](src/types.ts).
 
 기본값(M1 끝 결정): 단어 표시 기준 `DEFAULT_WHOLE_BLOCK_RATIO = 0.45`, 짝짓기 한도 `ENGINE_GAP_CELLS = 250_000`·`ENGINE_MAX_CELLS = 4_000_000` — [test/defaults.test.ts](test/defaults.test.ts)가 고정한다.
