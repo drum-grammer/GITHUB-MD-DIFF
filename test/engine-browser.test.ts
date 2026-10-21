@@ -1,7 +1,7 @@
 // 확장 빌드의 엔진 — scripts/build-lib.mjs의 바꿔 끼우기(engineForBrowser)로 묶은 엔진을 jsdom 창에서 그대로 돌린다(docs/local-render §4-2)
 import { execFileSync } from 'node:child_process';
-import { beforeAll, describe, expect, it } from 'vitest';
-import { engineDocument, fragment } from '../src/engine-dom';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { engineDocument, engineWindow, fragment } from '../src/engine-dom';
 import { renderToString } from '../src/engine-math';
 
 type Engine = typeof import('../packages/engine/src/index');
@@ -33,6 +33,15 @@ describe('브라우저판 엔진 DOM(src/engine-dom.ts)', () => {
     expect(engineDocument()).not.toBe(document);
     expect(engineDocument().defaultView).toBeNull();
     expect(fragment('<img src="x" onerror="boom()">').ownerDocument).toBe(engineDocument());
+  });
+
+  it('DOMPurify에 주는 창은 trustedTypes만 감춘다 — GitHub CSP가 막는 정책을 만들지 않게', () => {
+    vi.stubGlobal('trustedTypes', { createPolicy: () => ({}) });
+    expect((window as unknown as { trustedTypes?: unknown }).trustedTypes).toBeDefined();
+    expect((engineWindow() as unknown as { trustedTypes?: unknown }).trustedTypes).toBeUndefined();
+    expect(engineWindow().document).toBe(document);
+    expect(engineWindow().DOMParser).toBe(window.DOMParser);
+    vi.unstubAllGlobals();
   });
 });
 

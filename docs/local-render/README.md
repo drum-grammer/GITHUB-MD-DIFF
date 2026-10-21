@@ -84,7 +84,7 @@ GitHub 서버가 렌더링 diff를 만들지 못한 md 파일을, 확장이 옛�
 | 엔진 그대로(KaTeX 포함) | 약 1.5 MB | — (KaTeX만 657 KB) |
 | **엔진, KaTeX 대신 GitHub `math-renderer`** | **640 KB** | **4.8 ms** |
 
-- **DOM** — 엔진은 `packages/engine/src/dom.ts` 한 곳에서만 DOM을 얻는다(jsdom). 확장 빌드는 이 모듈을 브라우저판 `src/engine-dom.ts`로 바꿔 끼운다(esbuild 플러그인). 브라우저판은 DOMPurify에 실제 `window`를 주고, 엔진이 HTML을 읽고 쓰는 문서는 `document.implementation.createHTMLDocument('')`로 만든 **inert 문서**다 — 그 안의 `<img>`는 불러오지 않고 이벤트 처리기도 돌지 않는다. 엔진이 정화를 끝낸 HTML 문자열만 살아 있는 페이지에 들어간다.
+- **DOM** — 엔진은 `packages/engine/src/dom.ts` 한 곳에서만 DOM을 얻는다(jsdom). 확장 빌드는 이 모듈을 브라우저판 `src/engine-dom.ts`로 바꿔 끼운다(esbuild 플러그인). 브라우저판은 DOMPurify에 실제 `window`를 주되 `trustedTypes`만 감춘다 — 그대로 주면 DOMPurify가 'dompurify' Trusted Types 정책을 만들려 하고 GitHub CSP의 허용 목록이 막아 페이지에 CSP 위반이 남았다(실측, testbed #8). 정화 결과는 문자열로 받으므로 정책이 필요 없다. 그리고 엔진이 HTML을 읽고 쓰는 문서는 `document.implementation.createHTMLDocument('')`로 만든 **inert 문서**다 — 그 안의 `<img>`는 불러오지 않고 이벤트 처리기도 돌지 않는다. 엔진이 정화를 끝낸 HTML 문자열만 살아 있는 페이지에 들어간다.
 - **수식** — GitHub rich diff는 수식을 서버에서 그리지 않고 `<math-renderer class="js-inline-math">$…$</math-renderer>`를 내면 페이지가 MathML로 바꾼다. 실측: 확장이 아닌 쪽에서 넣은 `math-renderer`도 GitHub 페이지가 그 자리에서 MathML로 바꿨다(testbed #5·#8, 2026-10-21). 그래서 확장 빌드는 `katex`를 `renderToString`만 있는 작은 대역(`src/engine-math.ts`)으로 바꿔 GitHub와 같은 표기를 낸다. 페이지가 바꾸지 못하면 TeX 원문이 글자로 보인다.
 - **두 번 거른다** — 넣기 전에 로컬 리뷰 페이지처럼 `safeFragment`로 한 번 더 거른다(스크립트·이벤트 속성·위험한 주소). 그리고 GitHub 스크립트가 붙잡는 훅 클래스 가운데 엔진이 흉내 낸 Mermaid 자리(`js-render-needs-enrichment`)는 뗀다 — 붙여 두면 GitHub 스크립트가 그림 iframe을 찾다 페이지 오류를 냈다(testbed #8, 2026-10-21). 표(`markdown-accessiblity-table`)·수식(`math-renderer`)·접기 묶음(`js-expandable`)은 GitHub rich diff와 같은 표기라 그대로 둔다.
 - **엔진만 내는 표기의 모양** — "원문만 바뀜" 막대(`.mdc-source-only`)·사용자 `<ins>`·`<del>`(`.mdc-user-*`)·막은 이미지는 GitHub 스타일에 없다. 로컬 리뷰 페이지의 CSS를 `[data-mdf-local]` 아래로 옮기고, 막대를 펼치는 처리(`wireSourceToggles`)는 `applyBody`가 단다(로컬 리뷰 페이지와 같이 쓴다). 수식은 단어 비교에서 쪼개지 않는다(`math-renderer`를 원자 요소로).
@@ -116,7 +116,7 @@ GitHub 서버가 렌더링 diff를 만들지 못한 md 파일을, 확장이 옛�
 
 `RenderContext`에 선택 항목을 더한다 — 로컬 리뷰는 바뀌지 않는다.
 
-- `imageUrl?(side, repoPath): string | null` — 있으면 저장소 안 이미지의 `src`를 이 값으로(없으면 지금처럼 `imageId` → `/file/<id>`). 확장은 `/{owner}/{repo}/raw/{oid}/{path}`를 준다(옛 쪽은 base, 새 쪽은 head). raw는 *.githubusercontent.com으로 넘어가고, github.com의 이미지 CSP가 이를 허용하는지 E2E에서 확인한다.
+- `imageUrl?(side, repoPath): string | null` — 있으면 저장소 안 이미지의 `src`를 이 값으로(없으면 지금처럼 `imageId` → `/file/<id>`). 확장은 `/{owner}/{repo}/raw/{oid}/{path}`를 준다(옛 쪽은 base, 새 쪽은 head). raw는 *.githubusercontent.com으로 넘어가고, github.com 페이지의 이미지 CSP가 이를 허용한다(실측: 공개 저장소 PNG `/raw/` → 1024px로 로드, CSP 위반 없음. testbed에는 실제 이미지 파일이 없어 E2E로는 보지 않는다).
 - `annotations?: boolean`(기본 `true`) — `false`면 Codex 주석 속성(`oai-*`)을 달지 않는다. github.com에는 필요 없다.
 
 ### 4-6. 속도와 한도
