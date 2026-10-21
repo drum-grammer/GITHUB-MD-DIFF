@@ -13,7 +13,7 @@
 | 크롬 웹 스토어(공개) | **1.5.1** — 2026-10-14 제출·게시(2026-10-15 `pnpm release status`·스토어 페이지 확인). 태그 [`v1.5.1`](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases/tag/v1.5.1)(`0873956`)·GitHub Release **Latest**. v1.5.0은 로그인 화면에서 멈춘 판이라 pre-release로 둔다 |
 | `main` | **1.5.1** |
 | 진행 중 | 로컬 리뷰 M2 — 명령줄 도구 `markdown-diff-cat`(작업 트리 모드, [packages/review](packages/review/README.md)). M3 Codex 주석 병합([#50](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/50), Codex 실기 남음) · 다음: M4 PR 모드 · 설계·진행·남은 일: [docs/local-review](docs/local-review/README.md) |
-| 진행 중 — 큰 md | GitHub가 렌더링 diff를 못 만든 md(서버 504 → "This rich diff is not supported")를 #51이 알아보고 원문으로 되돌리고, 그 위에서 **로컬 렌더링**이 확장 안 엔진으로 브라우저에서 그린다 — 브랜치 `feat/local-render-fallback`(#51 위), 설계·실측: [docs/local-render](docs/local-render/README.md). 다음 MINOR(1.6.0)에 들어간다 |
+| 진행 중 — 큰 md | GitHub가 렌더링 diff를 못 만든 md(서버 504 → "This rich diff is not supported")를 [#51](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/51)(병합)이 알아보고 원문으로 되돌리고, 그 앞에서 **로컬 렌더링**이 확장 안 엔진으로 브라우저에서 그린다 — 🔵 [#52](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/52), 설계·실측: [docs/local-render](docs/local-render/README.md). 다음 MINOR(1.6.0)에 들어간다 |
 | 관리자 크롬 | 1.5.1 게시 뒤 스토어판으로 돌아간다(개발 빌드 끄기) — 다음 개발은 다시 `pnpm dev:chrome` |
 | 주간 카나리 | 상시 켜 둔 맥의 예약이 아직 돌지 않는다(그 맥의 화면 로그인·알림 토큰 대기). 2026-10-14 손으로 돌림: 1.5.0 깨짐 3/7 → 1.5.1 정상 9/9. `pnpm canary:status`로 멈춤을 본다 |
 
