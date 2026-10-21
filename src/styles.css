@@ -1,4 +1,6 @@
 .mdf-hidden { display: none !important; }
+/* Primer 유틸리티(.d-flex 등)도 !important라 같은 무게면 GitHub 쪽이 이긴다 — GitHub 요소를 숨길 때를 위해 한 단계 무겁게 */
+.mdf-hidden.mdf-hidden { display: none !important; }
 /* 옛 화면: 확장이 접기를 맡는 동안 GitHub 펼치기 아이콘은 감춘다 */
 [data-mdf-uncollapsed] .expandable > .octicon-unfold { display: none; }
 
@@ -163,3 +165,17 @@ li > .mdf-comment-form, li > .mdf-thread { margin: 8px 0; }
 .mdf-link.mdf-danger { color: var(--fgColor-danger, #d1242f); font-weight: 600; }
 .mdf-comment-edit { margin: 6px 0; }
 .mdf-file-threads > .mdf-comment-label { font-weight: 600; }
+
+/* 로컬 렌더링(docs/local-render) — 엔진만 내는 표기. ins·del·changed 등은 GitHub rich diff와 같은 표기라 GitHub 스타일이 그린다 */
+[data-mdf-local] .markdown-body > .mdc-source-only { margin: 8px 0 16px -16px; padding: 6px 12px; border-left: 4px dashed var(--borderColor-attention-emphasis, #9a6700); background: var(--bgColor-attention-muted, #fff8c5); }
+[data-mdf-local] .mdc-source-only-toggle { padding: 0; border: 0; background: none; color: var(--fgColor-attention, #9a6700); font: inherit; font-size: 12px; cursor: pointer; }
+[data-mdf-local] .mdc-source-only-toggle::before { content: '▸ '; }
+[data-mdf-local] .mdc-source-only-toggle[aria-expanded='true']::before { content: '▾ '; }
+[data-mdf-local] .markdown-body .mdc-source-diff { margin: 8px 0 0; font-size: 12px; }
+[data-mdf-local] .mdc-source-diff .mdc-del { color: var(--fgColor-danger, #d1242f); }
+[data-mdf-local] .mdc-source-diff .mdc-ins { color: var(--fgColor-success, #1a7f37); }
+[data-mdf-local] .mdc-user-ins { text-decoration: underline; }
+[data-mdf-local] .mdc-user-del { text-decoration: line-through; }
+[data-mdf-local] .markdown-body img[data-mdc-blocked],
+[data-mdf-local] .markdown-body img[data-mdc-remote]:not([src]) { min-width: 16px; min-height: 16px; outline: 1px dashed var(--borderColor-default, #d1d9e0); }
+[data-mdf-local] .mdc-mermaid { margin: 0 0 16px; overflow-x: auto; }

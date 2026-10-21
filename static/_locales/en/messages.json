@@ -43,6 +43,7 @@
   "threadsUnplaced": {"message": "Comments on lines this view does not show"},
   "threadsUnavailable": {"message": "This file has review comments that could not be shown here."},
   "richFailed": {"message": "GitHub could not render this file (large files often time out), so the source diff is shown."},
+  "richFailedLocal": {"message": "GitHub could not render this file, and it could not be rendered in your browser either, so the source diff is shown."},
   "tryRichAgain": {"message": "Try rich diff again"},
   "localRendering": {"message": "GitHub could not render this file. Rendering it in your browser…"},
   "localRendered": {"message": "GitHub could not render this file, so it was rendered in your browser. It may differ slightly from GitHub's rendering."},

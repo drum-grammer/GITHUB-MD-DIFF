@@ -128,13 +128,14 @@ function processFile(file: HTMLElement, comments: boolean, signedIn: boolean): F
   const key = keyOf(file);
   const pr = signedIn && !isCommitRangeView(location.href) ? prRef(location.href) : null;
   let status = ensureRich(file, key, state, Date.now(), comments, pr !== null);
-  if (status === 'local' && pr) {
+  // 화면 근처 파일만 그린다 — 엔진이 화면을 붙잡는 동안 보이지 않는 곳의 파일로 멈추지 않게. 멀리 있으면 스크롤해 올 때(1초마다 다시 본다)
+  if (status === 'local' && pr && (!viewObserver || nearView.has(file))) {
     const step = localRenderer.step(file, key, pr, path);
     if (step === 'failed') status = localFailed(file, key, state);
     else if (step === 'ready') status = ensureRich(file, key, state, Date.now(), comments, true);
   }
   const showSource = () => viewButton(file, 'source')?.click();
-  noteRichFailed(file, status === 'fallback', () => viewButton(file, 'rich')?.click());
+  noteRichFailed(file, status === 'fallback', () => viewButton(file, 'rich')?.click(), state.localFailed.has(key));
   const body = status === 'rich' ? proseBody(file) : null;
   const local = body?.closest(`[${LOCAL_ATTR}]`) != null;
   if (local) hideGitHubNotice(file); // React가 상자를 다시 그려 실패 안내가 다시 나왔을 수 있다

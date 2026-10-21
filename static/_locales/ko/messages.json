@@ -43,6 +43,7 @@
   "threadsUnplaced": {"message": "이 보기에 나오지 않는 줄의 코멘트"},
   "threadsUnavailable": {"message": "이 파일에는 여기서 보여 줄 수 없는 리뷰 코멘트가 있어요."},
   "richFailed": {"message": "GitHub가 이 파일을 렌더링하지 못해(큰 파일은 시간 초과가 잦아요) 원문 diff를 보여 줘요."},
+  "richFailedLocal": {"message": "GitHub도, 브라우저에서도 이 파일을 렌더링하지 못해 원문 diff를 보여 줘요."},
   "tryRichAgain": {"message": "렌더링 다시 시도"},
   "localRendering": {"message": "GitHub가 이 파일을 렌더링하지 못해 브라우저에서 렌더링하고 있어요…"},
   "localRendered": {"message": "GitHub가 이 파일을 렌더링하지 못해 브라우저에서 렌더링했어요. GitHub 렌더링과 조금 다를 수 있어요."},

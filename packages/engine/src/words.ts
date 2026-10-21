@@ -8,8 +8,8 @@ import { ITEM_NESTED } from './keys';
 import type { Kind, WordOp } from './types';
 
 const SEGMENTER = new Intl.Segmenter('und', { granularity: 'word' });
-/** 쪼개지 않고 통째로 비교하는 요소 */
-const ATOMIC = 'span.katex, img, input, sup.footnote-ref, br, svg, a[data-footnote-backref]';
+/** 쪼개지 않고 통째로 비교하는 요소 — math-renderer는 확장 빌드의 수식 표기(src/engine-math.ts, TeX 원문을 GitHub 페이지가 그린다) */
+const ATOMIC = 'span.katex, math-renderer, img, input, sup.footnote-ref, br, svg, a[data-footnote-backref]';
 /** 단어 표의 칸 수 상한 — 넘으면 단어 표시 없이 통째로 */
 export const WORD_MAX_CELLS = 4_000_000;
 

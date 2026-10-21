@@ -252,9 +252,10 @@ const RICH_FAILED = 'rich-failed';
 
 /**
  * GitHub가 렌더링을 못 만들어 원문 보기로 되돌린 파일에 그 까닭을 파일 머리 바로 아래 한 줄로 둔다(`on`).
+ * 브라우저에서 엔진으로도 못 그렸으면(`localTried`) 그렇게 말한다 — 확장 쪽 실패를 감추지 않는다(까닭은 콘솔 경고에).
  * "다시 시도"는 사람이 렌더링을 고른 것과 같아 또 실패해도 되돌리지 않는다. 되돌린 상태가 아니면 걷는다
  */
-export function noteRichFailed(file: HTMLElement, on: boolean, retry: () => void): void {
+export function noteRichFailed(file: HTMLElement, on: boolean, retry: () => void, localTried = false): void {
   const old = file.querySelector(`[${MDF_ATTR}="${RICH_FAILED}"]`);
   if (!on || old) {
     if (!on) old?.remove();
@@ -262,7 +263,7 @@ export function noteRichFailed(file: HTMLElement, on: boolean, retry: () => void
   }
   const top = headerBlock(file);
   if (!top) return;
-  const box = noticeBox(file.ownerDocument, t('richFailed'), t('tryRichAgain'), retry);
+  const box = noticeBox(file.ownerDocument, t(localTried ? 'richFailedLocal' : 'richFailed'), t('tryRichAgain'), retry);
   box.setAttribute(MDF_ATTR, RICH_FAILED);
   top.after(box);
 }

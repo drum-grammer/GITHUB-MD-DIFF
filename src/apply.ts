@@ -11,9 +11,28 @@ export interface ApplyResult {
   errors: unknown[];
 }
 
+/**
+ * 엔진의 "원문만 바뀜" 막대 — 누르면 원문 줄 diff를 펼친다(엔진 스펙 §4-2 7). 로컬 리뷰 페이지와 확장의 로컬 렌더링이 같이 쓴다.
+ * 페이지 CSP 때문에 인라인 처리기 없이 여기서 단다. GitHub rich diff에는 없는 표기라 GitHub 본문에서는 아무 일도 하지 않는다
+ */
+export function wireSourceToggles(body: HTMLElement): void {
+  for (const b of body.querySelectorAll<HTMLButtonElement>('.mdc-source-only-toggle')) {
+    if (b.dataset.mdcWired) continue;
+    b.dataset.mdcWired = '1';
+    b.addEventListener('click', () => {
+      const pre = b.parentElement?.querySelector<HTMLElement>('.mdc-source-diff');
+      if (!pre) return;
+      const open = b.getAttribute('aria-expanded') !== 'true';
+      b.setAttribute('aria-expanded', String(open));
+      pre.hidden = !open;
+    });
+  }
+}
+
 /** 렌더링 diff 본문 하나에 표 합치기·접기·파일 툴바(펼치기·요약·이동)를 적용한다. 여러 번 불러도 결과가 같다 */
 export function applyBody(body: HTMLElement): ApplyResult {
   const result: ApplyResult = { folds: 0, tables: 0, errors: [] };
+  wireSourceToggles(body);
   for (const pair of tablePairs(body)) {
     try {
       if (mergeTablePair(pair)) result.tables++;

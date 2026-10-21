@@ -4,17 +4,22 @@
  * 그 뒤 접기·표 합치기·이동·코멘트는 GitHub 렌더링 때와 같은 길이다. 설계: docs/local-render
  */
 import { localBody } from './autorich';
-import { noticeBox } from './comment-ui';
+import { noticeBox, safeFragment } from './comment-ui';
 import { commentPath } from './comments';
 import { REMOVED_CHANGE, rawFileUrl, type PrRef } from './github-api';
 import { t } from './i18n';
 import { loadPr, loadText } from './pr-cache';
 import { LOCAL_ATTR, MDF_ATTR, diffBodyBox, headerBlock, richFailureNotice, setHidden } from './selectors';
 
-/** 옛·새 원문을 합쳐 이보다 크면 엔진을 돌리지 않는다(원문 보기로) — 브라우저에서 37만 자·15곳 고침이 0.5초, 2,400곳 고침이 1.2초였다 */
-export const MAX_SOURCE_CHARS = 2_000_000;
+/**
+ * 옛·새 원문을 합쳐 이보다 크면 엔진을 돌리지 않는다(원문 보기로). 엔진은 그동안 화면을 붙잡는다 — 브라우저에서 37만 자·15곳 고침이 0.5초,
+ * 16만 자·2,400곳 모두 고침이 1.2초였다(2026-10-21). 한 쪽 약 60만 자까지 — 계기가 된 437 KB 문서가 들어간다
+ */
+export const MAX_SOURCE_CHARS = 1_200_000;
 
 const NOTE = 'local-rich';
+/** GitHub가 그림(Mermaid 등)을 붙이는 자리의 훅 클래스 */
+const ENRICHMENT = 'js-render-needs-enrichment';
 const LOG = '[github-md-diff]';
 
 type Entry =
@@ -66,7 +71,10 @@ export function insertLocalBody(file: HTMLElement, html: string): HTMLElement | 
   const inner = doc.createElement('div');
   const article = doc.createElement('article');
   article.className = 'markdown-body entry-content container-lg';
-  article.innerHTML = html; // 엔진이 원문 HTML을 inert 문서에서 정화한 결과(packages/engine/src/sanitize.ts)
+  // 엔진이 원문 HTML을 inert 문서에서 정화했다(packages/engine/src/sanitize.ts). 로컬 리뷰 페이지처럼 한 번 더 거른다(스크립트·이벤트 속성·위험한 주소)
+  article.append(safeFragment(doc, html));
+  // Mermaid 자리표시는 GitHub 표기를 흉내 낸다 — GitHub 스크립트가 이 클래스를 보고 그림 iframe을 찾다 오류를 낸다(2026-10-21). 코드 블록으로만 둔다
+  for (const el of article.querySelectorAll(`.${ENRICHMENT}`)) el.classList.remove(ENRICHMENT);
   inner.append(article);
   wrap.append(inner);
   box.append(wrap);
