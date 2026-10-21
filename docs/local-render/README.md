@@ -160,7 +160,7 @@ GitHub 서버가 렌더링 diff를 만들지 못한 md 파일을, 확장이 옛�
 
 ## 6. 남은 일
 
-- [ ] 구현 PR — 이 문서의 결정대로(버전은 다음 MINOR, `UNRELEASED`의 New)
+- 🔵 구현 PR — 브랜치 `feat/local-render-fallback`(#51 위에 쌓음 — #51이 먼저 병합돼야 한다). 버전은 다음 MINOR(1.6.0), `UNRELEASED`의 New
 - 나중에(수요 보고): 로그아웃 옛 화면 · 커밋 일부 보기(그 범위의 base·head를 화면에서 읽어야 함) · 바깥 이미지 · Mermaid · 엔진이 GitHub와 다른 곳([KNOWN-DIFFERENCES](../../packages/engine/parity/KNOWN-DIFFERENCES.md)) — 로컬 렌더링은 GitHub 렌더링과 조금 다를 수 있다는 것을 안내 문구가 말한다.
 
 ## 7. 누가 정했나

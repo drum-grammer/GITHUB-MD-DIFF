@@ -20,6 +20,7 @@ Markdown Diff Cat gives you both: the rendered document, with only the changes i
 ## What it does
 
 - **Opens the rendered view for you** on every `.md`, `.markdown`, and `.mdx` file on the "Files changed" page
+- **Renders it in your browser when GitHub cannot** (signed in). GitHub's server times out on some large files and shows only "This rich diff is not supported at the moment." Markdown Diff Cat then builds the rendered diff itself from the old and new text and puts it where GitHub's would be, so folding, table merging, jumping between changes, and comments work as usual. A one-line note above the file says it was rendered in your browser, with **Show source diff**
 - **Folds unchanged sections** into one-line bars that show how many blocks they hide and the last heading inside. Click a bar to expand it, or **Expand all** at the top of the file
 - **Shows only the changed rows of tables.** When one row changes, GitHub shows the whole old table and the whole new table. Markdown Diff Cat merges them into one table with only the changed, added, and removed rows, and shows changed cells as old → new. **All rows** and **Original tables** buttons sit above each merged table
 - **Jump between changes.** The top of each file says how many places changed and how many review threads it has, with how many are still open ("8 changes · 3 threads (3 open)"). Press `]` / `[` for the next or previous change on the page and `}` / `{` for the next or previous thread, or use ↑ ↓ to move within one file. The keys do nothing while you type
@@ -70,7 +71,8 @@ No data collected and no remote code. The extension reads the open GitHub page i
 
 ## Limits
 
-- Files renamed without changes stay in the source view, since there is nothing to render. Large diffs that GitHub hides behind **Load Diff** are still opened in the rendered view. If GitHub fails to build the rendered view of a file (its server times out on some large files and shows “This rich diff is not supported at the moment.”), the file goes back to the source view as soon as GitHub says so (after 15 seconds if GitHub shows nothing), with the source diff loaded even when GitHub hid it behind **Load Diff**. A one-line note above it says why and offers **Try rich diff again**. It is not reported as a problem
+- Files renamed without changes stay in the source view, since there is nothing to render. Large diffs that GitHub hides behind **Load Diff** are still opened in the rendered view. If GitHub fails to build the rendered view of a file (its server times out on some large files and shows “This rich diff is not supported at the moment.”, or shows nothing for 15 seconds), the extension renders it in your browser instead. It is not reported as a problem
+- Rendering in your browser ([design](docs/local-render/README.md)) uses the same engine as local review, so it can differ slightly from GitHub's rendering: images from other sites (GitHub shows them through its image proxy) and Mermaid diagrams are not drawn; math is drawn by GitHub's own page. It needs the signed-in "Files changed" page of the whole pull request (not a single-commit view), renders one file at a time and only files near the screen, and stops at about 600,000 characters per side. A large file can hold the page for a second or so while it renders; the note appears first. If it cannot render the file either, the file goes back to the source view, with the source diff loaded even when GitHub hid it behind **Load Diff**, and a one-line note says why and offers **Try rich diff again**
 - When an edit does not change what the page looks like (Markdown syntax, a link URL, an escaped character), the rendered view has nothing to highlight. The file says so at the top, with a **Show source diff** button
 - In a pull request with many Markdown files, it asks GitHub for at most 10 rendered views at a time, starting with the files on screen. Files further down render as you scroll to them
 - It relies on GitHub's page structure. When GitHub changes it, the icon shows `!` until an update ships. Please [open an issue](https://github.com/drum-grammer/GITHUB-MD-DIFF/issues)
@@ -140,6 +142,7 @@ What the research found, and where the code relies on it:
 Where to see it:
 
 - Test repository: [markdown-diff-cat-testbed](https://github.com/drum-grammer/markdown-diff-cat-testbed) — [#4 review scenarios](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/4) · [#5 large diff](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/5) · [#6 120 files](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/6) · [#7 follow-up commit after review](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/7)
+- Rendering in the browser when GitHub cannot (design and measurements): [docs/local-render](docs/local-render/README.md)
 - Release notes: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases) · [v1.5.0](docs/releases/v1.5.0.md) · [v1.1.1](docs/releases/v1.1.1.md) · [changes not yet in the store](docs/releases/UNRELEASED.md)
 - Store listing: [Chrome Web Store](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj)
 - Maintainer's summary pages (private links that only the maintainer can open): [research and test summary](https://claude.ai/artifact/X8tNysv7MhgaKZocWzaPNx) · [1.1.1 verification](https://claude.ai/artifact/9dxHzJFADpAqSk6U4HMjT3)
@@ -171,7 +174,8 @@ Markdown Diff Cat은 두 장점을 합쳤어요. 렌더링된 문서를 보면�
 
 ### 이런 걸 해요
 
-- **렌더링 보기로 자동 전환** — "Files changed" 화면의 `.md`·`.markdown`·`.mdx` 파일. GitHub가 렌더링을 못 만든 파일(큰 파일에서 GitHub 서버가 시간 초과)은 바로 원문 diff를 펼치고, 그 까닭과 **렌더링 다시 시도** 버튼을 한 줄로 보여 줘요
+- **렌더링 보기로 자동 전환** — "Files changed" 화면의 `.md`·`.markdown`·`.mdx` 파일
+- **GitHub가 못 그리면 브라우저에서 렌더링**(로그인) — 큰 파일에서 GitHub 서버가 시간 초과로 "This rich diff is not supported at the moment."만 남기면, 옛·새 원문으로 렌더링 diff를 직접 그려 GitHub 렌더링 자리에 넣어요. 접기·표 합치기·이동·코멘트가 평소처럼 돼요. 파일 위 한 줄이 브라우저에서 그렸다고 알리고 **원문 보기로** 버튼을 둬요. 브라우저에서도 못 그리면 원문 diff를 펼치고 그 까닭과 **렌더링 다시 시도** 버튼을 보여 줘요
 - **바뀌지 않은 구간 접기** — 한 줄 막대에 숨긴 블록 수와 마지막 제목이 보여요. 누르면 그 자리만 펼치고, 파일 위 **모두 펼치기**로 한 번에 펼쳐요
 - **표는 바뀐 행만** — 행 하나만 바뀌어도 GitHub는 옛 표 전체와 새 표 전체를 보여 줘요. 바뀐·추가된·삭제된 행만 남긴 표 하나로 합치고, 바뀐 칸은 이전 → 이후로 보여 줘요. 표 위 **전체 행**·**원래 표** 버튼으로 언제든 바꿔 볼 수 있어요
 - **바뀐 곳 사이를 오가기** — 파일 맨 위에 바뀐 곳이 몇 군데인지, 리뷰 스레드가 몇 개이고 그중 몇 개가 미해결인지 보여요("변경 8곳 · 스레드 3개(미해결 3)"). `]`·`[`로 페이지의 다음·이전 바뀐 곳, `}`·`{`로 다음·이전 스레드로 가고, ↑ ↓는 그 파일 안에서만 움직여요. 글을 쓰는 중에는 키를 가로채지 않아요
