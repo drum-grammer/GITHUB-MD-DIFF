@@ -15,6 +15,7 @@ import { MDF_ATTR, PROSE_BODY } from './prose-markup.ts';
 export {
   CHANGE_WRAPPER,
   COMMENT_BLOCK,
+  HEAD_ATTR,
   HIDDEN_CLASS,
   INLINE_DELETED,
   INLINE_INSERTED,
@@ -189,12 +190,12 @@ export function showsRichFailure(file: Element): boolean {
   return !proseBody(file) && richFailureNotice(file) !== null;
 }
 
-/** 그 실패 안내 요소 — 글자만 든 요소다. 원문 표 칸이나 확장이 넣은 상자 안의 같은 문장은 아니다 */
+/** 그 실패 안내 요소 — 글자만 든 요소다. 원문 표 칸, 렌더링 본문(확장이 그린 것 포함), 확장이 넣은 상자 안의 같은 문장은 아니다 */
 export function richFailureNotice(file: Element): HTMLElement | null {
   const header = headerOf(file);
   return (
     [...file.querySelectorAll<HTMLElement>('div, p, span')].find(
-      (el) => el.childElementCount === 0 && !header?.contains(el) && !el.closest(`table, [${MDF_ATTR}]`) && RICH_FAILED.test(el.textContent?.trim() ?? ''),
+      (el) => el.childElementCount === 0 && !header?.contains(el) && !el.closest(`table, .prose-diff, [${MDF_ATTR}]`) && RICH_FAILED.test(el.textContent?.trim() ?? ''),
     ) ?? null
   );
 }

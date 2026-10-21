@@ -111,6 +111,24 @@ describe('GitHub 백엔드로 붙인 코멘트(나누기 전과 같은 겉동작
     expect(body.querySelector<HTMLElement>('[data-mdf="comment-form"]')!.dataset.span).toBe('right:9-9');
   });
 
+  it('엔진으로 그린 본문은 그린 머리 커밋(data-mdf-head) 기준 — PR에 새 커밋이 있으면 올리지 않는다', async () => {
+    const calls = github(208, { heads: ['h2'] });
+    history.pushState({}, '', '/o/r/pull/208/changes');
+    const file = fakeFile('docs/a.md');
+    file.querySelector('.diff-body')!.innerHTML =
+      '<div class="prose-diff position-relative" data-mdf-local="" data-mdf-head="h1"><div><article class="markdown-body">' +
+      '<p class="vicinity" id="third" data-mdc-new="7-7" data-mdc-old="7-7">Third paragraph.</p></article></div></div>';
+    const body = file.querySelector<HTMLElement>('.markdown-body')!;
+    attachComments(file, body, 'docs/a.md', false);
+    await hover(body.querySelector('#third')!);
+    addButton().dispatchEvent(new MouseEvent('click', { detail: 0 }));
+    const form = body.querySelector<HTMLElement>('[data-mdf="comment-form"]')!;
+    typeAndPress(form, 'Please reword', 'commentSingle');
+    await vi.waitFor(() => expect(form.textContent).toContain('errorStale'));
+    expect(calls.some((c) => c.method === 'POST')).toBe(false);
+    expect(calls.some((c) => c.url.includes('/_styled/h1/'))).toBe(true); // 제안 버튼 원문도 그린 커밋에서
+  });
+
   it('줄 스레드는 원문 줄이 맞는 블록 바로 뒤에 놓인다', async () => {
     github(201, { threads: true });
     const body = mount(201, true);

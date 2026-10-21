@@ -40,7 +40,7 @@ describe('브라우저판 엔진 DOM(src/engine-dom.ts)', () => {
     expect((window as unknown as { trustedTypes?: unknown }).trustedTypes).toBeDefined();
     expect((engineWindow() as unknown as { trustedTypes?: unknown }).trustedTypes).toBeUndefined();
     expect(engineWindow().document).toBe(document);
-    expect(engineWindow().DOMParser).toBe(window.DOMParser);
+    expect((engineWindow() as Window & typeof globalThis).DOMParser).toBe(window.DOMParser);
     vi.unstubAllGlobals();
   });
 });

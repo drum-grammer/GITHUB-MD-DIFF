@@ -551,6 +551,51 @@ describe('ensureRich — 로컬 렌더링(docs/local-render)', () => {
     stop();
   });
 
+  it('엔진으로 그린 파일이 원문 보기로 다시 그려지면(다른 탭에 갔다 돌아옴) local에 머물지 않고 렌더링을 다시 누른다 — 넣기·걷기를 되풀이하지 않는다', () => {
+    const { file, rich, source } = failedFile();
+    const state = createAutoRichState();
+    ensureRich(file, 'k', state, 0, true, true);
+    source.setAttribute('aria-pressed', 'false');
+    file.querySelector('.diff-body')!.innerHTML = RICH_FAILED_HTML;
+    expect(ensureRich(file, 'k', state, 11000, true, true)).toBe('local');
+    insertLocalBody(file, '<p>x</p>');
+    expect(ensureRich(file, 'k', state, 11500, true, true)).toBe('rich');
+    // GitHub가 파일을 기본(원문) 보기로 다시 그렸다 — 같은 파일 키
+    rich.setAttribute('aria-pressed', 'false');
+    source.setAttribute('aria-pressed', 'true');
+    file.querySelector('.diff-body')!.innerHTML = '<table data-diff-anchor="diff-abc"><tr><td>x</td></tr></table>';
+    const richClicks = countClicks(rich);
+    expect(ensureRich(file, 'k', state, 60000, true, true)).toBe('clicked');
+    expect(richClicks()).toBe(1);
+    expect(state.local.has('k')).toBe(false);
+  });
+
+  it('엔진으로 그릴 수 없는 화면(커밋 일부 보기 — 파일 키가 같다)에서는 local에 머물지 않는다', () => {
+    const { file, source, sourceClicks } = failedFile();
+    const state = createAutoRichState();
+    ensureRich(file, 'k', state, 0, true, true);
+    source.setAttribute('aria-pressed', 'false');
+    file.querySelector('.diff-body')!.innerHTML = RICH_FAILED_HTML;
+    expect(ensureRich(file, 'k', state, 11000, true, true)).toBe('local');
+    // 같은 키로 커밋 일부 보기 — 렌더링은 눌려 있고 GitHub가 또 실패했다
+    expect(ensureRich(file, 'k', state, 12000, true, false)).toBe('idle');
+    expect(state.local.has('k')).toBe(false);
+    expect(sourceClicks()).toBe(0);
+  });
+
+  it('눌림이 반영되지 않은 채 15초가 지나면 엔진으로 그리지 않고 원문으로(넣을 자리가 없다)', () => {
+    const file = fakeFile();
+    const rich = viewButton(file, 'rich')!; // 눌러도 눌림이 바뀌지 않는다
+    const source = viewButton(file, 'source')!;
+    const sourceClicks = countClicks(source);
+    const state = createAutoRichState();
+    expect(ensureRich(file, 'k', state, 0, true, true)).toBe('clicked');
+    expect(rich.getAttribute('aria-pressed')).toBe('false');
+    expect(ensureRich(file, 'k', state, 15001, true, true)).toBe('fallback');
+    expect(state.local.has('k')).toBe(false);
+    expect(sourceClicks()).toBe(0); // 원문이 이미 눌려 있다
+  });
+
   it('접힌 파일은 엔진으로 그리는 중이어도 건드리지 않는다', () => {
     const { file, source } = failedFile();
     const state = createAutoRichState();

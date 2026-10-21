@@ -99,7 +99,8 @@ function fallBack(file: HTMLElement, key: string, state: AutoRichState): 'fallba
  * 엔진으로 그릴 수 있는지(`canLocal`)는 content.ts가 정한다: 로그인한 새 화면, 커밋 일부 보기가 아님
  */
 function richFailed(file: HTMLElement, key: string, state: AutoRichState, canLocal: boolean): 'local' | 'fallback' {
-  if (!canLocal || state.localFailed.has(key)) return fallBack(file, key, state);
+  // 렌더링이 눌려 있어야 그 자리에 넣을 수 있다 — 눌림이 반영되지 않은 채 15초가 지났으면 원문으로
+  if (!canLocal || state.localFailed.has(key) || !richPressed(file)) return fallBack(file, key, state);
   state.clicks.delete(key);
   state.unknownSince.delete(key);
   state.local.add(key);
@@ -114,6 +115,11 @@ export function localFailed(file: HTMLElement, key: string, state: AutoRichState
   state.local.delete(key);
   state.localFailed.add(key);
   return state.userRich.has(key) ? 'idle' : fallBack(file, key, state);
+}
+
+function richPressed(file: HTMLElement): boolean {
+  const rich = viewButton(file, 'rich');
+  return rich !== null && isPressed(rich);
 }
 
 /** 확장이 엔진으로 그린 본문 — `.prose-diff[data-mdf-local]` 안의 `.markdown-body` */
@@ -134,9 +140,8 @@ export function removeLocalBody(file: Element): void {
  */
 function dropStaleLocal(file: HTMLElement): void {
   if (!file.querySelector(`[${LOCAL_ATTR}]`)) return;
-  const rich = viewButton(file, 'rich');
   const github = [...file.querySelectorAll('.prose-diff')].some((el) => !el.hasAttribute(LOCAL_ATTR));
-  if (github || !rich || !isPressed(rich)) removeLocalBody(file);
+  if (github || !richPressed(file)) removeLocalBody(file);
 }
 
 /**
@@ -187,7 +192,12 @@ export function ensureRich(file: HTMLElement, key: string, state: AutoRichState,
     loadFallbackDiff(file, key, state);
     return 'fallback';
   }
-  if (state.local.has(key)) return isCollapsed(file) ? 'idle' : 'local';
+  if (state.local.has(key)) {
+    if (canLocal && richPressed(file)) return isCollapsed(file) ? 'idle' : 'local';
+    // 파일이 원문 보기로 다시 그려졌다(Conversation에 갔다 돌아옴 등), 또는 엔진으로 그릴 수 없는 화면(커밋 일부 보기는 키가 같다) —
+    // 평소 길로 다시 간다. 그린 HTML은 local-render가 기억해 두어, GitHub가 또 실패하면 바로 다시 넣는다
+    state.local.delete(key);
+  }
   if (isCollapsed(file)) {
     state.clicks.delete(key);
     return 'idle';

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { undoAll } from '../src/apply';
 import { localBody } from '../src/autorich';
 import type { FileInfo, PrData } from '../src/github-api';
-import { LocalRenderer, MAX_SOURCE_CHARS, insertLocalBody, noteLocal, renderFile } from '../src/local-render';
+import { LocalRenderer, MAX_ENTRIES, MAX_SOURCE_CHARS, NO_BOX_MS, RENDER_TIMEOUT_MS, insertLocalBody, noteLocal, renderFile, type Rendered } from '../src/local-render';
 import { loadPr, loadText } from '../src/pr-cache';
 import { mappingFromAttributes } from '../src/dom-blocks';
 import { fakeFile } from './helpers';
@@ -28,6 +28,10 @@ function failedFile(): HTMLElement {
 }
 
 const settle = () => new Promise((r) => setTimeout(r, 30));
+const HEAD = 'h'.repeat(40);
+const rendered = (html = '<p class="changed" data-mdc-new="1-1">x</p>', headOid = HEAD): Rendered => ({ html, baseOid: 'b'.repeat(40), headOid });
+/** 머리 커밋이 그대로인 PR */
+const sameHead = async () => HEAD;
 
 describe('insertLocalBody', () => {
   it('GitHub 렌더링과 같은 껍데기로 본문 상자 안에 넣고 GitHub 실패 안내를 숨긴다 — 두 번 불러도 하나', () => {
@@ -100,15 +104,16 @@ describe('noteLocal', () => {
 describe('LocalRenderer', () => {
   it('한 번만 그리고 HTML을 기억한다 — 끝나면 다시 훑게 하고, 본문이 사라져도 엔진을 다시 돌리지 않는다', async () => {
     const file = failedFile();
-    const render = vi.fn(async () => '<p class="changed" data-mdc-new="1-1">x</p>');
+    const render = vi.fn(async () => rendered());
     const settled = vi.fn();
-    const r = new LocalRenderer(settled, render);
+    const r = new LocalRenderer(settled, render, sameHead);
     expect(r.step(file, 'k', PR, 'docs/guide.md')).toBe('pending');
     expect(r.step(file, 'k', PR, 'docs/guide.md')).toBe('pending');
     await settle();
     expect(settled).toHaveBeenCalledTimes(1);
     expect(r.step(file, 'k', PR, 'docs/guide.md')).toBe('ready');
     expect(localBody(file)).not.toBeNull();
+    expect(file.querySelector('[data-mdf-local]')!.getAttribute('data-mdf-head')).toBe(HEAD);
     file.querySelector('[data-mdf-local]')!.remove(); // GitHub가 상자를 다시 그렸다
     expect(r.step(file, 'k', PR, 'docs/guide.md')).toBe('ready');
     expect(localBody(file)).not.toBeNull();
@@ -123,9 +128,9 @@ describe('LocalRenderer', () => {
       order.push(`start ${path}`);
       if (path === 'a.md') await new Promise<void>((r) => (release = r));
       order.push(`end ${path}`);
-      return '<p>x</p>';
+      return rendered('<p>x</p>');
     });
-    const r = new LocalRenderer(() => {}, render);
+    const r = new LocalRenderer(() => {}, render, sameHead);
     r.step(file, 'a', PR, 'a.md');
     r.step(file, 'b', PR, 'b.md');
     await settle();
@@ -138,10 +143,10 @@ describe('LocalRenderer', () => {
   it('못 그리면 failed를 한 번 알리고 잊는다(사람이 다시 고르면 한 번 더) — 콘솔에 까닭', async () => {
     const file = failedFile();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const render = vi.fn(async () => {
+    const render = vi.fn(async (): Promise<Rendered> => {
       throw new Error('HTTP 500');
     });
-    const r = new LocalRenderer(() => {}, render);
+    const r = new LocalRenderer(() => {}, render, sameHead);
     r.step(file, 'k', PR, 'docs/guide.md');
     await settle();
     expect(r.step(file, 'k', PR, 'docs/guide.md')).toBe('failed');
@@ -150,6 +155,67 @@ describe('LocalRenderer', () => {
     await settle();
     expect(render).toHaveBeenCalledTimes(2);
     warn.mockRestore();
+  });
+
+  it('기억한 HTML을 다시 넣을 때 PR의 머리 커밋이 바뀌었으면 걷고 다시 그린다 — 낡은 줄 번호로 코멘트가 올라가지 않게', async () => {
+    const file = failedFile();
+    let head = HEAD;
+    const render = vi.fn(async () => rendered(`<p>${head}</p>`, head));
+    const settled = vi.fn();
+    const r = new LocalRenderer(settled, render, async () => head);
+    r.step(file, 'k', PR, 'docs/guide.md');
+    await settle();
+    expect(r.step(file, 'k', PR, 'docs/guide.md')).toBe('ready');
+    await settle(); // 넣을 때 물은 머리 커밋은 그대로였다
+    head = 'n'.repeat(40); // 새 커밋
+    file.querySelector('[data-mdf-local]')!.remove();
+    expect(r.step(file, 'k', PR, 'docs/guide.md')).toBe('ready'); // 아직 모른다 — 머리 커밋을 묻는다
+    await settle();
+    expect(r.step(file, 'k', PR, 'docs/guide.md')).toBe('pending');
+    expect(localBody(file)).toBeNull(); // 낡은 본문은 걷는다
+    await settle();
+    expect(r.step(file, 'k', PR, 'docs/guide.md')).toBe('ready');
+    expect(file.querySelector('[data-mdf-local]')!.getAttribute('data-mdf-head')).toBe(head);
+    expect(render).toHaveBeenCalledTimes(2);
+  });
+
+  it('그렸는데 넣을 상자가 없으면 기다리다 NO_BOX_MS 뒤 failed', async () => {
+    const file = failedFile();
+    file.querySelector('.diff-body')!.remove();
+    const r = new LocalRenderer(() => {}, async () => rendered(), sameHead);
+    r.step(file, 'k', PR, 'docs/guide.md', 0);
+    await settle();
+    expect(r.step(file, 'k', PR, 'docs/guide.md', 1000)).toBe('pending');
+    expect(r.step(file, 'k', PR, 'docs/guide.md', 1000 + NO_BOX_MS - 1)).toBe('pending');
+    expect(r.step(file, 'k', PR, 'docs/guide.md', 1000 + NO_BOX_MS)).toBe('failed');
+  });
+
+  it(`답이 없는 파일은 ${RENDER_TIMEOUT_MS / 1000}초 뒤 failed — 다음 파일이 차례를 기다리지 않는다`, async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const file = failedFile();
+    const render = vi.fn((_pr: unknown, path: string) => (path === 'hang.md' ? new Promise<Rendered>(() => {}) : Promise.resolve(rendered())));
+    const r = new LocalRenderer(() => {}, render, sameHead);
+    r.step(file, 'a', PR, 'hang.md');
+    r.step(file, 'b', PR, 'b.md');
+    await vi.advanceTimersByTimeAsync(RENDER_TIMEOUT_MS + 10);
+    expect(r.step(file, 'a', PR, 'hang.md')).toBe('failed');
+    expect(r.step(file, 'b', PR, 'b.md')).toBe('ready');
+    warn.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it(`기억하는 HTML은 ${MAX_ENTRIES}개까지 — 오래된 것부터 잊는다`, async () => {
+    const file = failedFile();
+    const render = vi.fn(async () => rendered());
+    const r = new LocalRenderer(() => {}, render, sameHead);
+    for (let i = 0; i <= MAX_ENTRIES; i++) r.step(file, `k${i}`, PR, `f${i}.md`);
+    await settle();
+    expect(render).toHaveBeenCalledTimes(MAX_ENTRIES + 1);
+    file.querySelector('[data-mdf-local]')?.remove();
+    expect(r.step(file, `k${MAX_ENTRIES}`, PR, 'last.md')).toBe('ready'); // 최근 것은 남는다
+    file.querySelector('[data-mdf-local]')?.remove();
+    expect(r.step(file, 'k0', PR, 'f0.md')).toBe('pending'); // 가장 오래된 것은 다시 그린다
   });
 });
 
@@ -165,7 +231,8 @@ describe('renderFile — 원문 받기 + 엔진(브라우저판 DOM)', () => {
   it('PR의 base·head 원문으로 그린다 — 줄 속성은 원문 줄, 저장소 이미지는 raw 주소, Codex 속성 없음, 원문 HTML은 정화', async () => {
     vi.mocked(loadPr).mockResolvedValue(prData([{ path: 'docs/guide.md', oldPath: null, changeType: 'MODIFIED', threads: [] }]));
     vi.mocked(loadText).mockImplementation(async (_pr, oid) => (oid.startsWith('b') ? OLD : NEW));
-    const html = await renderFile(PR, 'docs/guide.md');
+    const { html, baseOid, headOid } = await renderFile(PR, 'docs/guide.md');
+    expect([baseOid[0], headOid[0]]).toEqual(['b', 'h']);
     expect(vi.mocked(loadText).mock.calls.map((c) => [c[1][0], c[2]])).toEqual([['b', 'docs/guide.md'], ['h', 'docs/guide.md']]);
     const div = document.createElement('div');
     div.innerHTML = html;

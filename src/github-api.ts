@@ -238,9 +238,15 @@ export async function fetchFileText(pr: PrRef, oid: string, path: string): Promi
   } catch {
     // 아래 raw로 다시
   }
-  const res = await fetch(rawFileUrl(pr, oid, path));
-  if (!res.ok) throw new RequestError(res.status, `HTTP ${res.status}`);
-  return res.text();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(rawFileUrl(pr, oid, path), { signal: ctrl.signal });
+    if (!res.ok) throw new RequestError(res.status, `HTTP ${res.status}`);
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function commentPayload(t: CommentTarget, text: string, mode: PostMode, d: Pick<PrData, 'baseOid' | 'headOid'>): Json {

@@ -73,6 +73,25 @@ test.describe('GitHub가 렌더링을 못 만들면 브라우저에서 그린다
     await expect(viewToggle(page, 'octicon-code')).toHaveAttribute('aria-pressed', 'true');
   });
 
+  test('Conversation에 갔다 돌아와도(같은 파일 키) 다시 그려 넣고, 넣기·걷기를 되풀이하지 않는다', async ({ page }) => {
+    await page.goto(URL);
+    await expect(localBody(page)).toBeVisible({ timeout: 30_000 });
+    await page.getByRole('link', { name: /^Conversation/ }).first().click();
+    await expect(page).toHaveURL(/\/pull\/5$/);
+    await page.getByRole('link', { name: /^Files changed/ }).first().click();
+    await expect(page).toHaveURL(/\/pull\/5\/(changes|files)/);
+    await expect(localBody(page)).toBeVisible({ timeout: 30_000 });
+    // 1.5초 동안 본문이 한 번만 있고 사라지지 않는다 — 되풀이하면 추가·삭제가 이어진다
+    const churn = await page.evaluate(`new Promise((resolve) => {
+      let n = 0;
+      const mo = new MutationObserver((rs) => { for (const r of rs) for (const x of [...r.addedNodes, ...r.removedNodes]) if (x.nodeType === 1 && x.hasAttribute('data-mdf-local')) n++; });
+      mo.observe(document.body, { childList: true, subtree: true });
+      setTimeout(() => { mo.disconnect(); resolve(n); }, 1500);
+    })`);
+    expect(churn).toBe(0);
+    await expect(fileOf(page).locator('[data-mdf-local]')).toHaveCount(1);
+  });
+
   test('수식은 GitHub 페이지가 그린다 — math-renderer 안에 MathML(testbed #8 parity/math.md)', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));

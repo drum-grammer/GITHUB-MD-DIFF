@@ -18,6 +18,8 @@ export const PROSE_BODY = '.prose-diff .markdown-body';
  * MDF_ATTR가 아니다: 확장 모듈은 MDF_ATTR 안을 "확장이 만든 것"으로 보고 블록·변경 표시를 세지 않는다
  */
 export const LOCAL_ATTR = 'data-mdf-local';
+/** 그 묶음이 어느 머리 커밋의 원문으로 그렸는지 — 코멘트가 그 커밋 기준으로 올리고, 그 사이 새 커밋이면 멈춘다 */
+export const HEAD_ATTR = 'data-mdf-head';
 
 /** 코멘트를 붙이는 블록 — 제목·문단·목록 항목·표 행·코드 */
 export const COMMENT_BLOCK = 'h1, h2, h3, h4, h5, h6, p, li, tr, pre';

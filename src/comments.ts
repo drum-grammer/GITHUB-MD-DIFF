@@ -24,7 +24,7 @@ import { domBlocks, mapBlocks, mappingFromAttributes, type BlockTarget } from '.
 import { loadPr, loadText } from './pr-cache';
 import { NOTICE, noticeBox } from './comment-ui';
 import { t } from './i18n';
-import { LOCAL_ATTR, MDF_ATTR, viewButton } from './selectors';
+import { HEAD_ATTR, LOCAL_ATTR, MDF_ATTR, viewButton } from './selectors';
 import { sourceBlocks } from './source-blocks';
 import type { PostMode, ReviewComment, ReviewThread } from './types';
 
@@ -181,10 +181,13 @@ class GitHubCommentBackend implements CommentBackend {
   private async buildMapping(body: HTMLElement): Promise<Map<HTMLElement, BlockTarget>> {
     const d = this.data ?? (await loadPr(this.pr));
     const info = d.files.get(this.path);
-    if (body.closest(`[${LOCAL_ATTR}]`)) {
-      // 확장이 엔진으로 그린 본문(docs/local-render) — 엔진이 같은 두 커밋의 원문으로 잎마다 줄을 달았다. 머리 원문은 제안 버튼용(같은 캐시)
-      const head = REMOVED_CHANGE.has(info?.changeType ?? '') ? null : await loadText(this.pr, d.headOid, this.path).catch(() => null);
-      this.headOid = d.headOid;
+    const local = body.closest(`[${LOCAL_ATTR}]`);
+    if (local) {
+      // 확장이 엔진으로 그린 본문(docs/local-render) — 엔진이 그 두 커밋의 원문으로 잎마다 줄을 달았다. 그린 머리 커밋으로 올려야
+      // 그 사이 새 커밋이 올라왔을 때 send()가 멈춘다. 머리 원문은 제안 버튼용(같은 캐시)
+      const headOid = local.getAttribute(HEAD_ATTR) || d.headOid;
+      const head = REMOVED_CHANGE.has(info?.changeType ?? '') ? null : await loadText(this.pr, headOid, this.path).catch(() => null);
+      this.headOid = headOid;
       this.headLines = head === null ? null : head.split('\n');
       return mappingFromAttributes(body);
     }
