@@ -11,7 +11,7 @@ describe('prose-markup — 렌더링 본문 안 표기', () => {
   it('selectors.ts가 같은 이름을 그대로 다시 내보낸다(같은 값·같은 함수)', () => {
     const names = Object.keys(markup);
     expect(names.sort()).toEqual(
-      ['CHANGE_WRAPPER', 'COMMENT_BLOCK', 'HIDDEN_CLASS', 'INLINE_DELETED', 'INLINE_INSERTED', 'MDF_ATTR', 'PIN_ATTR', 'PROSE_BODY', 'REMOVED_BLOCK', 'UNCOLLAPSED_ATTR', 'isAnchor', 'isDecoration', 'isFoldable', 'setHidden', 'tablePairs'].sort(),
+      ['CHANGE_WRAPPER', 'COMMENT_BLOCK', 'HIDDEN_CLASS', 'INLINE_DELETED', 'INLINE_INSERTED', 'LOCAL_ATTR', 'MDF_ATTR', 'PIN_ATTR', 'PROSE_BODY', 'REMOVED_BLOCK', 'UNCOLLAPSED_ATTR', 'isAnchor', 'isDecoration', 'isFoldable', 'setHidden', 'tablePairs'].sort(),
     );
     for (const name of names) expect((selectors as Record<string, unknown>)[name], name).toBe((markup as Record<string, unknown>)[name]);
   });

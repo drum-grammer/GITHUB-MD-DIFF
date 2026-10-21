@@ -4,11 +4,10 @@
  */
 import { CommentController, type CommentBackend, type CommentState } from './comment-controller';
 import {
+  REMOVED_CHANGE,
   RequestError,
   commentPayload,
   deleteComment,
-  fetchFileText,
-  fetchPrData,
   isCommitRangeView,
   isGitHubChange,
   postComment,
@@ -21,20 +20,17 @@ import {
   type PrData,
   type PrRef,
 } from './github-api';
-import { domBlocks, mapBlocks, type BlockTarget } from './dom-blocks';
+import { domBlocks, mapBlocks, mappingFromAttributes, type BlockTarget } from './dom-blocks';
+import { loadPr, loadText } from './pr-cache';
 import { NOTICE, noticeBox } from './comment-ui';
 import { t } from './i18n';
-import { MDF_ATTR, viewButton } from './selectors';
+import { LOCAL_ATTR, MDF_ATTR, viewButton } from './selectors';
 import { sourceBlocks } from './source-blocks';
 import type { PostMode, ReviewComment, ReviewThread } from './types';
 
 const LOG = '[github-md-diff]';
 /** 화면 동작(comment-controller.ts)이 정한다 — 예전처럼 여기서도 가져올 수 있게 다시 내보낸다 */
 export { HOST_ATTR } from './comment-controller';
-/** 원래 파일이 없는(삭제된) 파일의 종류 이름 — GitHub 내부 JSON은 REMOVED, GraphQL은 DELETED */
-const REMOVED_FILE = new Set(['REMOVED', 'DELETED']);
-/** PR 데이터를 다시 쓰는 시간 — 그보다 오래되면 새 파일 묶음이 붙을 때 다시 읽는다 */
-const PR_TTL_MS = 60_000;
 /** 잠깐의 실패(네트워크·5xx) 뒤 다시 시도하는 간격 */
 export const RETRY_MS = 60_000;
 
@@ -95,30 +91,6 @@ export function commentsBrokenDetail(url: string): string {
 export const commentsReady = (url: string): boolean => healthOf(url) === 'ok';
 /** GitHub 내부 요청이 바뀐 것으로 보인다 — 툴바 아이콘에 알린다 */
 export const commentsBroken = (url: string): boolean => healthOf(url) === 'broken';
-
-const prCache = new Map<string, { at: number; data: Promise<PrData> }>();
-const textCache = new Map<string, Promise<string>>();
-
-function loadPr(pr: PrRef, fresh = false): Promise<PrData> {
-  const key = prKey(pr);
-  const hit = prCache.get(key);
-  if (!fresh && hit && Date.now() - hit.at < PR_TTL_MS) return hit.data;
-  const data = fetchPrData(pr);
-  prCache.set(key, { at: Date.now(), data });
-  data.catch(() => prCache.delete(key));
-  return data;
-}
-
-function loadText(pr: PrRef, oid: string, path: string): Promise<string> {
-  const key = `${prKey(pr)}:${oid}:${path}`;
-  let text = textCache.get(key);
-  if (!text) {
-    text = fetchFileText(pr, oid, path);
-    textCache.set(key, text);
-    text.catch(() => textCache.delete(key));
-  }
-  return text;
-}
 
 /** 사람에게 보일 오류 문구로 바꾼다. GitHub 쪽이 바뀐 것이면 이 PR의 코멘트 기능을 끈다 */
 function userError(e: unknown, pr: PrRef, step: string): Error {
@@ -209,8 +181,15 @@ class GitHubCommentBackend implements CommentBackend {
   private async buildMapping(body: HTMLElement): Promise<Map<HTMLElement, BlockTarget>> {
     const d = this.data ?? (await loadPr(this.pr));
     const info = d.files.get(this.path);
+    if (body.closest(`[${LOCAL_ATTR}]`)) {
+      // 확장이 엔진으로 그린 본문(docs/local-render) — 엔진이 같은 두 커밋의 원문으로 잎마다 줄을 달았다. 머리 원문은 제안 버튼용(같은 캐시)
+      const head = REMOVED_CHANGE.has(info?.changeType ?? '') ? null : await loadText(this.pr, d.headOid, this.path).catch(() => null);
+      this.headOid = d.headOid;
+      this.headLines = head === null ? null : head.split('\n');
+      return mappingFromAttributes(body);
+    }
     const blocks = domBlocks(body);
-    const removedFile = REMOVED_FILE.has(info?.changeType ?? '');
+    const removedFile = REMOVED_CHANGE.has(info?.changeType ?? '');
     const needBase = removedFile || (info?.changeType !== 'ADDED' && blocks.some((b) => b.side === 'left'));
     const [head, base] = await Promise.all([
       removedFile ? null : loadText(this.pr, d.headOid, this.path).catch(() => null),

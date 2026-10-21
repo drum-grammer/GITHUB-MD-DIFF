@@ -18,6 +18,7 @@ export {
   HIDDEN_CLASS,
   INLINE_DELETED,
   INLINE_INSERTED,
+  LOCAL_ATTR,
   MDF_ATTR,
   PIN_ATTR,
   PROSE_BODY,
@@ -185,12 +186,28 @@ export function loadDiffButton(file: Element): HTMLButtonElement | null {
 const RICH_FAILED = /^this rich diff is not supported/i;
 
 export function showsRichFailure(file: Element): boolean {
-  if (proseBody(file)) return false;
+  return !proseBody(file) && richFailureNotice(file) !== null;
+}
+
+/** 그 실패 안내 요소 — 글자만 든 요소다. 원문 표 칸이나 확장이 넣은 상자 안의 같은 문장은 아니다 */
+export function richFailureNotice(file: Element): HTMLElement | null {
   const header = headerOf(file);
-  // 글자만 든 요소 — 원문 표 칸이나 확장이 넣은 상자 안의 같은 문장은 아니다
-  return [...file.querySelectorAll('div, p, span')].some(
-    (el) => el.childElementCount === 0 && !header?.contains(el) && !el.closest(`table, [${MDF_ATTR}]`) && RICH_FAILED.test(el.textContent?.trim() ?? ''),
+  return (
+    [...file.querySelectorAll<HTMLElement>('div, p, span')].find(
+      (el) => el.childElementCount === 0 && !header?.contains(el) && !el.closest(`table, [${MDF_ATTR}]`) && RICH_FAILED.test(el.textContent?.trim() ?? ''),
+    ) ?? null
   );
+}
+
+/**
+ * 파일 머리 아래 본문 상자 — 렌더링이면 `.prose-diff`를, 실패면 안내 한 줄을 품는다(새 화면 `div.border.position-relative`, 2026-10-21 확인).
+ * 확장이 엔진으로 그린 본문은 GitHub 렌더링과 같은 자리(이 상자 안)에 넣는다
+ */
+export function diffBodyBox(file: Element): HTMLElement | null {
+  const top = headerBlock(file);
+  if (!top) return null;
+  const kids = [...file.children];
+  return (kids.slice(kids.indexOf(top) + 1).find((c) => !c.hasAttribute(MDF_ATTR)) as HTMLElement | undefined) ?? null;
 }
 
 /** 파일 머리를 품은 파일 바로 아래 칸 — 파일 단위 안내는 그 뒤(본문 위)에 둔다 */

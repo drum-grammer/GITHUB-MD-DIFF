@@ -1,27 +1,13 @@
 // 확장 CommentController의 로컬 백엔드 — 줄은 엔진이 잎마다 단 data-mdc-new/old로 읽고(원문을 다시 맞추지 않는다), 코멘트는 초안 API로
 import type { CommentBackend, CommentState } from '../../../../src/comment-controller';
-import type { BlockTarget } from '../../../../src/dom-blocks';
+import { mappingFromAttributes, type BlockTarget } from '../../../../src/dom-blocks';
 import { t } from '../../../../src/i18n';
-import { COMMENT_BLOCK, MDF_ATTR, REMOVED_BLOCK } from '../../../../src/prose-markup';
 import type { PostMode, ReviewComment } from '../../../../src/types';
 import type { Badge, ThreadsPayload } from '../api-types';
 import type { Api } from './api';
 
-const RANGE = /^(\d+)-(\d+)$/;
-
-/** 블록 → 원문 줄. 지운 블록(del·.removed 안)은 옛 쪽(left), 나머지는 새 쪽(right) — 확장 domBlocks(dom-blocks.ts:66)와 같은 규칙 */
-export function mappingFromAttributes(body: HTMLElement): Map<HTMLElement, BlockTarget> {
-  const map = new Map<HTMLElement, BlockTarget>();
-  for (const el of body.querySelectorAll<HTMLElement>(COMMENT_BLOCK)) {
-    if (el.closest(`[${MDF_ATTR}]`)) continue; // 확장이 만든 것(합친 표의 사본 등) — 합친 행은 originRow로 원래 행을 찾는다
-    if (el.closest('.sr-only')) continue;
-    const removed = el.closest(REMOVED_BLOCK);
-    const side = removed && body.contains(removed) ? 'left' : 'right';
-    const m = RANGE.exec(el.getAttribute(side === 'left' ? 'data-mdc-old' : 'data-mdc-new') ?? '');
-    if (m) map.set(el, { side, start: Number(m[1]), end: Number(m[2]) });
-  }
-  return map;
-}
+/** 줄 속성 매핑은 확장의 로컬 렌더링과 같이 쓰려고 src/dom-blocks.ts로 옮겼다 — 예전처럼 여기서도 가져올 수 있다 */
+export { mappingFromAttributes };
 
 export interface LocalBackendOptions {
   api: Api;

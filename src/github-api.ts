@@ -92,6 +92,10 @@ export function isCommitRangeView(url: string): boolean {
 }
 
 export const prKey = (pr: PrRef): string => `${pr.owner}/${pr.repo}#${pr.number}`;
+/** 원래 파일이 없는(삭제된) 파일의 종류 이름 — GitHub 내부 JSON은 REMOVED, GraphQL은 DELETED */
+export const REMOVED_CHANGE: ReadonlySet<string> = new Set(['REMOVED', 'DELETED']);
+/** 커밋 하나의 파일 원문 주소(github.com) — 로그인 세션으로 열리고 raw.githubusercontent.com으로 넘어간다 */
+export const rawFileUrl = (pr: PrRef, oid: string, path: string): string => `/${pr.owner}/${pr.repo}/raw/${oid}/${encodePath(path)}`;
 const prUrl = (pr: PrRef, rest: string): string => `/${pr.owner}/${pr.repo}/pull/${pr.number}/${rest}`;
 const encodePath = (path: string): string => path.split('/').map(encodeURIComponent).join('/');
 
@@ -234,7 +238,7 @@ export async function fetchFileText(pr: PrRef, oid: string, path: string): Promi
   } catch {
     // 아래 raw로 다시
   }
-  const res = await fetch(`/${pr.owner}/${pr.repo}/raw/${at}`);
+  const res = await fetch(rawFileUrl(pr, oid, path));
   if (!res.ok) throw new RequestError(res.status, `HTTP ${res.status}`);
   return res.text();
 }

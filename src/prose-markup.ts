@@ -13,6 +13,11 @@ export const PIN_ATTR = 'data-mdf-pin';
 export const UNCOLLAPSED_ATTR = 'data-mdf-uncollapsed';
 /** 렌더링 본문 */
 export const PROSE_BODY = '.prose-diff .markdown-body';
+/**
+ * 확장이 엔진으로 그린 렌더링 diff 묶음(`.prose-diff`)의 표시 — GitHub가 렌더링을 못 만든 파일(docs/local-render).
+ * MDF_ATTR가 아니다: 확장 모듈은 MDF_ATTR 안을 "확장이 만든 것"으로 보고 블록·변경 표시를 세지 않는다
+ */
+export const LOCAL_ATTR = 'data-mdf-local';
 
 /** 코멘트를 붙이는 블록 — 제목·문단·목록 항목·표 행·코드 */
 export const COMMENT_BLOCK = 'h1, h2, h3, h4, h5, h6, p, li, tr, pre';

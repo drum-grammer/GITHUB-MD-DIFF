@@ -2,7 +2,7 @@ import { noticeBox } from './comment-ui';
 import { syncFileToolbar } from './controls';
 import { foldUnchanged } from './fold';
 import { t } from './i18n';
-import { HIDDEN_CLASS, MDF_ATTR, PIN_ATTR, UNCOLLAPSED_ATTR, setHidden, tablePairs } from './prose-markup';
+import { HIDDEN_CLASS, LOCAL_ATTR, MDF_ATTR, PIN_ATTR, UNCOLLAPSED_ATTR, setHidden, tablePairs } from './prose-markup';
 import { mergeTablePair } from './table-render';
 
 export interface ApplyResult {
@@ -62,7 +62,7 @@ export function noteNoVisibleChange(body: HTMLElement, showSource: () => void): 
 
 /** 확장이 만든 것을 모두 걷어내 원래 화면으로 돌린다(렌더링/원문 선택은 그대로) */
 export function undoAll(root: ParentNode): void {
-  for (const el of root.querySelectorAll(`[${MDF_ATTR}]`)) el.remove();
+  for (const el of root.querySelectorAll(`[${MDF_ATTR}], [${LOCAL_ATTR}]`)) el.remove();
   for (const el of root.querySelectorAll(`.${HIDDEN_CLASS}`)) setHidden(el, false);
   for (const el of root.querySelectorAll(`[${UNCOLLAPSED_ATTR}]`)) {
     el.classList.add('collapsed');
