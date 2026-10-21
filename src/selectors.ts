@@ -167,11 +167,36 @@ export function showsDiffNotice(file: Element): boolean {
   return anchor !== null && anchor.tagName !== 'TABLE' && !anchor.closest('.prose-diff');
 }
 
-/** 안내 글이 큰 diff의 "Load Diff"인가 — 렌더링 보기로 바꿔 볼 만하다(실패하면 15초 뒤 원문으로 되돌린다) */
+/** 안내 글이 큰 diff의 "Load Diff"인가 — 렌더링 보기로 바꿔 볼 만하다(실패하면 원문으로 되돌린다) */
 export function isLargeDiffPlaceholder(file: Element): boolean {
-  if (file.querySelector(LARGE_DIFF)) return true;
+  return file.querySelector(LARGE_DIFF) !== null || loadDiffButton(file) !== null;
+}
+
+/** 큰 diff 자리의 "Load Diff" 버튼 — 원문 diff 본문 안에 있다(2026-10-21 확인) */
+export function loadDiffButton(file: Element): HTMLButtonElement | null {
   const anchor = file.querySelector(DIFF_ANCHOR);
-  return anchor !== null && [...anchor.querySelectorAll('button')].some((b) => LOAD_DIFF.test(b.textContent?.trim() ?? ''));
+  return anchor ? ([...anchor.querySelectorAll<HTMLButtonElement>('button')].find((b) => LOAD_DIFF.test(b.textContent?.trim() ?? '')) ?? null) : null;
+}
+
+/**
+ * GitHub가 렌더링 diff를 만들지 못했다는 안내 — 큰 파일에서 GitHub 서버가 렌더링 요청(`page_data/rich_diff`)을 10초쯤에
+ * 시간 초과(504)로 끊으면 새 화면은 스피너 뒤에 이 한 줄만 그린다(2026-10-21 확인, 다시 눌러도 같고 504를 흉내 내도 같은 글)
+ */
+const RICH_FAILED = /^this rich diff is not supported/i;
+
+export function showsRichFailure(file: Element): boolean {
+  if (proseBody(file)) return false;
+  const header = headerOf(file);
+  // 글자만 든 요소 — 원문 표 칸이나 확장이 넣은 상자 안의 같은 문장은 아니다
+  return [...file.querySelectorAll('div, p, span')].some(
+    (el) => el.childElementCount === 0 && !header?.contains(el) && !el.closest(`table, [${MDF_ATTR}]`) && RICH_FAILED.test(el.textContent?.trim() ?? ''),
+  );
+}
+
+/** 파일 머리를 품은 파일 바로 아래 칸 — 파일 단위 안내는 그 뒤(본문 위)에 둔다 */
+export function headerBlock(file: Element): Element | null {
+  const header = headerOf(file);
+  return header ? ([...file.children].find((c) => c.contains(header)) ?? null) : null;
 }
 
 /** 화면에서 읽은 것 — 파일 묶음 수, 이름을 읽은 파일 수, 뼈대인 파일 수, 파일 링크 수 */

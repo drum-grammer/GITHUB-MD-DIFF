@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  fileElements, fileOf, filePath, hasReviewThreads, hasUnknownRendering, isCollapsed, isFoldable, isMarkdownPath, isPressed, pageStructure, pageVariant, proseBody,
-  setHidden, tablePairs, viewButton,
+  fileElements, fileOf, filePath, hasReviewThreads, hasUnknownRendering, headerBlock, isCollapsed, isFoldable, isLargeDiffPlaceholder, isMarkdownPath, isPressed, loadDiffButton, pageStructure, pageVariant,
+  proseBody, setHidden, showsRichFailure, tablePairs, viewButton,
 } from '../src/selectors';
 import { FILE_FORMATS, addProse, fakeClassicFile, fakeFile, loadFixture } from './helpers';
 
@@ -145,6 +145,39 @@ describe('hasUnknownRendering', () => {
     const file = fakeFile();
     addProse(file);
     expect(hasUnknownRendering(file)).toBe(false);
+  });
+});
+
+describe('렌더링 실패 안내 · Load Diff', () => {
+  const FAILED = '<div class="border"><div class="d-flex flex-justify-center tmp-p-4">This rich diff is not supported at the moment.</div></div>';
+
+  it('GitHub의 렌더링 실패 안내를 알아본다', () => {
+    const file = fakeFile();
+    expect(showsRichFailure(file)).toBe(false);
+    file.querySelector('.diff-body')!.innerHTML = FAILED;
+    expect(showsRichFailure(file)).toBe(true);
+  });
+
+  it('원문 표 칸·확장 상자 안의 같은 문장, 렌더링 본문이 있는 파일은 실패가 아니다', () => {
+    const file = fakeFile();
+    const body = file.querySelector('.diff-body')!;
+    body.innerHTML = '<table data-diff-anchor="diff-abc"><tr><td><span>This rich diff is not supported at the moment.</span></td></tr></table>';
+    expect(showsRichFailure(file)).toBe(false);
+    body.innerHTML = '<div data-mdf="comment-notice"><span>This rich diff is not supported at the moment.</span></div>';
+    expect(showsRichFailure(file)).toBe(false);
+    addProse(file).innerHTML = '<p>This rich diff is not supported at the moment.</p>';
+    expect(showsRichFailure(file)).toBe(false);
+  });
+
+  it.each(FILE_FORMATS)('Load Diff 버튼과 파일 머리 칸(%s)', (format) => {
+    const file = fakeFile('docs/a.md', true, format);
+    expect(loadDiffButton(file)).toBeNull();
+    file.querySelector('.diff-body')!.innerHTML = '<div data-diff-anchor="diff-abc"><div><button>Load Diff</button></div></div>';
+    expect(loadDiffButton(file)?.textContent).toBe('Load Diff');
+    expect(isLargeDiffPlaceholder(file)).toBe(true);
+    const top = headerBlock(file)!;
+    expect(top.parentElement).toBe(file);
+    expect(top.querySelector('h3')).not.toBeNull();
   });
 });
 

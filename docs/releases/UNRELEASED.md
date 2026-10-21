@@ -7,6 +7,10 @@
 - The local review command-line tool `markdown-diff-cat` (npm, same version number as the extension) — rendered Markdown diffs of your working tree in a local page, with block comments handed to coding agents. See [packages/review/README.md](../../packages/review/README.md).
 - Local review: every rendered block carries Codex annotation attributes (file, side, lines, review render), and `show --side old|new` prints either side of a review render.
 
+## Fixed
+
+- When GitHub cannot build the rendered view of a Markdown file, you now get its source diff and the reason, instead of GitHub's error line followed by a collapsed **Load Diff**. GitHub's server times out (504, after about 10 seconds) on some large files and shows “This rich diff is not supported at the moment.”; the extension now goes back to the source view as soon as that message appears (it used to wait 15 seconds), loads the source diff even when GitHub hid it behind **Load Diff**, and puts a one-line note above it that says why, with **Try rich diff again**. Trying again is your choice, so the extension does not switch that file back if it fails again
+
 ## Internal — groundwork for a local review tool (no visible change)
 
 - markdown-it 15 with its own TypeScript types (`@types/markdown-it` removed). Splitting Markdown into source blocks gives the same result as before on every Markdown file in this repository and on the test repository documents, and a snapshot test now pins it

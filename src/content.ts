@@ -1,5 +1,5 @@
 import { applyBody, noteNoVisibleChange, undoAll } from './apply';
-import { createAutoRichState, ensureRich, watchUserViewClicks, type RichStatus } from './autorich';
+import { createAutoRichState, ensureRich, noteRichFailed, watchUserViewClicks, type RichStatus } from './autorich';
 import {
   attachComments,
   commentsBroken,
@@ -119,6 +119,7 @@ function processFile(file: HTMLElement, comments: boolean): FileResult | null {
   if (!path || !isMarkdownPath(path)) return null;
   const key = keyOf(file);
   const status = ensureRich(file, key, state, Date.now(), comments);
+  noteRichFailed(file, status === 'fallback', () => viewButton(file, 'rich')?.click());
   const body = status === 'rich' ? proseBody(file) : null;
   if (body) {
     if (!applied.has(body)) {
