@@ -21,7 +21,7 @@
 
 1. **canary가 매일 실제로 돌게** — 상시 켠 맥의 화면 로그인 → 예약 확인. `pnpm canary:status`(2일 넘게 안 돌았거나 깨졌으면 종료 코드 1)를 정기 점검에 붙인다. 클래스 형식이 또 바뀌면 "클래스 이름 형식" 점검이 사용자보다 먼저 깨진다
 2. **로컬 사용 점검 — 2026-10-16** — 1주 동안 쓰며 나온 불편·오류를 1.5.x로 고친다(PATCH)
-3. **로컬 리뷰 — M4 PR 모드 마무리** — 구현은 브랜치 `feat/local-review-m4`(2026-10-23). 남은 것: 공개 testbed 쓰기 E2E 실행(`MDC_PR_TESTBED=1 pnpm exec playwright test pr-testbed`, 관리자 확인 뒤) → 병합 → 다음 MINOR(1.7.0)로 npm·Release(확장 동작은 그대로라 스토어는 함께 낼지 관리자가 정한다). M2·M3는 1.6.0으로 스토어·Release·npm `markdown-diff-cat`과 함께 냈다(2026-10-22). npm 게시는 사람이 자기 터미널에서(`node scripts/release-review.mjs publish`) — npm 계정 2단계 인증이 켜져 있어야 하고, 새 패키지는 202 접수 뒤 몇 분(1.6.0은 약 7분) 처리하는 동안 `0.0.0-stage` 자리표시만 보인다. 범위: [docs/local-review §6](docs/local-review/README.md#6-남은-일)
+3. **로컬 리뷰 — M4 PR 모드 마무리** — 구현은 브랜치 `feat/local-review-m4`(2026-10-23). 공개 testbed 쓰기 E2E 통과(2026-10-23). 남은 것: 병합 → 다음 MINOR(1.7.0)로 npm·Release(확장 동작은 그대로라 스토어는 함께 낼지 관리자가 정한다). M2·M3는 1.6.0으로 스토어·Release·npm `markdown-diff-cat`과 함께 냈다(2026-10-22). npm 게시는 사람이 자기 터미널에서(`node scripts/release-review.mjs publish`) — npm 계정 2단계 인증이 켜져 있어야 하고, 새 패키지는 202 접수 뒤 몇 분(1.6.0은 약 7분) 처리하는 동안 `0.0.0-stage` 자리표시만 보인다. 범위: [docs/local-review §6](docs/local-review/README.md#6-남은-일)
 4. **쓰지 않은 1.1.1 초안 Release 정리** — 1.1.1은 스토어에 내지 않았다(내용은 1.5.0에 포함). 초안을 지울지는 관리자가 정한다
 5. **개선 후보**(수요·여유에 따라, 위에서부터)
 
