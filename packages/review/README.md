@@ -1,9 +1,5 @@
 # markdown-diff-cat
 
-<!-- pre-npm -->
-> **Not on npm yet.** Until the first release, the `npx` commands below do not work — a package already published under this name would not be this tool. Each release attaches the single file `markdown-diff-cat-X.Y.Z.mjs` to the [GitHub Release](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases); run it with `node markdown-diff-cat-X.Y.Z.mjs review`, or build it from this repository with `pnpm --filter markdown-diff-cat build`.
-<!-- /pre-npm -->
-
 Review the Markdown you changed as a **rendered diff** in a local page — unchanged sections folded, tables showing only the changed rows — and hand your block comments to a coding agent together with the exact source lines.
 
 It is the command-line companion of [Markdown Diff Cat for GitHub](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj), which does the same inside GitHub pull requests. Use this one before you commit, or while Claude Code or Codex edits your docs.
