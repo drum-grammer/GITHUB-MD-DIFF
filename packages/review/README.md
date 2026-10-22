@@ -49,8 +49,8 @@ npx -y markdown-diff-cat review --pr 123
 
 - Existing review threads appear under their blocks (whole-file threads at the top of the file; outdated ones are counted and left on GitHub). You can reply to them.
 - Your comments stay drafts in the page until you press **Add to pending review** and confirm. They then go to **your pending review** on GitHub. Nothing is published from the page: You submit the review on GitHub. If you already started a review there, they are added to it.
-- GitHub accepts line comments only on lines inside the pull request's diff. A comment that reaches outside it is trimmed to the changed lines, and one on unchanged lines becomes a comment on the whole file with the quoted lines; the comment says so.
-- If new commits arrive after you opened the page, nothing is added — redraw and check your comments first.
+- GitHub accepts line comments only on lines inside the pull request's diff. A comment that reaches outside it is trimmed to the changed lines, and one on unchanged lines becomes a comment on the whole file with the quoted lines; the comment says so, and the confirm dialog shows it before anything is added.
+- If new commits arrive after you opened the page, nothing is added. Press **Redraw** to fetch the pull request again; a comment whose lines changed is not added at its old line numbers — delete it and comment again in the right place.
 - **Send to agent** works here too, for fixing your own pull request: your comments, plus the threads by others that you tick. Check out the pull request head (`gh pr checkout 123`) before the agent edits, so the line numbers match.
 
 ## Commands
