@@ -292,7 +292,7 @@ export class ReviewPage {
       p.textContent = text;
       if (!p.isConnected) section.insertBefore(p, prose);
     };
-    notice('mdc-outdated', data.hidden ? t('reviewOutdatedHidden', [data.hidden]) : '');
+    notice('mdc-outdated', data.hidden ? (data.hidden === 1 ? t('reviewOutdatedHiddenOne') : t('reviewOutdatedHidden', [data.hidden])) : '');
     notice('mdc-github-error', data.githubError ? t('reviewGithubError', [data.githubError]) : '');
   }
 

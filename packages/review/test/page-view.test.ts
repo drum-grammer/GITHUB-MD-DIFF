@@ -298,6 +298,12 @@ describe('PR 모드 페이지', () => {
     expect(root.querySelector('#file-1 .mdc-outdated')!.textContent).toBe('2 outdated threads hidden — see them on GitHub');
   });
 
+  it('숨긴 낡은 스레드가 하나면 단수', async () => {
+    const { root, page } = mountPr(prView(), undefined, { threads: [], badges: {}, hidden: 1 });
+    await page.load();
+    await vi.waitFor(() => expect(root.querySelector('#file-1 .mdc-outdated')!.textContent).toBe('1 outdated thread hidden — see it on GitHub'));
+  });
+
   it('GitHub를 못 읽으면 파일 머리에 그 이유', async () => {
     const { root, page } = mountPr(prView(), undefined, { threads: [], badges: {}, githubError: 'gh api: HTTP 502' });
     await page.load();

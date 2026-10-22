@@ -47,9 +47,10 @@ export function fakeGitHub(over: Partial<FakeGitHub> & Pick<FakeGitHub, 'pr'>): 
   return { viewer: 'me', threads: [], files: [], pendingReviewId: null, mutations: [], createdReviews: 0, calls: [], ...over };
 }
 
-let seq = 0;
+/** 프로세스마다 다시 시작해도(E2E의 gh 실행마다) 겹치지 않는 id */
+const uid = (): string => Math.random().toString(36).slice(2, 12);
 export const fakeThread = (over: Partial<FakeThread> & { comments?: { nodes: FakeComment[] } }): FakeThread => ({
-  id: `PRRT_${++seq}`,
+  id: `PRRT_${uid()}`,
   path: 'docs/a.md',
   line: 3,
   startLine: null,
@@ -64,7 +65,10 @@ export const fakeThread = (over: Partial<FakeThread> & { comments?: { nodes: Fak
   comments: { nodes: [] },
   ...over,
 });
-export const fakeComment = (login: string, body: string, state = 'SUBMITTED'): FakeComment => ({ id: `PRRC_${++seq}`, author: { login }, body, url: `https://github.com/acme/docs/pull/7#discussion_r${seq}`, state });
+export const fakeComment = (login: string, body: string, state = 'SUBMITTED'): FakeComment => {
+  const id = uid();
+  return { id: `PRRC_${id}`, author: { login }, body, url: `https://github.com/acme/docs/pull/7#discussion_${id}`, state };
+};
 
 const ok = (data: unknown) => ({ code: 0, stdout: JSON.stringify(data), stderr: '' });
 
