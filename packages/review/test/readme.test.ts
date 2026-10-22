@@ -11,6 +11,15 @@ describe('npm README', () => {
     expect(readme).toContain('Nothing leaves your machine by default.');
     expect(readme).toContain('only through the GitHub CLI');
   });
+  it('PR 모드 — 명령·gh·보류 중 리뷰만·받은 ref·제출은 사람', () => {
+    expect(readme).toContain('## Review a pull request');
+    expect(readme).toContain('review --pr <number|URL>');
+    expect(readme).toContain('gh auth login');
+    expect(readme).toContain('Add to pending review');
+    expect(readme).toContain('You submit the review on GitHub');
+    expect(readme).toContain('refs/markdown-diff-cat/');
+    expect(readme).not.toContain('A pull request mode is planned');
+  });
   it('개인 홈 경로를 싣지 않는다(공개 패키지)', () => {
     expect(readme).not.toMatch(/\/Users\/[a-z]|\/home\/[a-z]/);
   });

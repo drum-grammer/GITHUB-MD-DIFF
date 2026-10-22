@@ -2,4 +2,4 @@
 
 1.6.0 was published to the Chrome Web Store, GitHub Releases and npm on 2026-10-22 ([notes](v1.6.0.md)). When the next version is submitted, its release notes (`pnpm release notes` → `docs/releases/vX.Y.Z.md`) start from this list; empty this file in the same pull request.
 
-Nothing yet.
+- Local review CLI `markdown-diff-cat`: pull request mode, `review --pr <number|URL>`. It shows a GitHub pull request in the same review page (fetched into `refs/markdown-diff-cat/pr/<number>/`, compared from the merge base the way "Files changed" does), places existing review threads under their blocks, and lets you reply. Your comments go to **your pending review** on GitHub only when you press **Add to pending review** and confirm; you submit the review on GitHub. Comments outside the pull request's diff are trimmed to the changed lines or become whole-file comments with the quoted lines. **Send to agent** also works, with the threads by others that you tick. Needs the GitHub CLI (`gh`) signed in. The Chrome extension itself does not change.

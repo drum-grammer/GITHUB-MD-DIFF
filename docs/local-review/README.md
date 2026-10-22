@@ -1,6 +1,6 @@
 # 로컬 리뷰 — GitHub PR 밖에서 렌더링 마크다운 diff를 보고 코멘트하기
 
-> 최종 확인 2026-10-18 · [ROADMAP](../../ROADMAP.md) · 엔진: [packages/engine](../../packages/engine/README.md) · GitHub와 받아들인 차이: [KNOWN-DIFFERENCES](../../packages/engine/parity/KNOWN-DIFFERENCES.md)
+> 최종 확인 2026-10-23 · [ROADMAP](../../ROADMAP.md) · 엔진: [packages/engine](../../packages/engine/README.md) · GitHub와 받아들인 차이: [KNOWN-DIFFERENCES](../../packages/engine/parity/KNOWN-DIFFERENCES.md)
 
 이 문서는 로컬 리뷰의 설계, 지금까지 만든 것, 남은 일을 한곳에 모은 기록이다. 마일스톤 PR이 병합될 때마다 **2. 지금 어디까지 왔나**와 **6. 남은 일**을 같은 PR에서 고친다.
 
@@ -8,11 +8,11 @@
 
 코딩 에이전트가 고친 `AGENTS.md`·`SKILL.md`·문서 같은 마크다운을, PR을 열기 전에 **내 컴퓨터에서** GitHub rich diff와 같은 렌더링 diff로 보고, 블록에 코멘트를 달아 에이전트에게 넘기는 도구를 만든다.
 
-크롬 확장(1.5.1)은 GitHub PR "Files changed" 화면에서만 돈다. GitHub가 그린 rich diff를 확장이 다듬는 방식이라, GitHub에 올리기 전의 변경에는 쓸 수 없다. 로컬 리뷰는 같은 화면(접기·표 합치기·이동·코멘트 상자)을 로컬 git 변경에 그대로 쓰게 한다.
+크롬 확장(1.6.0)은 GitHub PR "Files changed" 화면에서만 돈다. GitHub가 그린 rich diff를 확장이 다듬는 방식이라, GitHub에 올리기 전의 변경에는 쓸 수 없다. 로컬 리뷰는 같은 화면(접기·표 합치기·이동·코멘트 상자)을 로컬 git 변경에 그대로 쓰게 한다.
 
 ## 1. 전체 설계
 
-<img src="diagrams/overview.png" width="760" alt="전체 설계와 진행 — 작업 트리에서 렌더링 diff 엔진, 로컬 리뷰 페이지, 코멘트 저장, 에이전트로 가는 흐름과 GitHub PR 모드. 엔진(M1)과 확장 화면 모듈(M0)은 있고, 페이지·저장·에이전트·PR 모드는 점선(남은 일)">
+<img src="diagrams/overview.png" width="760" alt="전체 설계와 진행 — 작업 트리에서 렌더링 diff 엔진, 로컬 리뷰 페이지, 코멘트 저장, 에이전트로 가는 흐름과 GitHub PR 모드. M0~M3은 1.6.0으로 게시됐고, GitHub PR 모드(M4)가 이 PR이다">
 
 [그림 HTML](diagrams/overview.html)
 
@@ -23,23 +23,23 @@
 | 로컬 리뷰 페이지 + CLI | 로컬 서버가 엔진 HTML을 페이지로 보여 주고, 확장 화면 모듈로 접기·코멘트를 붙인다 | `packages/review` — **M2** |
 | 코멘트 저장 | 라운드·보낸 코멘트·임시 글을 `.git` 밖 사용자 상태 폴더에 | **M2** |
 | 에이전트에게 넘기기 | 코멘트를 정해진 형식으로 에이전트(Claude Code)에게, 고친 뒤 `--since-last`로 다음 라운드 | **M2**(Claude Code) · **M3**(Codex 주석) |
-| GitHub PR 모드 | `gh`로 PR 내용을 받아 같은 페이지에서 보고, 코멘트는 보류 중 리뷰(pending review)에 올린다 — 공개는 사람이 GitHub에서 | **M4** |
+| GitHub PR 모드 | `gh`로 PR 내용을 받아 같은 페이지에서 보고, 코멘트는 보류 중 리뷰(pending review)에 올린다 — 공개는 사람이 GitHub에서 | **M4** — `packages/review/src/`의 `gh.ts`·`pr.ts`·`github.ts`·`hunks.ts`·`pr-session.ts` |
 
 같은 엔진이 확장 안에서도 돈다 — GitHub가 렌더링 diff를 못 만든 큰 md 파일을 브라우저에서 그린다([docs/local-render](../local-render/README.md)).
 
 설계의 중심은 **엔진이 GitHub와 같은 표기의 HTML을 낸다**는 것이다. 그러면 확장이 GitHub 화면에서 쓰던 접기·표 합치기·이동·코멘트 코드를 다시 쓰지 않고 그대로 쓸 수 있고, 로컬에서 본 모양과 PR에서 볼 모양이 같다. 그래서 새로 만드는 것은 엔진과 페이지·서버·CLI뿐이다.
 
-## 2. 지금 어디까지 왔나 (2026-10-18)
+## 2. 지금 어디까지 왔나 (2026-10-23)
 
-설계만 한 것이 아니다. 확장 리팩터(M0)와 엔진(M1)은 병합됐고, 사람이 실제로 쓰는 도구(M2)는 구현을 끝내 PR이 열려 있다(브랜치 `feat/local-review-m2`).
+M0~M3은 병합됐고 1.6.0으로 스토어·GitHub Release·npm(`markdown-diff-cat@1.6.0`)에 게시됐다(2026-10-22). M4(GitHub PR 모드)는 구현을 끝내 PR을 연다(브랜치 `feat/local-review-m4`). M4가 병합되면 MVP 범위(스펙 §11-1)의 마일스톤이 모두 끝난다 — 남는 것은 사람이 하는 실기 점검(Codex·PR 모드)과 testbed 쓰기 E2E 실행이다.
 
 | 마일스톤 | 무엇 | 상태 |
 |---|---|---|
 | **M0** | 확장 리팩터(동작 그대로) — markdown-it 15, 공용 타입(`src/types.ts`)·렌더링 표기(`src/prose-markup.ts`), `align` 한도 인자, `i18n` 밖에서 쓰기, `comment-ui` 옵션, `comments.ts`의 화면 동작을 `CommentController` + `CommentBackend`로 분리, `packages/*` 워크스페이스 | ✅ **병합** — [#47](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/47)(2026-10-17). 관문: `pnpm verify pr` 7/7, 연결률 기준선 그대로 |
 | **M1** | 렌더링 diff 엔진 `packages/engine` + GitHub 패리티 하네스(`pnpm parity`·`parity:capture`·`parity:setup`) + 정화 | ✅ **병합** — [#48](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/48)(2026-10-17). 시험 670개(엔진 272) · 패리티 87.0% · 줄 속성 빠짐 0 · `pnpm verify pr` 7/7 |
-| **M2** | 작업 트리 모드 — `packages/review`(CLI·로컬 서버·리뷰 페이지·코멘트 저장·에이전트에게 넘기기·skill) + npm 게시 | 🔵 **PR 열림** — 브랜치 `feat/local-review-m2`. M2 전 수정 5개 끝 · 패리티 91.1% · `pnpm verify pr` 10/10 · Claude Code 데스크톱 실기(2026-10-20) |
+| **M2** | 작업 트리 모드 — `packages/review`(CLI·로컬 서버·리뷰 페이지·코멘트 저장·에이전트에게 넘기기·skill) + npm 게시 | ✅ **병합** — [#49](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/49)(2026-10-20), 1.6.0으로 npm 게시(2026-10-22). M2 전 수정 5개 끝 · 패리티 91.1% · `pnpm verify pr` 10/10 · Claude Code 데스크톱 실기(2026-10-20) |
 | **M3** | Codex 주석 속성 + Codex용 skill | ✅ **병합** — [#50](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/50)(2026-10-20, Codex 실기 전 — 관리자 결정). 잎마다 `oai-annotatable`·`oai-annotation-metadata`(6키), 본문 `oai-annotation-container`, `show --side old\|new`(옛 쪽 주석 대조), skill 5단계 · Codex 실기는 [점검표](../../packages/review/docs/codex-checklist.md)로 사람이 |
-| **M4** | GitHub PR 모드(`review --pr`) | ⬜ |
+| **M4** | GitHub PR 모드(`review --pr`) | 🔵 **구현 끝 — PR** — 브랜치 `feat/local-review-m4`. `gh`(셸 없음, 글은 stdin JSON) · PR ref 받기(`refs/markdown-diff-cat/pr/<n>/*`, 포크면 base 저장소 원격) · 기존 스레드·답글 · GitHub hunk로 줄 맞추기(자르기·파일 스레드) · 확인 상자 → 내 보류 중 리뷰에만 · 새 커밋이면 멈춤 · 에이전트에게 보내기(남의 스레드는 고른 것만). `packages/review` 단위 시험 250 · E2E 16(네트워크 없는 PR 한 바퀴 포함) · 공개 testbed 쓰기 E2E(`MDC_PR_TESTBED=1`)는 관리자 확인 뒤 |
 | 다음 | VS Code 확장 → JetBrains 플러그인 | ⬜ 따로 설계 |
 
 M1 끝에 정한 값(패리티 첫 보고서 근거):
@@ -103,7 +103,7 @@ M1 끝에 정한 값(패리티 첫 보고서 근거):
 4. ✅ 알림 종류를 바꾸면(WARNING→CAUTION) GitHub처럼 옛 제목 `<del>` + 새 제목 `<ins>`, 본문은 변경 없음으로(패리티) · 518194c
 5. ✅ 고친 잎의 옛 사본(`.removed`)은 `data-mdc-new`·`data-mdc-old`를 둘 다 단다 — 로컬 백엔드는 `REMOVED_BLOCK`으로 왼쪽(옛) 쪽을 고른다(M1 검토) · Task 13 시험
 
-**M2 — 작업 트리 모드**(`packages/review`, 브랜치 `feat/local-review-m2`):
+**M2 — 작업 트리 모드**(`packages/review`, 병합 [#49](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/49), 1.6.0으로 게시):
 
 - CLI `markdown-diff-cat` — `review`(리뷰 페이지 열기)·`comments`(넘기기 형식으로 코멘트 읽기)·`wait`·`mark`·`rev`·`show`·`--since-last`(지난 라운드 뒤 바뀐 것만)
 - `git.ts`(기준·파일 목록·내용, 읽기만) · `state.ts`(`.git` 밖 상태 폴더 — 렌더 판 고정·정리, 라운드·보낸 것·표시·임시 글) · `handoff.ts`(에이전트에게 넘기는 형식)
@@ -114,7 +114,11 @@ M1 끝에 정한 값(패리티 첫 보고서 근거):
 - npm 패키지 `markdown-diff-cat`(확장과 같은 버전, 런타임 의존 0, 한 파일) — M2 병합 뒤 확장 릴리스와 같은 태그로 게시
 
 **M3** — 병합(#50). 남은 것: Codex 실기 점검표([codex-checklist.md](../../packages/review/docs/codex-checklist.md)) — 엄격한 CSP 아래 `document.oai`, `127.0.0.1`, 샌드박스 승인. CSP가 주석 API를 막으면 그 경우에만 조정한다(설계 §11-2). 미룬 작은 것: 원문만 바뀜 막대 안 숨은 원문 diff가 두 번째 주석 대상(`kind: code`), 합친 표 복제 행의 쪽 단언.
-**M4** — PR 모드: `gh`로 PR 내용·기존 스레드를 받아 같은 페이지에서 보고, 코멘트는 보류 중 리뷰에만 올린다(제출은 사람이 GitHub에서).
+**M4** — PR 모드(브랜치 `feat/local-review-m4`, 2026-10-23 구현):
+
+- 한 것 — `review --pr <번호|URL>`, `gh auth status`·`gh pr view`로 OID 확정, 그 base 저장소를 가리키는 원격(없으면 저장소 URL)에서 `refs/pull/<n>/head`·base 브랜치를 `refs/markdown-diff-cat/pr/<n>/*`로 받기(head가 다르면 OID로 한 번 더), 옛 쪽 = 분기점. GraphQL `reviewThreads`(끝까지)로 기존 스레드를 블록 아래·파일 머리에, 낡은 것은 수만. 답글은 초안으로. "Add to pending review" → 확인 상자(`owner/repo#n`·건수·글) → 넣기 직전 head 다시 읽기 → `pulls/<n>/files`의 patch hunk로 줄 맞추기(겹침이 큰 hunk로 자르고 원래 줄을 본문에, 겹침이 없거나 patch가 없으면 인용을 붙인 파일 스레드, 줄이 바뀐 제안은 `text` 펜스로) → 내 보류 중 리뷰(없으면 REST로 PENDING 리뷰 생성) → GraphQL `addPullRequestReviewThread`·`…Reply`를 하나씩, 실패한 것만 초안으로 남김. 보내기는 고른 남의 스레드를 `@login (others)`로 펜스 안에, 머리 줄 `base … → head …`, PR head가 아닌 작업 트리면 `> Warning:` 줄. 초안은 `pr:<owner>/<repo>#<n>` 범위로 작업 트리 초안과 나뉜다. `stop --clean`이 받은 ref도 지운다. 스펙 §11-2의 GraphQL `originalLine`·`startDiffSide`는 스키마 조회로 있음을 확인(2026-10-23)
+- 남은 것 — 공개 testbed 쓰기 E2E 실행(`MDC_PR_TESTBED=1 pnpm exec playwright test pr-testbed`, 공개 쓰기라 관리자 확인 뒤 — 끝에 보류 중 리뷰를 지운다), "보류 중 리뷰는 사용자당 하나"·"diff 밖 줄 422" ⚠️ 보고를 그 실행으로 확인, Claude Code·Codex 실기 점검표에 PR 모드 줄 더하기
+- 하지 않은 것(MVP 밖, 스펙 §11-1) — 즉시 게시·해결·편집·삭제, PR 모드 `--since-last`, 로컬 clone 없는 PR, GitHub Enterprise Server. 다른 모드의 서버가 떠 있으면 바꾸지 않고 `stop`을 안내한다(스펙 §5-2는 바꾸기 요청 — 세션 종류가 달라 MVP에서 막음)
 **다음** — VS Code 확장(Cursor 등 Open VSX 포함) → JetBrains 플러그인. 각각 따로 설계한다.
 
 ## 7. 그림 다시 만들기
