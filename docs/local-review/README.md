@@ -31,7 +31,7 @@
 
 ## 2. 지금 어디까지 왔나 (2026-10-23)
 
-M0~M3은 병합됐고 1.6.0으로 스토어·GitHub Release·npm(`markdown-diff-cat@1.6.0`)에 게시됐다(2026-10-22). M4(GitHub PR 모드)는 구현을 끝내 PR을 연다(브랜치 `feat/local-review-m4`). M4가 병합되면 MVP 범위(스펙 §11-1)의 마일스톤이 모두 끝난다 — 남는 것은 사람이 하는 실기 점검(Codex·PR 모드)이다.
+M0~M3은 병합됐고 1.6.0으로 스토어·GitHub Release·npm(`markdown-diff-cat@1.6.0`)에 게시됐다(2026-10-22). M4(GitHub PR 모드)는 구현을 끝내 PR [#59](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/59)이 열려 있다. M4가 병합되면 MVP 범위(스펙 §11-1)의 마일스톤이 모두 끝난다 — 남는 것은 사람이 하는 실기 점검(Codex·PR 모드)이다.
 
 | 마일스톤 | 무엇 | 상태 |
 |---|---|---|
@@ -39,7 +39,7 @@ M0~M3은 병합됐고 1.6.0으로 스토어·GitHub Release·npm(`markdown-diff-
 | **M1** | 렌더링 diff 엔진 `packages/engine` + GitHub 패리티 하네스(`pnpm parity`·`parity:capture`·`parity:setup`) + 정화 | ✅ **병합** — [#48](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/48)(2026-10-17). 시험 670개(엔진 272) · 패리티 87.0% · 줄 속성 빠짐 0 · `pnpm verify pr` 7/7 |
 | **M2** | 작업 트리 모드 — `packages/review`(CLI·로컬 서버·리뷰 페이지·코멘트 저장·에이전트에게 넘기기·skill) + npm 게시 | ✅ **병합** — [#49](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/49)(2026-10-20), 1.6.0으로 npm 게시(2026-10-22). M2 전 수정 5개 끝 · 패리티 91.1% · `pnpm verify pr` 10/10 · Claude Code 데스크톱 실기(2026-10-20) |
 | **M3** | Codex 주석 속성 + Codex용 skill | ✅ **병합** — [#50](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/50)(2026-10-20, Codex 실기 전 — 관리자 결정). 잎마다 `oai-annotatable`·`oai-annotation-metadata`(6키), 본문 `oai-annotation-container`, `show --side old\|new`(옛 쪽 주석 대조), skill 5단계 · Codex 실기는 [점검표](../../packages/review/docs/codex-checklist.md)로 사람이 |
-| **M4** | GitHub PR 모드(`review --pr`) | 🔵 **구현 끝 — PR** — 브랜치 `feat/local-review-m4`. `gh`(셸 없음, 글은 stdin JSON) · PR ref 받기(`refs/markdown-diff-cat/pr/<n>/*`, 포크면 base 저장소 원격) · 기존 스레드·답글 · GitHub hunk로 줄 맞추기(자르기·파일 스레드) · 확인 상자(초안마다 잘림·파일 전체 코멘트 미리보기) → 내 보류 중 리뷰에만 · 새 커밋이면 멈춤(머리의 Redraw로 다시 받기, 줄이 바뀐 초안은 넣지 않음) · 에이전트에게 보내기(남의 스레드는 고른 것만). `packages/review` 단위 시험 255 · E2E 16(네트워크 없는 PR 한 바퀴 포함) · 공개 testbed 쓰기 E2E(`MDC_PR_TESTBED=1`) 통과(2026-10-23, testbed PR #8, 15초 — 한 줄·잘린 범위·파일 스레드·`@-`로 시작하는 본문 그대로, 끝에 보류 중 리뷰를 지움) |
+| **M4** | GitHub PR 모드(`review --pr`) | 🔵 **PR 열림** — [#59](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/59)(브랜치 `feat/local-review-m4`). `gh`(셸 없음, 글은 stdin JSON) · PR ref 받기(`refs/markdown-diff-cat/pr/<n>/*`, 포크면 base 저장소 원격) · 기존 스레드·답글 · GitHub hunk로 줄 맞추기(자르기·파일 스레드) · 확인 상자(초안마다 잘림·파일 전체 코멘트 미리보기) → 내 보류 중 리뷰에만 · 새 커밋이면 멈춤(머리의 Redraw로 다시 받기, 줄이 바뀐 초안은 넣지 않음) · 에이전트에게 보내기(남의 스레드는 고른 것만). `packages/review` 단위 시험 255 · E2E 16(네트워크 없는 PR 한 바퀴 포함) · 공개 testbed 쓰기 E2E(`MDC_PR_TESTBED=1`) 통과(2026-10-23, testbed PR #8, 15초 — 한 줄·잘린 범위·파일 스레드·`@-`로 시작하는 본문 그대로, 끝에 보류 중 리뷰를 지움) |
 | 다음 | VS Code 확장 → JetBrains 플러그인 | ⬜ 따로 설계 |
 
 M1 끝에 정한 값(패리티 첫 보고서 근거):
@@ -114,7 +114,7 @@ M1 끝에 정한 값(패리티 첫 보고서 근거):
 - npm 패키지 `markdown-diff-cat`(확장과 같은 버전, 런타임 의존 0, 한 파일) — M2 병합 뒤 확장 릴리스와 같은 태그로 게시
 
 **M3** — 병합(#50). 남은 것: Codex 실기 점검표([codex-checklist.md](../../packages/review/docs/codex-checklist.md)) — 엄격한 CSP 아래 `document.oai`, `127.0.0.1`, 샌드박스 승인. CSP가 주석 API를 막으면 그 경우에만 조정한다(설계 §11-2). 미룬 작은 것: 원문만 바뀜 막대 안 숨은 원문 diff가 두 번째 주석 대상(`kind: code`), 합친 표 복제 행의 쪽 단언.
-**M4** — PR 모드(브랜치 `feat/local-review-m4`, 2026-10-23 구현):
+**M4** — PR 모드([#59](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/59), 2026-10-23 구현):
 
 - 한 것 — `review --pr <번호|URL>`, `gh auth status`·`gh pr view`로 OID 확정, 그 base 저장소를 가리키는 원격(없으면 저장소 URL)에서 `refs/pull/<n>/head`·base 브랜치를 `refs/markdown-diff-cat/pr/<n>/*`로 받기(head가 다르면 OID로 한 번 더), 옛 쪽 = 분기점. GraphQL `reviewThreads`(끝까지)로 기존 스레드를 블록 아래·파일 머리에, 낡은 것은 수만. 답글은 초안으로. "Add to pending review" → 확인 상자(`owner/repo#n`·건수·글) → 넣기 직전 head 다시 읽기 → `pulls/<n>/files`의 patch hunk로 줄 맞추기(겹침이 큰 hunk로 자르고 원래 줄을 본문에, 겹침이 없거나 patch가 없으면 인용을 붙인 파일 스레드, 줄이 바뀐 제안은 `text` 펜스로) → 내 보류 중 리뷰(없으면 REST로 PENDING 리뷰 생성) → GraphQL `addPullRequestReviewThread`·`…Reply`를 하나씩, 실패한 것만 초안으로 남김. 보내기는 고른 남의 스레드를 `@login (others)`로 펜스 안에, 머리 줄 `base … → head …`, PR head가 아닌 작업 트리면 `> Warning:` 줄. 초안은 `pr:<owner>/<repo>#<n>` 범위로 작업 트리 초안과 나뉜다. `stop --clean`이 받은 ref도 지운다. 스펙 §11-2의 GraphQL `originalLine`·`startDiffSide`는 스키마 조회로 있음을 확인(2026-10-23)
 - testbed 실측(2026-10-23, PR #8) — REST로 만든 PENDING 리뷰 하나에 GraphQL로 스레드 넷이 들어갔다. 한 줄 스레드는 `startLine`이 같은 줄로, 파일 스레드는 `line`이 1로 돌아온다(우리는 `subjectType`으로 가른다). 줄은 미리 hunk로 맞춰 "diff 밖 줄 422"는 일어나지 않았다(그 ⚠️ 보고 자체는 재현하지 않음). 다시 돌리기: `MDC_PR_TESTBED=1 pnpm exec playwright test pr-testbed`(공개 쓰기 — 관리자 확인 뒤, 내 보류 중 리뷰가 있으면 멈추고, 끝에 지운다)
