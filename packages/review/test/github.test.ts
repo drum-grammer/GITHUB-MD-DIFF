@@ -54,7 +54,8 @@ describe('loadThreads', () => {
       {
         nodes: [
           thread({ id: 'T1', line: 6, startLine: 4, comments: { nodes: [comment('C1', 'octocat', '**Why?**'), comment('C2', 'me', 'Because', 'PENDING')] } }),
-          thread({ id: 'T2', subjectType: 'FILE', line: null, viewerCanReply: false }),
+          // 실제 GitHub는 파일 스레드의 line을 1로 돌려준다(2026-10-23 testbed 실측) — subjectType으로 가른다
+          thread({ id: 'T2', subjectType: 'FILE', line: 1, viewerCanReply: false }),
           thread({ id: 'T3', isOutdated: true }),
         ],
         pageInfo: { hasNextPage: true, endCursor: 'CUR' },

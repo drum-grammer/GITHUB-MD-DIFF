@@ -81,7 +81,7 @@ test('testbed PR #8 — 보류 중 리뷰에 줄·잘린 범위·파일 스레�
   expect([null, first[0]]).toContain(by('fits').startLine);
   expect(by('clipped')).toMatchObject({ subjectType: 'LINE', line: first[1], startLine: first[0] === first[1] ? null : first[0] });
   expect(by('clipped').comments.nodes[0].body).toContain(`trimmed to`);
-  expect(by('unchanged')).toMatchObject({ subjectType: 'FILE', line: null });
+  expect(by('unchanged')).toMatchObject({ path: FILE, subjectType: 'FILE' }); // GitHub는 파일 스레드의 line을 1로 돌려준다(2026-10-23 실측)
   expect(by('unchanged').comments.nodes[0].body).toContain('(unchanged lines; GitHub accepts line comments only on changed lines)');
   expect(by('literal').comments.nodes[0].body).toBe('@- {repo} `@.env` literal — markdown-diff-cat M4 testbed run');
   await review.stop();
