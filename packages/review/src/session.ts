@@ -2,13 +2,13 @@
 import { randomBytes } from 'node:crypto';
 import { diffMarkdown, renderMarkdown, renderProseDiff, type FileDiff } from '@markdown-diff-cat/engine';
 import type { ReviewComment, ReviewThread } from '../../../src/types';
-import type { Badge, DraftInput, EarlierItem, FilePayload, Notice, PollPayload, SendPayload, ThreadsPayload, ViewKind, ViewPayload } from './api-types';
+import type { Badge, DraftInput, EarlierItem, FilePayload, Notice, PollPayload, PushPayload, SendPayload, ThreadsPayload, ViewKind, ViewPayload } from './api-types';
 import { HttpError } from './errors';
 import { repoInfo, resolveBase, type BaseInfo } from './git';
 import { formatRound, isoLocal, lineLabel } from './handoff';
 import { ImageIssuer } from './images';
 import { fenced, sanitizeQuote, splitSuggestion } from './quote';
-import type { Draft, RenderRecord, Round, RoundBase, SourceSide, StoredComment } from './records';
+import type { Draft, Mark, RenderRecord, Round, RoundBase, SourceSide, StoredComment } from './records';
 import type { StateStore } from './state';
 import { fingerprint, latestBaseline, sinceLastFiles, snapshot, type ViewFile } from './views';
 
@@ -39,19 +39,19 @@ const MAX_HTML_CACHE = 500;
 
 const MAX_BODY = 65_536;
 
-function toThread(id: string, side: SourceSide, start: number, end: number, comment: ReviewComment): ReviewThread {
+export function toThread(id: string, side: SourceSide, start: number, end: number, comment: ReviewComment): ReviewThread {
   return { id, subject: 'line', side: side === 'old' ? 'left' : 'right', start, end, resolved: false, canReply: false, comments: [comment] };
 }
 
-function toComment(id: string, body: string, bodyHTML: string, mine: boolean): ReviewComment {
+export function toComment(id: string, body: string, bodyHTML: string, mine: boolean): ReviewComment {
   return { id, author: 'you', body, bodyHTML, url: '', pending: false, bodyVersion: '', canEdit: mine, canDelete: mine };
 }
 
 /** 줄 범위의 원문(LF로) */
-const quoteOf = (text: string, start: number, end: number): string => sourceLines(text).slice(start - 1, end).join('\n');
+export const quoteOf = (text: string, start: number, end: number): string => sourceLines(text).slice(start - 1, end).join('\n');
 
 /** 초안의 쪽 원문이 지금 보기에 있는가 — 보기에 없는 파일이거나 그 쪽 원문이 없어졌으면(지운 파일의 새 쪽) false: 페이지 위 "이 보기 밖" 목록으로 */
-const onView = (files: ViewFile[], d: { path: string; side: SourceSide }): boolean => {
+export const onView = (files: ViewFile[], d: { path: string; side: SourceSide }): boolean => {
   const f = files.find((x) => x.path === d.path);
   return f !== undefined && (d.side === 'new' ? f.newText : f.oldText) !== null;
 };
@@ -96,6 +96,38 @@ export class ReviewSession {
     return this.opts.now?.() ?? new Date();
   }
 
+  /** 이 세션의 초안 범위 — 작업 트리 모드는 없음(undefined), PR 모드는 "pr:<owner>/<repo>#<n>" */
+  protected scope(): string | undefined {
+    return undefined;
+  }
+
+  /** 같은 저장 폴더를 PR 세션과 같이 쓴다 — 자기 범위의 초안만 보고, 저장할 때 남의 범위 초안은 그대로 둔다 */
+  protected inScope(d: Draft): boolean {
+    return d.scope === this.scope();
+  }
+
+  protected ownDrafts(): Draft[] {
+    return this.opts.store.drafts().filter((d) => this.inScope(d));
+  }
+
+  /** 이 모드의 라운드인가 — 작업 트리 모드는 PR 라운드를 "지난 리뷰"·"이전 코멘트"로 쓰지 않는다 */
+  protected ownRound(r: Round): boolean {
+    return r.mode !== 'pr';
+  }
+
+  /** mark한 판이 이 모드의 판인가(판이 지워졌으면 작업 트리 것으로 본다 — "지난 리뷰 판이 없다" 알림이 그대로 나오게) */
+  protected ownMark(m: Mark): boolean {
+    return this.opts.store.loadRender(m.rev)?.mode !== 'pr';
+  }
+
+  protected ownRounds(): Round[] {
+    return this.opts.store.rounds().filter((r) => this.ownRound(r));
+  }
+
+  protected ownMarks(): Mark[] {
+    return this.opts.store.marks().filter((m) => this.ownMark(m));
+  }
+
   rev(): string | null {
     return this.current?.record.id ?? null;
   }
@@ -137,7 +169,25 @@ export class ReviewSession {
   }
 
   draftCount(): number {
-    return this.opts.store.drafts().length;
+    return this.ownDrafts().length;
+  }
+
+  // 라우트가 부르는 비동기 자리 — PR 모드(PrSession)는 GitHub 요청 때문에 여기서 기다린다
+  async apiThreads(path: string): Promise<ThreadsPayload> {
+    return this.threads(path);
+  }
+
+  async apiRedraw(): Promise<ViewPayload> {
+    return this.draw();
+  }
+
+  /** include(골라 넣은 GitHub 스레드)는 PR 모드에서만 쓴다 */
+  async apiSend(rev: string, _include: string[]): Promise<SendPayload> {
+    return this.send(rev);
+  }
+
+  async apiPush(_rev: string): Promise<PushPayload> {
+    throw new HttpError(404, 'Pending review is only in PR mode.');
   }
 
   protected html(markdown: string): string {
@@ -151,13 +201,12 @@ export class ReviewSession {
   }
 
   protected payload(c: Current): ViewPayload {
-    const { store } = this.opts;
-    const drafts = store.drafts();
+    const drafts = this.ownDrafts();
     return {
       rev: c.record.id,
       view: c.from ? 'since-last' : 'merge-base',
       baseText: c.from ? `review render ${c.from.id}` : `${c.base.oid.slice(0, 7)} (${c.base.label})`,
-      sinceLastAvailable: store.rounds().length > 0 || store.marks().length > 0,
+      sinceLastAvailable: this.ownRounds().length > 0 || this.ownMarks().length > 0,
       notices: c.notices,
       files: c.rendered,
       drafts: drafts.length,
@@ -169,7 +218,7 @@ export class ReviewSession {
   /** 다른 판에서 보낸 코멘트 — 새 위치에 다시 앵커하지 않고 목록(파일·줄·인용)으로만(스펙 §5-4) */
   private earlier(rev: string): EarlierItem[] {
     const out: EarlierItem[] = [];
-    for (const r of [...this.opts.store.rounds()].reverse()) {
+    for (const r of [...this.ownRounds()].reverse()) {
       if (r.rev === rev) continue;
       for (const k of r.comments) if (out.length < MAX_EARLIER) out.push({ round: r.round, path: k.path, lines: lineLabel(k.start, k.end), quote: excerpt(k.quoteSanitized) });
     }
@@ -184,7 +233,7 @@ export class ReviewSession {
     const notices: Notice[] = [];
     let from: RenderRecord | null = null;
     if (this.viewKind === 'since-last') {
-      const baseline = latestBaseline(store.rounds(), store.marks());
+      const baseline = latestBaseline(this.ownRounds(), this.ownMarks());
       from = baseline ? store.loadRender(baseline.rev) : null;
       // 라운드·mark가 없으면 "아직 없음", 있는데 그 판 파일이 없으면(손으로 지움 등) "지난 리뷰 판이 없다"(스펙 §5-4)
       if (!from) notices.push(baseline ? { key: 'reviewNoticeBaselineMissing', subs: [baseline.rev] } : { key: 'reviewNoticeNoBaseline' });
@@ -216,7 +265,7 @@ export class ReviewSession {
     return this.current;
   }
 
-  private renderFile(f: ViewFile, rev: string, oldOid: string, diffs: Map<string, FileDiff>): FilePayload {
+  protected renderFile(f: ViewFile, rev: string, oldOid: string, diffs: Map<string, FileDiff>, newImage?: (path: string) => string | null): FilePayload {
     const out: FilePayload = { path: f.path, ...(f.oldPath ? { oldPath: f.oldPath } : {}), status: f.status, html: '', newText: f.newText, notices: [] };
     try {
       const diff = diffMarkdown({ oldText: f.oldText, newText: f.newText, path: f.path, ...(f.oldPath ? { oldPath: f.oldPath } : {}) });
@@ -224,7 +273,7 @@ export class ReviewSession {
       out.notices = diff.notices.map((n) => ({ kind: n.kind }));
       out.html = renderProseDiff(diff, {
         rev,
-        imageId: (side, p) => this.images.issue(rev, side === 'old' ? { kind: 'git', oid: oldOid, path: p } : { kind: 'worktree', path: p }),
+        imageId: (side, p) => (side === 'old' ? this.images.issue(rev, { kind: 'git', oid: oldOid, path: p }) : newImage ? newImage(p) : this.images.issue(rev, { kind: 'worktree', path: p })),
       });
     } catch (e) {
       out.error = e instanceof Error ? e.message : String(e);
@@ -237,7 +286,7 @@ export class ReviewSession {
     const c = this.current ?? this.paint();
     const badges: Record<string, Badge> = {};
     const threads: ReviewThread[] = [];
-    for (const d of this.opts.store.drafts()) {
+    for (const d of this.ownDrafts()) {
       if (d.path !== path || !onView(c.files, d)) continue; // 보기 밖 초안은 목록(offView)으로만
       threads.push(toThread(d.id, d.side, d.start, d.end, toComment(d.id, d.body, this.html(d.body), true)));
       if (d.moved) badges[d.id] = 'stale';
@@ -289,6 +338,7 @@ export class ReviewSession {
       quoteSanitized: sanitizeQuote(quote, { code: leaf.kind === 'code' }),
       createdAt: at,
       updatedAt: at,
+      ...(this.scope() ? { scope: this.scope() } : {}),
     };
     const { store } = this.opts;
     store.withLock('drafts', () => store.saveDrafts([...store.drafts(), draft]));
@@ -302,7 +352,7 @@ export class ReviewSession {
     const { store } = this.opts;
     return store.withLock('drafts', () => {
       const list = store.drafts();
-      const i = list.findIndex((d) => d.id === id);
+      const i = list.findIndex((d) => d.id === id && this.inScope(d));
       if (i < 0) throw new HttpError(404, 'This comment was already sent or deleted.');
       list[i] = { ...list[i], body: text, updatedAt: isoLocal(this.now()) };
       store.saveDrafts(list);
@@ -314,7 +364,7 @@ export class ReviewSession {
     const { store } = this.opts;
     store.withLock('drafts', () => {
       const list = store.drafts();
-      if (!list.some((d) => d.id === id)) throw new HttpError(404, 'This comment was already sent or deleted.');
+      if (!list.some((d) => d.id === id && this.inScope(d))) throw new HttpError(404, 'This comment was already sent or deleted.');
       store.saveDrafts(list.filter((d) => d.id !== id));
     });
   }
@@ -325,7 +375,7 @@ export class ReviewSession {
     if (rev !== c.record.id) throw new HttpError(409, 'This view is out of date — press Redraw, check your comments, and send again.');
     const { store } = this.opts;
     return store.withLock('rounds', () => {
-      const drafts = [...store.drafts()].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      const drafts = this.ownDrafts().sort((a, b) => a.createdAt.localeCompare(b.createdAt));
       if (!drafts.length) throw new HttpError(400, 'Add a comment first.');
       const n = store.nextRoundNumber();
       const base: RoundBase = c.from ? { kind: 'review-render', rev: c.from.id } : { kind: 'merge-base', oid: c.base.oid, label: c.base.label };
@@ -362,7 +412,7 @@ export class ReviewSession {
         comments,
       };
       store.saveRound(round, formatRound(round));
-      store.saveDrafts([]);
+      store.saveDrafts(store.drafts().filter((d) => !this.inScope(d)));
       return { round: n, comments: comments.length };
     });
   }
@@ -374,7 +424,7 @@ export class ReviewSession {
     store.withLock('drafts', () => {
       let touched = false;
       const next = store.drafts().map((d): Draft => {
-        if (d.rev === c.record.id) return d;
+        if (!this.inScope(d) || d.rev === c.record.id) return d;
         const f = c.files.find((x) => x.path === d.path);
         if (!f) return d;
         const text = d.side === 'new' ? f.newText : f.oldText;

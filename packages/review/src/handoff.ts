@@ -21,13 +21,13 @@ const isYou = (c: StoredComment): boolean => c.author === 'you';
 const numberOf = (c: StoredComment): number => Number(c.id.replace(/^c/, ''));
 
 function baseText(b: RoundBase): string {
-  return b.kind === 'merge-base' ? `base ${b.oid.slice(0, 7)} (${b.label})` : `base: review render ${b.rev}`;
+  return b.kind === 'review-render' ? `base: review render ${b.rev}` : `base ${b.oid.slice(0, 7)} (${b.label})`;
 }
 
 /** 옛 쪽 줄은 작업 트리의 줄이 아니다 — 항목마다 그 기준을 적는다 */
 function sideText(c: StoredComment, b: RoundBase): string {
   if (c.side === 'new') return '(new)';
-  return b.kind === 'merge-base' ? '(old, removed — base version)' : `(old, removed — review render ${b.rev}; print it with show --rev ${b.rev})`;
+  return b.kind === 'review-render' ? `(old, removed — review render ${b.rev}; print it with show --rev ${b.rev})` : '(old, removed — base version)';
 }
 
 function item(c: StoredComment, round: Round): string {
