@@ -11,10 +11,10 @@
 | | 상태 |
 |---|---|
 | 크롬 웹 스토어(공개) | **1.5.1** — 2026-10-14 제출·게시(2026-10-15 `pnpm release status`·스토어 페이지 확인). 태그 [`v1.5.1`](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases/tag/v1.5.1)(`0873956`)·GitHub Release **Latest**. v1.5.0은 로그인 화면에서 멈춘 판이라 pre-release로 둔다 |
-| `main` | **1.5.1** |
+| `main` | **1.6.0** — 스토어 제출 준비(2026-10-22). 1.5.1 뒤의 새 기능: GitHub가 못 그린 md를 브라우저에서 렌더링(#52)·실패 시 원문과 까닭(#51), 로컬 리뷰 CLI `markdown-diff-cat`(M2 #49·M3 #50, npm은 따로 확인 뒤) |
 | 진행 중 | 로컬 리뷰 M2 — 명령줄 도구 `markdown-diff-cat`(작업 트리 모드, [packages/review](packages/review/README.md)). M3 Codex 주석 병합([#50](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/50), Codex 실기 남음) · 다음: M4 PR 모드 · 설계·진행·남은 일: [docs/local-review](docs/local-review/README.md) |
 | 큰 md — `main`(미출시) | GitHub가 렌더링 diff를 못 만든 md(서버 504 → "This rich diff is not supported")를 확장 안 엔진으로 브라우저에서 그린다 — **로컬 렌더링** [#52](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/52)(병합 `26c153c`). 그것도 못 하면 원문 diff와 까닭 한 줄 — [#51](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/51)(병합 `b369507`). 2026-10-22 계기가 된 비공개 PR의 두 문서(437 KB·224 KB)에서 504 뒤 1–2초 안에 그려지는 것을 확인. 설계·실측: [docs/local-render](docs/local-render/README.md). 다음 MINOR(1.6.0)에 들어간다 |
-| 관리자 크롬 | 1.5.1 게시 뒤 스토어판으로 돌아간다(개발 빌드 끄기) — 다음 개발은 다시 `pnpm dev:chrome` |
+| 관리자 크롬 | 2026-10-22 1.6.0 후보를 개발 빌드로 써 본다(`pnpm dev:chrome` → `1.5.1 dev 9ed4073`, 스토어판 끄기). 1.6.0이 게시되면 스토어판으로 돌아간다 |
 | 주간 카나리 | 상시 켜 둔 맥의 예약이 아직 돌지 않는다(그 맥의 화면 로그인·알림 토큰 대기). 2026-10-14 손으로 돌림: 1.5.0 깨짐 3/7 → 1.5.1 정상 9/9. `pnpm canary:status`로 멈춤을 본다 |
 
 ## 다음 할 일 (순서대로)
@@ -55,6 +55,7 @@
 | 1.4.0 | 2026-10-11 | 코멘트 상자를 GitHub 상자 모양으로(아바타·`R13` 머리글·서식 도구 막대·빈 글이면 버튼 끔) · 제안(suggestion) 버튼 · 목록 종류 바꾸기 | [#31](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/31) | `main` | [테스트](docs/reports/v1.4.0-testing.md) |
 | 1.5.0 | 2026-10-11 | 답글 상자에도 제안 버튼(GitHub 답글 상자와 같게) · 확장 문구를 영어로 통일(크롬 언어와 상관없이) | [#33](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/33) | 스토어 게시(2026-10-14) — 같은 날 GitHub 변경으로 로그인 화면에서 멈춤, 1.5.1로 대체 · Release는 pre-release | |
 | 1.5.1 | 2026-10-14 | GitHub 클래스 이름 새 형식(`diff__해시`) 대응 — 파일 앵커 id·구조 우선, 두 형식 모두 · 파일을 못 읽으면 경고 · 시험·canary·스크립트 공통 선택자 · canary 형식 점검·`canary:status` | [#44](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/44) | **스토어 게시**(2026-10-14) · [Release](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases/tag/v1.5.1) Latest | [보고서](docs/reports/v1.5.1-github-class-names.md) · [runbook](docs/runbooks/github-ui-change.md) |
+| 1.6.0 | 2026-10-22 | GitHub가 렌더링을 못 만든 md(서버 504)를 브라우저에서 엔진으로 렌더링 · 그것도 못 하면 원문 diff와 까닭 한 줄 · 로컬 리뷰 CLI `markdown-diff-cat`(작업 트리 모드·Codex 주석) | [#47](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/47)–[#53](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/53) | `main` — 스토어 제출 준비 | [설계](docs/local-render/README.md) · [UNRELEASED](docs/releases/UNRELEASED.md) |
 
 버전 규칙은 [store/README · Versioning](store/README.md#versioning) — PATCH는 버그·GitHub 화면 따라가기, MINOR는 새 기능(권한 추가 없음), MAJOR는 권한·사이트 추가나 동작 변경.
 
