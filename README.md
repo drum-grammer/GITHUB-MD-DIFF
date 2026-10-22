@@ -4,121 +4,133 @@
 
 <p align="center">See only what changed in Markdown files on GitHub pull requests — rendered, not raw.</p>
 
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj"><img alt="Chrome Web Store" src="https://img.shields.io/chrome-web-store/v/kabekbbeoajhpbcppidepmcbbjjochlj?label=Chrome%20Web%20Store&color=1b2f5e"></a>
+  <a href="https://www.npmjs.com/package/markdown-diff-cat"><img alt="npm" src="https://img.shields.io/npm/v/markdown-diff-cat?label=npm%20markdown-diff-cat&color=f28a2e"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2da44e"></a>
+</p>
+
 <p align="center"><a href="#한국어">한국어</a></p>
 
 ![Markdown Diff Cat folds unchanged sections and shows table changes row by row](docs/demo.gif)
 
 ## Why
 
-AI coding assistants write long design documents, and reviewing them in a pull request is painful:
+AI assistants write long design documents, and reviewing them in a pull request is painful:
 
-- **Rich diff** (the rendered view) opens the whole file. You scroll past hundreds of unchanged lines to find the few that changed.
-- **Source diff** shows only the changes, but they are buried in Markdown syntax, table pipes, and code fences.
+- **Rich diff** (the rendered view) shows the whole file. You scroll past hundreds of unchanged lines to find the few that changed.
+- **Source diff** shows only the changes, buried in Markdown syntax, table pipes and code fences.
 
-Markdown Diff Cat gives you both: the rendered document, with only the changes in view.
+Markdown Diff Cat gives you both: the rendered document, with only the changes in view. It comes as a Chrome extension for pull requests and a command-line tool for the Markdown you change on your own machine.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/overview-dark.svg">
+  <img alt="On GitHub, the extension turns the rich diff into a view of only the changes, rendering it in your browser when GitHub times out. On your machine, npx markdown-diff-cat shows the same view for your working tree and hands your comments to a coding agent." src="docs/images/overview-light.svg">
+</picture>
 
 ## What it does
 
-- **Opens the rendered view for you** on every `.md`, `.markdown`, and `.mdx` file on the "Files changed" page
-- **Renders it in your browser when GitHub cannot** (signed in). GitHub's server times out on some large files and shows only "This rich diff is not supported at the moment." Markdown Diff Cat then builds the rendered diff itself from the old and new text and puts it where GitHub's would be, so folding, table merging, jumping between changes, and comments work as usual. A one-line note above the file says it was rendered in your browser, with **Show source diff**
-- **Folds unchanged sections** into one-line bars that show how many blocks they hide and the last heading inside. Click a bar to expand it, or **Expand all** at the top of the file
-- **Shows only the changed rows of tables.** When one row changes, GitHub shows the whole old table and the whole new table. Markdown Diff Cat merges them into one table with only the changed, added, and removed rows, and shows changed cells as old → new. **All rows** and **Original tables** buttons sit above each merged table
-- **Jump between changes.** The top of each file says how many places changed and how many review threads it has, with how many are still open ("8 changes · 3 threads (3 open)"). Press `]` / `[` for the next or previous change on the page and `}` / `{` for the next or previous thread, or use ↑ ↓ to move within one file. The keys do nothing while you type
-- **Comment right in the rendered view** (signed in to GitHub)
-  - Hover over a block and click **+**, or drag from **+** to another block to comment on a range
-  - The comment lands on the right source line as an ordinary GitHub review comment: add a single comment, or start or add to your review
-  - Existing review threads show under the block they refer to, where you can reply and resolve them. Comments on the whole file show at the top of the file
-  - **Preview** your comment the way GitHub will show it, and **edit** or **delete** your own comments in place (delete asks for a second click)
-  - The comment box looks like GitHub's own: your avatar and the line (`R13`, or `L25` on the removed side), Write / Preview tabs, the formatting toolbar (a **suggestion** button that drops the commented lines into a ```` ```suggestion ```` block, heading, bold, italic, quote, code, link, lists, task list, mention, with ⌘/Ctrl+B, I, E, K), and **Comment** and **Start a review** stay off until you type. Reply boxes have the same toolbar, suggestion button included
-  - The extension's text is in English, to match GitHub's own pages, which are English only
+On the "Files changed" page of a pull request, for every `.md`, `.markdown` and `.mdx` file:
 
-  ![A review thread under a paragraph and a comment box under the next one, in the rendered diff](store/images/en/screenshot-2.png)
-- **Stays out of your way**
-  - Click `<>` (source) on a file to leave a comment and it will not switch that file back until you choose the rich diff again or reload
-  - Signed out, files that already have inline review comments stay in the source view, because only signed-in users see threads in the rendered view
-  - Collapsed files (collapsed or marked **Viewed**) stay collapsed
-- **One click on or off.** The toolbar icon is in color when on and gray when off. A `!` badge appears only when the page could not be read; hover over it for the reason
+- **Rendered, changes only.** It opens the rendered view for you and folds unchanged sections into one-line bars (block count and last heading; click to expand, or **Expand all**).
+- **Tables show only the changed rows.** GitHub shows the whole old table and the whole new one; Markdown Diff Cat merges them into one table with the changed, added and removed rows, and changed cells as old → new. **All rows** and **Original tables** switch back.
+- **Works when GitHub gives up** (signed in). On some large files GitHub's server times out and shows only "This rich diff is not supported at the moment." The extension then renders the diff in your browser and puts it where GitHub's would be, with a one-line note. If that fails too, you get the source diff and the reason.
+- **Jump between changes.** Each file says how many places changed and how many review threads are open ("8 changes · 3 threads (3 open)"). `]` / `[` move between changes on the page, `}` / `{` between threads, ↑ ↓ within a file.
+- **Comment in the rendered view** (signed in). Hover a block and click **+**, or drag from **+** to another block for a range. Comments land on the right source line as ordinary GitHub review comments: single comment or review, reply and resolve in place, preview, edit and delete your own. The comment box works like GitHub's, with the formatting toolbar and the **suggestion** button.
+- **Stays out of your way.** A file you switch to `<>` (source) stays there until you choose the rich diff again. Collapsed and **Viewed** files stay collapsed. Signed out, files with review comments stay in the source view, where their threads are.
+- **One click on or off.** The toolbar icon is in color when on and gray when off. A `!` badge appears only when the page could not be read; hover for the reason.
 
-Works on both "Files changed" pages: the new one for signed-in users (`/pull/<n>/changes`) and the classic one (`/pull/<n>/files`).
+Works on both "Files changed" pages: the new one for signed-in users (`/pull/<n>/changes`) and the classic one (`/pull/<n>/files`). The extension's text is in English, like GitHub's own pages.
+
+![A review thread under a paragraph and a comment box under the next one, in the rendered diff](store/images/en/screenshot-2.png)
 
 ## Install
 
-**Chrome Web Store** — [Markdown Diff Cat for GitHub](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj)
+**[Chrome Web Store — Markdown Diff Cat for GitHub](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj)** · [Release notes](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases)
 
-If Enhanced Safe Browsing is on, Chrome may say "Proceed with caution" because the extension is not trusted by Enhanced Safe Browsing yet. Google trusts extensions from publishers that follow its policies, and new publishers usually take a few months ([Chrome Web Store Help](https://support.google.com/chrome_webstore/answer/2664769)). Choose **Continue to install**.
+With Enhanced Safe Browsing on, Chrome may say "Proceed with caution": the extension comes from a new publisher, and Google usually takes a few months to trust one ([Chrome Web Store Help](https://support.google.com/chrome_webstore/answer/2664769)). Choose **Continue to install**.
 
-Release notes: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases)
+<details>
+<summary><b>Try a build before it reaches the store (developer mode)</b></summary>
 
-**Try a build before it reaches the store (developer mode)**
-
-You need Node 22.18 or later and pnpm 12 (`corepack enable` picks the pinned version). `main` is the latest build that has not reached the store yet.
+You need Node 22.18 or later and pnpm 12 (`corepack enable` picks the pinned version).
 
 ```sh
 git clone https://github.com/drum-grammer/GITHUB-MD-DIFF.git && cd GITHUB-MD-DIFF
+pnpm install && pnpm dev:chrome
 ```
 
-To update later: `git pull && pnpm install && pnpm dev:chrome`. To try an open pull request instead: `gh pr checkout <number>`, then `pnpm install && pnpm dev:chrome`.
+1. `pnpm dev:chrome` builds a development copy into `~/.local/share/github-md-diff/chrome-dev` (`GMD_CHROME_DEV_DIR` changes it) and, on macOS, copies that path to the clipboard. `--open` also opens `chrome://extensions`
+2. First time only: `chrome://extensions` → **Developer mode** → **Load unpacked** → that folder (`Cmd+Shift+G` to paste on macOS). Turn off the store version while you test
+3. After that, run `pnpm dev:chrome` from any branch (`git pull`, or `gh pr checkout <number>` for an open pull request) and reload a GitHub tab. The copy reloads itself; it shows as **Markdown Diff Cat (dev)** with the commit in its version
 
-1. `pnpm install && pnpm dev:chrome` — builds a development copy into `~/.local/share/github-md-diff/chrome-dev` (set `GMD_CHROME_DEV_DIR` to change it; it refuses a folder that holds anything else) and, on macOS, copies that path to the clipboard. `--open` also opens `chrome://extensions`
-2. First time only: `chrome://extensions` → turn on **Developer mode** → **Load unpacked** → choose that folder (`Cmd+Shift+G` and paste on macOS). Turn off the store version while you test, or both will change the same page
-3. After that, run `pnpm dev:chrome` from any branch and reload a GitHub tab. The development copy notices the new build, reloads itself, and reloads that tab. It shows as **Markdown Diff Cat (dev)**, with the commit in its version
+The self-reload lives in `src/dev/` and never reaches `pnpm build` or `pnpm package`.
 
-The self-reload lives in `src/dev/` and is only in this development copy, never in `pnpm build` or `pnpm package`.
-
-## Privacy
-
-No data collected and no remote code. The extension reads the open GitHub page inside your browser to change how it is displayed. When you are signed in, it also talks to GitHub, and only to GitHub, with the session you already have: it loads the pull request's review threads and the Markdown files it shows, and posts the comments you write. Nothing goes to the developer or anyone else, and no token is used. Its one setting (on or off) stays in `chrome.storage.local`. Permissions: `storage`, and access to `https://github.com/*`. Full policy: [PRIVACY.md](PRIVACY.md).
-
-## Limits
-
-- Files renamed without changes stay in the source view, since there is nothing to render. Large diffs that GitHub hides behind **Load Diff** are still opened in the rendered view. If GitHub fails to build the rendered view of a file (its server times out on some large files and shows “This rich diff is not supported at the moment.”, or shows nothing for 15 seconds), the extension renders it in your browser instead. It is not reported as a problem
-- Rendering in your browser ([design](docs/local-render/README.md)) uses the same engine as local review, so it can differ slightly from GitHub's rendering: images from other sites (GitHub shows them through its image proxy) and Mermaid diagrams are not drawn; math is drawn by GitHub's own page. It needs the signed-in "Files changed" page of the whole pull request (not a single-commit view), renders one file at a time and only files near the screen, and stops at about 600,000 characters per side. A large file can hold the page for a second or so while it renders; the note appears first. If it cannot render the file either, the file goes back to the source view, with the source diff loaded even when GitHub hid it behind **Load Diff**, and a one-line note says why and offers **Try rich diff again**
-- When an edit does not change what the page looks like (Markdown syntax, a link URL, an escaped character), the rendered view has nothing to highlight. The file says so at the top, with a **Show source diff** button
-- In a pull request with many Markdown files, it asks GitHub for at most 10 rendered views at a time, starting with the files on screen. Files further down render as you scroll to them
-- It relies on GitHub's page structure. When GitHub changes it, the icon shows `!` until an update ships. Please [open an issue](https://github.com/drum-grammer/GITHUB-MD-DIFF/issues)
-- Commenting uses the same internal requests as GitHub's own "Files changed" page, which are not a public API. They live only in `src/github-api.ts`. If GitHub changes them, the extension turns commenting off on its own: no **+**, files with review threads stay in the source view as before, and folding and tables keep working. The toolbar icon shows `!`, and a note in the corner of the page has a **Report on GitHub** link that opens a prefilled issue (no repository name or URL in it). A comment that fails to post stays in its box so you can copy it
-- A block gets **+** only when it can be matched to its source lines. Blocks GitHub draws from HTML or diagrams may not get one; use the source diff for those
+</details>
 
 ## Local review (outside GitHub)
 
-[`markdown-diff-cat`](packages/review/README.md) is a command-line companion for Markdown you change locally — before you commit, or while a coding agent edits your docs. It shows the same rendered diff in a page on your own computer and hands your block comments to the agent with the exact source lines. It sends nothing outside by default. Until its first release, build it with `pnpm --filter markdown-diff-cat build` and run `node packages/review/dist/markdown-diff-cat.mjs review`.
+[`markdown-diff-cat`](packages/review/README.md) shows the same rendered diff for the Markdown you change locally — before you commit, or while a coding agent edits your docs — in a page on your own computer, and hands your block comments to the agent with the exact source lines. It sends nothing outside by default.
+
+```sh
+npx -y markdown-diff-cat review                # open the review page for your working tree
+npx -y markdown-diff-cat comments              # print your comments for the agent
+npx -y markdown-diff-cat review --since-last   # after the agent's edits, only what changed since
+```
+
+Needs macOS or Linux, Node.js 22.19 or newer, and git. Commands, agent setup and privacy: [packages/review/README.md](packages/review/README.md).
+
+## Privacy
+
+No data collected and no remote code. The extension reads the open GitHub page in your browser to change how it looks. Signed in, it also talks to GitHub — only GitHub — with the session you already have: it loads review threads and the Markdown files it shows, and posts the comments you write. No token is used and nothing goes to the developer. Its one setting (on or off) stays in `chrome.storage.local`. Permissions: `storage` and `https://github.com/*`. Full policy: [PRIVACY.md](PRIVACY.md).
+
+## Limits
+
+- **Rendering in your browser** uses the local review engine, so it can differ slightly from GitHub: images from other sites and Mermaid diagrams are not drawn (math is drawn by GitHub's page). It needs the signed-in "Files changed" page of the whole pull request, renders one file at a time near the screen, and stops at about 600,000 characters per side. A large file can hold the page for a second; the note appears first. [Design and measurements](docs/local-render/README.md)
+- **Edits that don't change the rendering** (Markdown syntax, a link URL, an escaped character) have nothing to highlight. The file says so, with **Show source diff**. Files renamed without changes stay in the source view.
+- **Large pull requests:** at most 10 rendered views are requested at a time, files on screen first. Files further down render as you scroll.
+- **GitHub's page and requests are not a public API.** Page assumptions live in `src/selectors.ts`, request assumptions in `src/github-api.ts`. When GitHub changes them, the icon shows `!` (and commenting turns itself off, while folding and tables keep working) until an update ships. A note in the corner links to a prefilled issue. A comment that fails to post stays in its box.
+- **+** appears only on blocks matched to their source lines. Blocks drawn from HTML or diagrams may not get one; use the source diff for those.
 
 ## Develop
 
-- `pnpm test` — unit and DOM tests (vitest + jsdom)
-- `pnpm typecheck`
-- `pnpm --filter markdown-diff-cat <test|typecheck|build|e2e>` — the local review CLI in `packages/review` (unit tests with vitest, end-to-end tests with Playwright on temporary git repositories)
-- `pnpm e2e:login` once — sign in to GitHub in the window that opens, then close it. The profile lives in `~/.cache/github-md-diff/e2e-profile` (outside the repo)
-- `pnpm e2e` — real Chromium with the extension against public pull requests, signed in and signed out
-- `GMD_E2E_WRITE=1 pnpm e2e` — also posts comments from the rendered view to the demo pull request as a pending review, checks their source lines, and deletes the review with `gh` (needs `gh` signed in as the repository owner)
-- `pnpm canary [--notify]` — read-only check against live GitHub of everything the extension relies on: signed-in pull request data, file text, auto rich diff, folding, merged tables, **+** on the right line, matching rate, the class name format GitHub uses (fails when GitHub renames its classes again, while the extension still works), no extension warning, and the signed-out classic page. Exit code 1 when something broke; results go to `~/.cache/github-md-diff/canary.log`. `--notify` shows a macOS notification and prints a prefilled issue link. The maintainer runs it weekly on an always-on Mac; when it breaks or recovers, `.github/workflows/canary-report.yml` (manual dispatch only) has the Actions bot open, update, or close an issue labeled `canary`
-- `pnpm canary:status [--max-days N]` — when the canary last ran on this machine and whether it passed. Exit code 1 if it has not run for N days (default 2) or the last run broke — a stopped canary is how the 2026-10-14 GitHub change reached users first
-- `node scripts/mapping-report.mjs <pull request URL>…` (after `pnpm build`) — how many rendered blocks of each Markdown file match their source lines, and how long matching takes. Read-only
-- `pnpm explore:pick` then `pnpm explore` — open recent Markdown pull requests from the public repositories in `scripts/explore-repos.txt` (up to 3 per repository) with the extension, and record per file whether it rendered, folded, went back to the source view, showed a note, got **+**, and how many blocks match their source lines, with screenshots of files that look wrong. Read-only (it only hovers), resumable, results in `.scratch/explore/<date>/`. `pnpm explore:report` summarizes them. Run it before a release that touches page handling
-- `pnpm perf [--reps 2] [--window 20] [pull request URL…]` — how much the extension slows GitHub down: opens each pull request with the extension off and on, and records the extension's own CPU time (from a CPU profile, with its busiest functions), long tasks and total blocking time, page script and layout time, how long Markdown files take to render, the delay from GitHub's rendered diff to folding, and how long the first **+** takes on the largest file. Without URLs it uses eight public pull requests from 1 to 334 Markdown files. Read-only
-- `pnpm testbed:setup` then `pnpm testbed` — release scenarios on the public test repository [markdown-diff-cat-testbed](https://github.com/drum-grammer/markdown-diff-cat-testbed): post real comments from the rendered view (single line, range, removed line, reply, renamed file), resolve and unresolve threads, check that existing threads land under the right blocks, and open a large diff and a 120-file pull request. Every comment is read back through the GitHub API (path, side, line) and deleted afterwards. `testbed:setup` creates or repairs the repository, its pull requests, and seeded threads, and is safe to run again. `pnpm testbed:report` prints the results table and a line for the release notes. Needs `gh` signed in as the repository owner. See [testbed/README.md](testbed/README.md). It runs as part of `pnpm verify pr` (Split) and `pnpm verify release` (all five diff layouts)
-- `pnpm icons` — regenerate `static/icons/icon{16,32,48,128}.png` from `icon.svg` and `icon{16,32}-off.png` from `icon-off.svg` (commit the PNGs)
-- `pnpm package` — build and zip `dist/` into `release/` for the Chrome Web Store
-- `pnpm release <check|notes|upload|submit|status|finish>` — publish an update to the Chrome Web Store through its API. See [store/README.md](store/README.md#releasing-an-update)
-- `pnpm store:assets` — regenerate the store screenshots, promo tiles, and `docs/demo.gif`. See [store/README.md](store/README.md)
-- GitHub page assumptions live in `src/selectors.ts` (files, headers, buttons) and `src/prose-markup.ts` (the markup inside the rendered diff, which `src/selectors.ts` re-exports), and GitHub request assumptions only in `src/github-api.ts`. The comment UI behavior is `src/comment-controller.ts`; `src/comments.ts` is its GitHub backend. Tests and scripts use the same selectors through `GITHUB_CSS` (scripts via `scripts/page-css.mjs`, which Node reads directly — keep the `.ts` extension on imports in `src/selectors.ts`). When GitHub changes its page, follow [docs/runbooks/github-ui-change.md](docs/runbooks/github-ui-change.md)
-- Test fixtures must come from public repositories or be handmade; the first line records the source and `test/fixtures.test.ts` checks it
+| Command | What it does |
+|---|---|
+| `pnpm test` · `pnpm typecheck` | Unit and DOM tests (vitest + jsdom), type check |
+| `pnpm e2e:login`, then `pnpm e2e` | Real Chromium with the extension on public pull requests, signed in and out. `GMD_E2E_WRITE=1` also posts and deletes comments (needs `gh` as the repository owner) |
+| `pnpm canary [--notify]` · `pnpm canary:status` | Read-only check of everything the extension relies on, against live GitHub; when it last ran and whether it passed |
+| `pnpm testbed:setup`, then `pnpm testbed` | Release scenarios with real comments on the [test repository](https://github.com/drum-grammer/markdown-diff-cat-testbed) ([testbed/README.md](testbed/README.md)) |
+| `pnpm explore:pick`, then `pnpm explore` | Read-only exploration of recent Markdown pull requests in public repositories |
+| `pnpm perf` | How much the extension slows GitHub down, extension off and on |
+| `pnpm --filter markdown-diff-cat <test\|typecheck\|build\|e2e>` | The local review CLI in `packages/review` |
+| `pnpm package` · `pnpm release <step>` · `pnpm store:assets` | Store package, publishing through the Chrome Web Store API, store images ([store/README.md](store/README.md)) |
+
+<details>
+<summary>Where the code relies on GitHub, and other notes</summary>
+
+- GitHub page assumptions live in `src/selectors.ts` (files, headers, buttons) and `src/prose-markup.ts` (markup inside the rendered diff, re-exported by `src/selectors.ts`); request assumptions only in `src/github-api.ts`. The comment UI is `src/comment-controller.ts`, with `src/comments.ts` as its GitHub backend. Tests and scripts share the selectors through `GITHUB_CSS` (`scripts/page-css.mjs`, which Node reads directly — keep the `.ts` extension on imports in `src/selectors.ts`). When GitHub changes its page, follow [docs/runbooks/github-ui-change.md](docs/runbooks/github-ui-change.md)
+- `pnpm canary` checks signed-in pull request data, file text, auto rich diff, folding, merged tables, **+** on the right line, matching rate, GitHub's class name format and the signed-out page; exit code 1 when something broke, log in `~/.cache/github-md-diff/canary.log`. `canary:status` exits 1 if it has not run for 2 days or the last run broke
+- `node scripts/mapping-report.mjs <pull request URL>…` (after `pnpm build`) reports how many rendered blocks match their source lines
+- `pnpm icons` regenerates the PNG icons from `static/icons/*.svg` (commit the PNGs)
+- Test fixtures come from public repositories or are handmade; the first line records the source (`test/fixtures.test.ts` checks it)
+
+</details>
 
 ### Verification tiers
 
-One command per tier. Each runs its steps in order, keeps going after a failure, and writes a formatted report (steps, results, time, and the scenario tables) to `.scratch/verify/<date-time>-<tier>/report.md`. The exit code is 1 when anything failed.
+One command per tier. Each runs its steps in order, keeps going after a failure, and writes a report to `.scratch/verify/<date-time>-<tier>/report.md`; the exit code is 1 when anything failed.
 
-| Tier | When | Steps | Time (2026-10-09) |
+| Tier | When | Steps | Time |
 |---|---|---|---|
-| `pnpm verify quick` | While you work | typecheck, unit tests, build, test repository setup, the `@quick` scenarios (read-only: rendering, existing threads, **+** lines, change navigation) | about 45 seconds |
-| `pnpm verify pr` | Before merging a pull request | typecheck, unit tests, build, end-to-end tests with writes, canary, every test repository scenario in the Split layout | about 6 minutes |
-| `pnpm verify release` | Before asking the Chrome Web Store for review | everything in `pr`, the layout-sensitive scenarios in all five GitHub diff layouts (Split, Unified, Hide whitespace, Minimize comments, Compact line height), a re-exploration of 16 public pull requests (`scripts/explore-regress.jsonl`), performance with the extension off and on, and the store package | about 16 minutes |
+| `pnpm verify quick` | While you work | typecheck, unit tests, build, test repository setup, read-only `@quick` scenarios | about 45 s |
+| `pnpm verify pr` | Before merging a pull request | + end-to-end tests with writes, canary, every test repository scenario (Split layout), local review CLI | about 6–8 min |
+| `pnpm verify release` | Before asking the store for review | + all five GitHub diff layouts, re-exploration of 16 public pull requests, performance, store package | about 16–19 min |
 
-`pnpm verify --list` prints the steps. `--bail` stops at the first failure and `--skip step,…` leaves steps out. `pr` and `release` post real comments to the test repository and need `gh` and the signed-in test profile (see [testbed/README.md](testbed/README.md)). The Minimize comments and Compact line height layouts exist only as GitHub account settings, so `release` turns them on for its run and restores them afterwards.
+`pnpm verify --list` prints the steps; `--bail` stops at the first failure and `--skip step,…` leaves steps out. `pr` and `release` post real comments to the test repository and need `gh` and the signed-in test profile. `release` turns on the Minimize comments and Compact line height account settings for its run and restores them.
 
 ## Roadmap
 
-[ROADMAP.md](ROADMAP.md) says where development stands and what comes next, written so anyone can pick up the work without other context (Korean, with an English summary). As of 2026-10-11 the Chrome Web Store has 1.0.0 and `main` has 1.5.0. The maintainer uses each version in developer mode before asking for the next store review.
+[ROADMAP.md](ROADMAP.md) says where development stands and what comes next (Korean, with an English summary). As of 2026-10-23 the Chrome Web Store, GitHub Releases and npm all have **1.6.0**.
 
 ## Research and test reports
 
@@ -126,26 +138,21 @@ Each report is in Korean with an English summary at the top.
 
 | Date | Report | What it found |
 |---|---|---|
-| 2026-10-14 | [1.5.1: GitHub class names](docs/reports/v1.5.1-github-class-names.md) | GitHub renamed the CSS module classes on its signed-in "Files changed" page (`Diff-module__diff__hash` → `diff__hash`) right after 1.5.0 went to the store, and 1.5.0 stopped without a warning. Why the tests and canary missed it, and how 1.5.1 finds files by their anchor id and page structure first, accepts both formats, and warns when it cannot read any file |
-| 2026-10-09 | [1.3.0 testing](docs/reports/v1.3.0-testing.md) | Test repository v2 (4 pull requests, 11 seeded threads, 24 scenarios) in five GitHub diff layouts. 1.2.0 passed 51 of 57, because comments on the whole file were missing in every layout. 1.3.0 passes 60 of 60. The three verification tiers take 43 s, 5 min 35 s, and 15 min 29 s |
-| 2026-10-08 | [1.1.1 test repository](docs/reports/v1.1.1-testbed.md) | Scenarios that post real comments and read them back through the API. The first run passed 10 of 14 and found footnotes defined mid-document getting no **+**. The final run passed 14 of 14 in 131 s |
-| 2026-10-08 | [1.1.1 verification](docs/reports/v1.1.1-verification.md) | Issue [#22](https://github.com/drum-grammer/GITHUB-MD-DIFF/issues/22), then 300 Markdown pull requests in 128 public repositories: false alerts went from 3 to 0 and source-line matching from 98.4% to 99.7%. In a pull request with 334 Markdown files, the extension's own CPU time dropped from 1,182 ms to 220 ms |
-| 2026-10-08 | [Similar extensions](docs/reports/competitors.md) | Eight Chrome extensions for Markdown diffs. The most used had 241 users. Only this one folds unchanged sections and merges changed table rows. The gaps then (commenting, navigation, editing) were closed in 1.1.0 to 1.3.0 |
+| 2026-10-22 | [Rendering in the browser when GitHub cannot](docs/local-render/README.md) | GitHub's server times out (504, after about 10 seconds) on some large files — size alone does not decide it: a 437 KB file failed every time while a 261 KB one rendered in 2 seconds. 1.6.0 renders such files in the browser with the local review engine; the two documents that failed render 1–2 seconds after the 504 |
+| 2026-10-14 | [1.5.1: GitHub class names](docs/reports/v1.5.1-github-class-names.md) | GitHub renamed the CSS module classes on its signed-in page right after 1.5.0 shipped, and 1.5.0 stopped silently. 1.5.1 finds files by anchor id and structure first, accepts both formats, and warns when it cannot read any file |
+| 2026-10-09 | [1.3.0 testing](docs/reports/v1.3.0-testing.md) | Test repository v2 in five diff layouts: 1.2.0 passed 51 of 57 (comments on the whole file were missing), 1.3.0 passes 60 of 60 |
+| 2026-10-08 | [1.1.1 test repository](docs/reports/v1.1.1-testbed.md) | Scenarios that post real comments and read them back through the API; the first run found mid-document footnotes without **+** |
+| 2026-10-08 | [1.1.1 verification](docs/reports/v1.1.1-verification.md) | 300 Markdown pull requests in 128 public repositories: false alerts 3 → 0, source-line matching 98.4% → 99.7%, extension CPU 1,182 → 220 ms on a 334-file pull request |
+| 2026-10-08 | [Similar extensions](docs/reports/competitors.md) | Eight Chrome extensions for Markdown diffs; only this one folds unchanged sections and merges changed table rows |
 
-What the research found, and where the code relies on it:
+What the code relies on:
 
-- **GitHub's own requests.** Loading threads, commenting, replying, resolving, editing, deleting, and previewing all use the internal requests of GitHub's "Files changed" page, with the session you already have and no token or CSRF token. A thread's position exists only as a key in the file summary: `R12` (new file, line 12), `L4` (original file, line 4), or `FILE` (whole file). All of this lives in `src/github-api.ts`
-- **Diff layouts.** Split, Unified, and Hide whitespace can be forced through the URL (`?diff=`, `?w=1`) without touching account settings. Minimize comments and Compact line height are account settings only (`POST /users/diffview`), so the test harness records and restores them. The rendered view behaves the same in all five layouts
-- **GitHub's own failures look like ours.** GitHub times out (504, after about 10 seconds) rendering some large files — size alone does not decide it: on 2026-10-21 a 437 KB file timed out every time while a 261 KB one rendered in 2 seconds — leaves files below the screen as loading skeletons, and hides large diffs behind **Load Diff**. The extension treats these as normal, not as page changes
-- **Speed.** Re-checking settled files was the main cost in large pull requests. Since 1.1.1 folding lands in the same frame as GitHub's rendered diff, and later versions stay within run-to-run noise (`pnpm perf`)
+- **GitHub's own requests.** Threads, comments, replies, resolve, edit, delete and preview all use the internal requests of GitHub's "Files changed" page, with your session and no token. A thread's position is a key in the file summary: `R12` (new file, line 12), `L4` (original file) or `FILE`
+- **Diff layouts.** Split, Unified and Hide whitespace can be forced through the URL (`?diff=`, `?w=1`); Minimize comments and Compact line height are account settings only. The rendered view behaves the same in all five
+- **GitHub's own failures look like ours.** Rendering timeouts (504), loading skeletons below the screen, and large diffs behind **Load Diff** are treated as normal, not as page changes
+- **Speed.** Since 1.1.1, folding lands in the same frame as GitHub's rendered diff, and later versions stay within run-to-run noise (`pnpm perf`)
 
-Where to see it:
-
-- Test repository: [markdown-diff-cat-testbed](https://github.com/drum-grammer/markdown-diff-cat-testbed) — [#4 review scenarios](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/4) · [#5 large diff](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/5) · [#6 120 files](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/6) · [#7 follow-up commit after review](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/7)
-- Rendering in the browser when GitHub cannot (design and measurements): [docs/local-render](docs/local-render/README.md)
-- Release notes: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases) · [v1.5.0](docs/releases/v1.5.0.md) · [v1.1.1](docs/releases/v1.1.1.md) · [changes not yet in the store](docs/releases/UNRELEASED.md)
-- Store listing: [Chrome Web Store](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj)
-- Maintainer's summary pages (private links that only the maintainer can open): [research and test summary](https://claude.ai/artifact/X8tNysv7MhgaKZocWzaPNx) · [1.1.1 verification](https://claude.ai/artifact/9dxHzJFADpAqSk6U4HMjT3)
+More: [test repository](https://github.com/drum-grammer/markdown-diff-cat-testbed) ([#4 review scenarios](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/4) · [#5 large diff](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/5) · [#6 120 files](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/6) · [#7 follow-up commit](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/7)) · release notes [v1.6.0](docs/releases/v1.6.0.md) · [v1.5.1](docs/releases/v1.5.1.md) · [v1.5.0](docs/releases/v1.5.0.md) · [v1.1.1](docs/releases/v1.1.1.md) · [not yet released](docs/releases/UNRELEASED.md) · maintainer's private summaries ([research and tests](https://claude.ai/artifact/X8tNysv7MhgaKZocWzaPNx), [1.1.1 verification](https://claude.ai/artifact/9dxHzJFADpAqSk6U4HMjT3))
 
 ## Thanks
 
@@ -153,9 +160,7 @@ The request shapes for commenting were first written up by [Markdown PR](https:/
 
 ## License
 
-[MIT](LICENSE)
-
-Unofficial. Not affiliated with or endorsed by GitHub. GitHub is a trademark of GitHub, Inc.
+[MIT](LICENSE). Unofficial. Not affiliated with or endorsed by GitHub. GitHub is a trademark of GitHub, Inc.
 
 ---
 
@@ -165,68 +170,62 @@ Unofficial. Not affiliated with or endorsed by GitHub. GitHub is a trademark of 
 
 ### 왜 만들었나
 
-AI가 설계 문서를 길게 써 주면서, PR에서 마크다운 문서를 리뷰하기가 더 힘들어졌어요.
+AI가 설계 문서를 길게 써 주면서 PR에서 마크다운을 리뷰하기가 힘들어졌어요.
 
-- **렌더링 보기(rich diff)** 는 파일 전체를 펼쳐요. 바뀐 몇 줄을 찾으려고 바뀌지 않은 수백 줄을 스크롤해야 해요.
-- **원문 보기(source diff)** 는 바뀐 부분만 보여 주지만, 마크다운 기호·표 구분선·코드 블록에 묻혀 읽기 어려워요.
+- **렌더링 보기(rich diff)** 는 파일 전체를 펼쳐요. 바뀐 몇 줄을 찾으려고 수백 줄을 스크롤해야 해요.
+- **원문 보기(source diff)** 는 바뀐 부분만 보여 주지만, 마크다운 기호·표 구분선·코드 블록에 묻혀요.
 
-Markdown Diff Cat은 두 장점을 합쳤어요. 렌더링된 문서를 보면서, 바뀐 부분만 눈앞에 둡니다.
+Markdown Diff Cat은 둘을 합쳐 **렌더링된 문서에서 바뀐 부분만** 보여 줘요. PR에서는 크롬 확장으로, 내 컴퓨터에서 고친 마크다운은 명령줄 도구로 써요(위 그림).
 
 ### 이런 걸 해요
 
-- **렌더링 보기로 자동 전환** — "Files changed" 화면의 `.md`·`.markdown`·`.mdx` 파일
-- **GitHub가 못 그리면 브라우저에서 렌더링**(로그인) — 큰 파일에서 GitHub 서버가 시간 초과로 "This rich diff is not supported at the moment."만 남기면, 옛·새 원문으로 렌더링 diff를 직접 그려 GitHub 렌더링 자리에 넣어요. 접기·표 합치기·이동·코멘트가 평소처럼 돼요. 파일 위 한 줄이 브라우저에서 그렸다고 알리고 **원문 보기로** 버튼을 둬요. 브라우저에서도 못 그리면 원문 diff를 펼치고 그 까닭과 **렌더링 다시 시도** 버튼을 보여 줘요
-- **바뀌지 않은 구간 접기** — 한 줄 막대에 숨긴 블록 수와 마지막 제목이 보여요. 누르면 그 자리만 펼치고, 파일 위 **모두 펼치기**로 한 번에 펼쳐요
-- **표는 바뀐 행만** — 행 하나만 바뀌어도 GitHub는 옛 표 전체와 새 표 전체를 보여 줘요. 바뀐·추가된·삭제된 행만 남긴 표 하나로 합치고, 바뀐 칸은 이전 → 이후로 보여 줘요. 표 위 **전체 행**·**원래 표** 버튼으로 언제든 바꿔 볼 수 있어요
-- **바뀐 곳 사이를 오가기** — 파일 맨 위에 바뀐 곳이 몇 군데인지, 리뷰 스레드가 몇 개이고 그중 몇 개가 미해결인지 보여요("변경 8곳 · 스레드 3개(미해결 3)"). `]`·`[`로 페이지의 다음·이전 바뀐 곳, `}`·`{`로 다음·이전 스레드로 가고, ↑ ↓는 그 파일 안에서만 움직여요. 글을 쓰는 중에는 키를 가로채지 않아요
-- **렌더링 보기에서 바로 코멘트** (GitHub에 로그인한 경우)
-  - 블록에 마우스를 올리고 **+**를 누르거나, **+**에서 다른 블록까지 끌면 그 범위에 달아요
-  - 코멘트는 맞는 원문 줄에 붙는 보통의 GitHub 리뷰 코멘트예요. 단일 코멘트로 달거나 리뷰를 시작·추가할 수 있어요
-  - 이미 달린 리뷰 스레드는 그 블록 아래에 보이고, 답글과 해결도 그 자리에서 해요. 파일 전체에 단 코멘트는 파일 맨 위에 보여요
-  - 쓰는 중에 **미리보기**로 GitHub에 보일 모양을 확인하고, 내가 쓴 코멘트는 그 자리에서 **편집**·**삭제**해요(삭제는 한 번 더 눌러야 해요)
-  - 코멘트 상자는 GitHub 상자와 같은 모양이에요: 내 아바타와 줄(`R13`, 지운 쪽은 `L25`), 쓰기·미리보기 탭, 서식 도구 막대(코멘트하는 줄을 ```` ```suggestion ```` 블록으로 넣는 **제안**·제목·굵게·기울임·인용·코드·링크·목록·할 일·멘션, ⌘/Ctrl+B·I·E·K), 글을 쓰기 전에는 **Comment**·**Start a review**가 꺼져 있어요. 답글 상자도 같은 도구 막대(제안 버튼 포함)예요
-  - 확장 문구는 GitHub 화면에 맞춰 영어예요(GitHub 화면은 영어만 있어요). 한국어는 나중에 설정으로 고를 수 있게 할 예정이에요
+PR의 "Files changed" 화면에서 `.md`·`.markdown`·`.mdx` 파일마다:
 
-  ![렌더링 보기에서 문단 아래 리뷰 스레드와 다음 문단의 코멘트 입력 상자](store/images/ko/screenshot-2.png)
-- **방해하지 않아요**
-  - 코멘트를 달려고 `<>`(원문)를 누르면, 렌더링 보기를 다시 고르거나 새로고침하기 전까지 그 파일은 그대로 둬요
-  - 로그아웃 상태에서는 리뷰 코멘트가 이미 달린 파일을 원문 보기 그대로 둬요. 렌더링 보기의 스레드는 로그인해야 보이거든요
-  - 접어 둔 파일·**Viewed** 표시한 파일도 그대로 둬요
-- **한 번에 켜고 끄기** — 툴바 아이콘이 컬러면 켜짐, 회색이면 꺼짐이에요. 화면을 읽지 못했을 때만 `!` 배지가 뜨고, 마우스를 올리면 이유가 보여요
+- **렌더링해서 바뀐 곳만** — 렌더링 보기로 자동으로 바꾸고, 바뀌지 않은 구간은 한 줄 막대로 접어요(숨긴 블록 수·마지막 제목, 누르면 펼침, **모두 펼치기**)
+- **표는 바뀐 행만** — 옛 표와 새 표를 바뀐·추가·삭제 행만 남긴 표 하나로 합치고, 바뀐 칸은 이전 → 이후로 보여 줘요. **전체 행**·**원래 표**로 되돌려 볼 수 있어요
+- **GitHub가 못 그려도 보여 줘요**(로그인) — 큰 파일에서 GitHub 서버가 시간 초과로 "This rich diff is not supported at the moment."만 남기면, 확장이 브라우저 안에서 렌더링 diff를 그려 그 자리에 넣고 한 줄로 알려요. 그것도 안 되면 원문 diff와 까닭을 보여 줘요
+- **바뀐 곳 사이를 오가기** — 파일 맨 위에 바뀐 곳 수와 미해결 스레드 수("8 changes · 3 threads (3 open)"). `]`·`[`로 바뀐 곳, `}`·`{`로 스레드, ↑ ↓로 파일 안에서 움직여요
+- **렌더링 보기에서 바로 코멘트**(로그인) — 블록에 마우스를 올려 **+**, 다른 블록까지 끌면 범위. 맞는 원문 줄에 붙는 보통의 GitHub 리뷰 코멘트예요. 단일·리뷰, 답글·해결, 미리보기, 내 코멘트 편집·삭제, 서식 도구 막대와 **제안**(suggestion) 버튼까지 GitHub 상자와 같아요
+- **방해하지 않아요** — `<>`(원문)로 바꾼 파일, 접어 둔 파일·**Viewed** 파일은 그대로 둬요. 로그아웃 상태에서 리뷰 코멘트가 있는 파일은 스레드가 보이는 원문 보기로 둬요
+- **한 번에 켜고 끄기** — 툴바 아이콘이 컬러면 켜짐, 회색이면 꺼짐. 화면을 못 읽었을 때만 `!` 배지가 떠요
 
-로그인한 새 화면(`/pull/<n>/changes`)과 옛 화면(`/pull/<n>/files`) 모두에서 동작해요.
+새 화면(`/pull/<n>/changes`)과 옛 화면(`/pull/<n>/files`) 모두에서 돌아요. 확장 문구는 GitHub 화면처럼 영어예요.
+
+![렌더링 보기에서 문단 아래 리뷰 스레드와 다음 문단의 코멘트 입력 상자](store/images/ko/screenshot-2.png)
 
 ### 설치
 
-**크롬 웹 스토어** — [Markdown Diff Cat for GitHub](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj)
+**[크롬 웹 스토어 — Markdown Diff Cat for GitHub](https://chromewebstore.google.com/detail/markdown-diff-cat-for-git/kabekbbeoajhpbcppidepmcbbjjochlj)** · [릴리스 노트](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases)
 
-향상된 세이프 브라우징을 켜 두었다면 "주의해서 진행하시기 바랍니다" 창이 뜰 수 있어요. 새 게시자의 확장이라 아직 신뢰 목록에 오르지 않아서예요. Google은 정책을 지키는 게시자의 확장을 신뢰하고, 새 게시자는 보통 몇 달 걸린다고 안내해요([크롬 웹 스토어 고객센터](https://support.google.com/chrome_webstore/answer/2664769?hl=ko)). **설치 계속**을 누르면 돼요.
-
-릴리스 노트: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases)
-
-스토어 심사 전 빌드를 개발자 모드로 써 보는 방법(`pnpm dev:chrome`)은 위 [Install](#install)에 있어요.
-
-### 개인정보
-
-수집하는 데이터와 원격 코드가 없어요. 열린 GitHub 페이지는 보여 주는 모양을 바꾸려고 브라우저 안에서 읽어요. 로그인한 경우에는 이미 있는 세션으로 GitHub하고만 통신해요 — PR의 리뷰 스레드와 보여 주는 마크다운 파일을 읽고, 내가 쓴 코멘트를 올려요. 개발자나 다른 곳으로는 아무것도 보내지 않고 토큰도 쓰지 않아요. 설정 하나(켜짐·꺼짐)만 `chrome.storage.local`에 저장해요. 전문: [PRIVACY.md](PRIVACY.md).
+향상된 세이프 브라우징을 켜 두었다면 "주의해서 진행하시기 바랍니다" 창이 뜰 수 있어요. 새 게시자의 확장이라서예요(Google은 보통 몇 달 걸린다고 안내해요, [고객센터](https://support.google.com/chrome_webstore/answer/2664769?hl=ko)). **설치 계속**을 누르면 돼요. 스토어에 나가기 전 빌드를 개발자 모드로 써 보는 법은 위 [Install](#install)에 있어요.
 
 ### 로컬 리뷰(GitHub 밖)
 
-[`markdown-diff-cat`](packages/review/README.md)은 로컬에서 고친 마크다운(커밋 전, 또는 코딩 에이전트가 문서를 고치는 동안)을 같은 렌더링 diff로 내 컴퓨터의 페이지에 보여 주고, 블록 코멘트를 정확한 원문 줄과 함께 에이전트에게 넘기는 명령줄 도구예요. 기본 상태에서는 바깥으로 아무것도 보내지 않아요. 첫 릴리스 전에는 `pnpm --filter markdown-diff-cat build` 뒤 `node packages/review/dist/markdown-diff-cat.mjs review`로 써요.
+[`markdown-diff-cat`](packages/review/README.md)은 내 컴퓨터에서 고친 마크다운(커밋 전, 또는 코딩 에이전트가 문서를 고치는 동안)을 같은 렌더링 diff로 로컬 페이지에 보여 주고, 블록 코멘트를 정확한 원문 줄과 함께 에이전트에게 넘기는 명령줄 도구예요. 기본으로는 바깥에 아무것도 보내지 않아요.
+
+```sh
+npx -y markdown-diff-cat review                # 작업 트리 리뷰 페이지 열기
+npx -y markdown-diff-cat comments              # 에이전트에게 줄 코멘트 출력
+npx -y markdown-diff-cat review --since-last   # 에이전트가 고친 뒤, 지난 리뷰 이후 바뀐 것만
+```
+
+macOS 또는 Linux, Node.js 22.19 이상, git이 있어야 해요. 명령·에이전트 설정·개인정보는 [packages/review/README.md](packages/review/README.md)에 있어요.
+
+### 개인정보
+
+수집하는 데이터와 원격 코드가 없어요. 열린 GitHub 페이지를 브라우저 안에서 읽어 보여 주는 모양만 바꿔요. 로그인한 경우에는 이미 있는 세션으로 GitHub하고만 통신해요 — 리뷰 스레드와 보여 주는 마크다운 파일을 읽고, 내가 쓴 코멘트를 올려요. 토큰을 쓰지 않고 개발자에게 아무것도 보내지 않아요. 설정 하나(켜짐·꺼짐)만 `chrome.storage.local`에 둬요. 전문: [PRIVACY.md](PRIVACY.md).
 
 ### 로드맵·조사·테스트
 
-어디까지 개발했고 다음에 무엇을 할지는 [ROADMAP.md](ROADMAP.md)에 있어요. 다른 맥락 없이 이 문서만 읽고 이어서 일할 수 있게 썼어요. 2026-10-11 기준으로 스토어는 1.0.0, `main`은 1.5.0이에요. 검토 신청은 버전마다 개발자 모드로 써 본 뒤에 해요.
+어디까지 왔고 다음에 무엇을 할지는 [ROADMAP.md](ROADMAP.md)에 있어요. 2026-10-23 기준으로 크롬 웹 스토어·GitHub Releases·npm 모두 **1.6.0**이에요.
 
 | 날짜 | 보고서 | 찾은 것 |
 |---|---|---|
-| 2026-10-09 | [1.3.0 테스트](docs/reports/v1.3.0-testing.md) | 테스트 저장소 v2(PR 4개·심은 스레드 11개·시나리오 24개)를 GitHub 화면 모양 5가지에서. 1.2.0은 51/57(파일 전체 코멘트가 안 보임), 1.3.0은 60/60. 검증 등급은 43초·5분 35초·15분 29초 |
-| 2026-10-08 | [1.1.1 테스트 저장소](docs/reports/v1.1.1-testbed.md) | 실제로 코멘트를 쓰고 API로 다시 읽기. 첫 실행 10/14에서 문서 중간 각주 버그를 찾고, 마지막 14/14(131초) |
-| 2026-10-08 | [1.1.1 검증](docs/reports/v1.1.1-verification.md) | #22, 공개 저장소 128개의 PR 300개 탐험 — 오탐 3 → 0, 원문 줄 연결 98.4% → 99.7%. md 334개 PR에서 확장 CPU 1,182 → 220ms |
-| 2026-10-08 | [비슷한 확장 비교](docs/reports/competitors.md) | 8개 비교. 가장 많이 쓰이는 것이 241명. 바뀌지 않은 구간 접기·표 바뀐 행 합치기는 우리뿐. 그때 부족했던 코멘트·탐색·편집은 1.1.0–1.3.0에서 채움 |
-
-- 테스트 저장소: [markdown-diff-cat-testbed](https://github.com/drum-grammer/markdown-diff-cat-testbed) — [#4 리뷰 시나리오](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/4) · [#5 큰 diff](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/5) · [#6 파일 120개](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/6) · [#7 리뷰 뒤 따라온 커밋](https://github.com/drum-grammer/markdown-diff-cat-testbed/pull/7)
-- 릴리스 노트: [GitHub Releases](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases) · [v1.5.0](docs/releases/v1.5.0.md) · [v1.1.1](docs/releases/v1.1.1.md) · [아직 스토어에 없는 변경](docs/releases/UNRELEASED.md)
-- 관리자용 요약 페이지(비공개 링크, 관리자만 열려요): [조사·테스트 모음](https://claude.ai/artifact/X8tNysv7MhgaKZocWzaPNx) · [1.1.1 검증 보고서](https://claude.ai/artifact/9dxHzJFADpAqSk6U4HMjT3)
+| 2026-10-22 | [GitHub가 못 그린 마크다운을 브라우저에서](docs/local-render/README.md) | GitHub 서버는 일부 큰 파일에서 약 10초 뒤 504로 끊어요. 크기만으로 정해지지 않아요(437 KB는 늘 실패, 261 KB는 2초). 1.6.0은 그런 파일을 브라우저에서 그리고, 실패하던 두 문서가 504 뒤 1–2초에 보여요 |
+| 2026-10-14 | [1.5.1: GitHub 클래스 이름](docs/reports/v1.5.1-github-class-names.md) | 1.5.0 게시 직후 GitHub가 로그인 화면의 클래스 이름을 바꿔 1.5.0이 조용히 멈췄어요. 1.5.1은 앵커 id·구조로 먼저 찾고, 두 형식을 다 받고, 파일을 못 읽으면 알려요 |
+| 2026-10-09 | [1.3.0 테스트](docs/reports/v1.3.0-testing.md) | 테스트 저장소 v2를 화면 모양 5가지로: 1.2.0은 51/57(파일 전체 코멘트가 안 보임), 1.3.0은 60/60 |
+| 2026-10-08 | [1.1.1 테스트 저장소](docs/reports/v1.1.1-testbed.md) | 실제로 코멘트를 쓰고 API로 다시 읽기 — 첫 실행에서 문서 중간 각주에 **+**가 없는 버그를 찾음 |
+| 2026-10-08 | [1.1.1 검증](docs/reports/v1.1.1-verification.md) | 공개 저장소 128개의 PR 300개 — 오탐 3 → 0, 원문 줄 연결 98.4% → 99.7%, md 334개 PR에서 확장 CPU 1,182 → 220ms |
+| 2026-10-08 | [비슷한 확장 비교](docs/reports/competitors.md) | 8개 비교 — 바뀌지 않은 구간 접기·표 바뀐 행 합치기는 이 확장뿐 |
 
 GitHub와 관련 없는 비공식 도구이며 GitHub의 보증을 받지 않았습니다. GitHub는 GitHub, Inc.의 상표입니다.
