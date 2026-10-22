@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import type { ViewKind, ViewPayload } from './api-types';
 import { skillTemplate } from './assets';
+import { CliError } from './errors';
 import { GitError, readTextAt, repoInfo, type RepoInfo } from './git';
 import { formatRounds, isoLocal, roundsJson } from './handoff';
 import type { Round } from './records';
@@ -67,14 +68,7 @@ Usage:
 Needs macOS or Linux, Node 22.19 or newer, and git.
 State lives in \${XDG_STATE_HOME:-~/.local/state}/markdown-diff-cat (MDC_STATE_DIR overrides it).`;
 
-export class CliError extends Error {
-  constructor(
-    readonly code: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+export { CliError };
 
 type Flags = Map<string, string | true>;
 interface Args {
