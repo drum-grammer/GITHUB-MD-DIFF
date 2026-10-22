@@ -1,19 +1,19 @@
 # 로드맵 — 어디까지 왔고 다음은 무엇인가
 
-> 최종 확인 2026-10-21 · [README](README.md) · 조사·테스트 기록: [README · Research and test reports](README.md#research-and-test-reports) · 다음 제출 노트: [UNRELEASED](docs/releases/UNRELEASED.md)
+> 최종 확인 2026-10-22 · [README](README.md) · 조사·테스트 기록: [README · Research and test reports](README.md#research-and-test-reports) · 다음 제출 노트: [UNRELEASED](docs/releases/UNRELEASED.md)
 >
-> **English summary** — The Chrome Web Store has 1.5.1 (published 2026-10-14, confirmed 2026-10-15), which works again on the signed-in "Files changed" page after GitHub renamed its CSS module classes on 2026-10-14: it finds files by their anchor id and page structure first, accepts both class formats, and warns when it cannot read any file. Next: make the canary actually run every day, then the local-use check. How to handle the next GitHub change: [docs/runbooks/github-ui-change.md](docs/runbooks/github-ui-change.md). Local review — the same rendered Markdown diff for local git changes, outside GitHub pull requests — is in progress: the M0 refactor (#47) and the M1 rendering engine with its GitHub parity harness (#48) are merged, and the M2 command-line tool `markdown-diff-cat` (worktree mode) is in review; design, status and what is left: [docs/local-review](docs/local-review/README.md). This file is the place to pick up the work without any other context: read "Where things stand", then "Next", then "How to pick up".
+> **English summary** — The Chrome Web Store has 1.5.1 (published 2026-10-14, confirmed 2026-10-15), which works again on the signed-in "Files changed" page after GitHub renamed its CSS module classes on 2026-10-14: it finds files by their anchor id and page structure first, accepts both class formats, and warns when it cannot read any file. Next: make the canary actually run every day, then the local-use check. How to handle the next GitHub change: [docs/runbooks/github-ui-change.md](docs/runbooks/github-ui-change.md). Local review — the same rendered Markdown diff for local git changes, outside GitHub pull requests — is in progress: the M0 refactor (#47), the M1 rendering engine with its GitHub parity harness (#48), the M2 command-line tool `markdown-diff-cat` (worktree mode, #49) and the M3 Codex annotations (#50) are merged, and M4 (pull request mode) is next; design, status and what is left: [docs/local-review](docs/local-review/README.md). The same engine now also renders, in the browser, Markdown files GitHub cannot render (its server returns 504): #52 on `main`, falling back to the source diff with a reason (#51) when that fails too, in the next minor version (1.6.0); [docs/local-render](docs/local-render/README.md). This file is the place to pick up the work without any other context: read "Where things stand", then "Next", then "How to pick up".
 
 새 세션이나 새 기여자가 이 문서 하나만 읽고 이어서 일할 수 있게 쓴다. 버전을 병합하거나 결정이 바뀌면 **지금 어디에 있나**와 **버전 연표**를 같은 PR에서 고친다.
 
-## 지금 어디에 있나 (2026-10-21)
+## 지금 어디에 있나 (2026-10-22)
 
 | | 상태 |
 |---|---|
 | 크롬 웹 스토어(공개) | **1.5.1** — 2026-10-14 제출·게시(2026-10-15 `pnpm release status`·스토어 페이지 확인). 태그 [`v1.5.1`](https://github.com/drum-grammer/GITHUB-MD-DIFF/releases/tag/v1.5.1)(`0873956`)·GitHub Release **Latest**. v1.5.0은 로그인 화면에서 멈춘 판이라 pre-release로 둔다 |
 | `main` | **1.5.1** |
 | 진행 중 | 로컬 리뷰 M2 — 명령줄 도구 `markdown-diff-cat`(작업 트리 모드, [packages/review](packages/review/README.md)). M3 Codex 주석 병합([#50](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/50), Codex 실기 남음) · 다음: M4 PR 모드 · 설계·진행·남은 일: [docs/local-review](docs/local-review/README.md) |
-| 진행 중 — 큰 md | GitHub가 렌더링 diff를 못 만든 md(서버 504 → "This rich diff is not supported")를 [#51](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/51)(병합)이 알아보고 원문으로 되돌리고, 그 앞에서 **로컬 렌더링**이 확장 안 엔진으로 브라우저에서 그린다 — 🔵 [#52](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/52), 설계·실측: [docs/local-render](docs/local-render/README.md). 다음 MINOR(1.6.0)에 들어간다 |
+| 큰 md — `main`(미출시) | GitHub가 렌더링 diff를 못 만든 md(서버 504 → "This rich diff is not supported")를 확장 안 엔진으로 브라우저에서 그린다 — **로컬 렌더링** [#52](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/52)(병합 `26c153c`). 그것도 못 하면 원문 diff와 까닭 한 줄 — [#51](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/51)(병합 `b369507`). 2026-10-22 계기가 된 비공개 PR의 두 문서(437 KB·224 KB)에서 504 뒤 1–2초 안에 그려지는 것을 확인. 설계·실측: [docs/local-render](docs/local-render/README.md). 다음 MINOR(1.6.0)에 들어간다 |
 | 관리자 크롬 | 1.5.1 게시 뒤 스토어판으로 돌아간다(개발 빌드 끄기) — 다음 개발은 다시 `pnpm dev:chrome` |
 | 주간 카나리 | 상시 켜 둔 맥의 예약이 아직 돌지 않는다(그 맥의 화면 로그인·알림 토큰 대기). 2026-10-14 손으로 돌림: 1.5.0 깨짐 3/7 → 1.5.1 정상 9/9. `pnpm canary:status`로 멈춤을 본다 |
 

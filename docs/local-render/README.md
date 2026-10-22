@@ -1,6 +1,6 @@
 # 로컬 렌더링 — GitHub가 못 그린 마크다운 diff를 확장이 직접 그리기
 
-> 최종 확인 2026-10-21 · [ROADMAP](../../ROADMAP.md) · 앞 단계: [#51](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/51)(실패를 알아보고 원문으로) · 엔진: [packages/engine](../../packages/engine/README.md) · 로컬 리뷰: [docs/local-review](../local-review/README.md)
+> 최종 확인 2026-10-22 · [ROADMAP](../../ROADMAP.md) · 앞 단계: [#51](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/51)(실패를 알아보고 원문으로) · 엔진: [packages/engine](../../packages/engine/README.md) · 로컬 리뷰: [docs/local-review](../local-review/README.md)
 >
 > **English summary** — Some large Markdown files never get a rendered diff on GitHub: the server times out (`page_data/rich_diff` returns 504 after about 10 seconds) and the page shows "This rich diff is not supported at the moment." Since #51 the extension recognizes that and switches to the source diff. With this change it first renders the diff itself, in the browser, with the engine already built for local review (`packages/engine`): it reads the old and new text from github.com with the signed-in session (the same requests comments already use), runs `diffMarkdown` and `renderProseDiff`, and puts the result where GitHub's rendered diff would be, so folding, table merging, navigation and block comments work as usual. A one-line note says the file was rendered in the browser, with **Show source diff**. If that fails too, the #51 behavior remains. No new permissions and no manifest change: the engine is bundled into the content script without KaTeX (GitHub's own `math-renderer` draws the math) and is only initialized when a file needs it.
 
@@ -183,7 +183,9 @@ GitHub 서버가 렌더링 diff를 만들지 못한 md 파일을, 확장이 옛�
 
 ## 6. 남은 일
 
-- 🔵 구현 PR [#52](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/52) — #51 병합(`b369507`) 위. 버전은 다음 MINOR(1.6.0), `UNRELEASED`의 New
+- ✅ 구현 PR [#52](https://github.com/drum-grammer/GITHUB-MD-DIFF/pull/52) 병합(`26c153c`, 2026-10-21) — #51 병합(`b369507`) 위. 버전은 다음 MINOR(1.6.0), `UNRELEASED`의 New
+- ✅ 계기 문서 실측(2026-10-22, 병합된 `main` 빌드, 흉내 없이 읽기만) — 비공개 PR의 두 md(437 KB·224 KB)가 GitHub 504 뒤 1–2초 안에 로컬 렌더링 diff로 그려지고(바뀐 표시·접기 막대 있음), 안내 "rendered in your browser"가 30초 동안 그대로 남는다(스크롤·화면 테마 바꾸기 뒤에도)
+- 다음: 스토어 제출(1.6.0, 로컬 리뷰 CLI와 함께) — 바깥으로 나가는 단계는 매번 관리자 확인
 - 나중에(수요 보고): 로그아웃 옛 화면 · 커밋 일부 보기(그 범위의 base·head를 화면에서 읽어야 함) · 바깥 이미지 · Mermaid · 엔진이 GitHub와 다른 곳([KNOWN-DIFFERENCES](../../packages/engine/parity/KNOWN-DIFFERENCES.md)) — 로컬 렌더링은 GitHub 렌더링과 조금 다를 수 있다는 것을 안내 문구가 말한다.
 
 ## 7. 누가 정했나
