@@ -75,7 +75,10 @@ test('testbed PR #8 — 보류 중 리뷰에 줄·잘린 범위·파일 스레�
     'query($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { reviewThreads(first: 100) { nodes { path line startLine subjectType comments(first: 5) { nodes { body state } } } } } } }',
   ).repository.pullRequest.reviewThreads.nodes.filter((t) => t.comments.nodes.some((c) => c.state === 'PENDING' && c.body.includes('markdown-diff-cat M4 testbed run')));
   const by = (word: string) => threads.find((t) => t.comments.nodes[0].body.includes(word))!;
-  expect(by('fits')).toMatchObject({ path: FILE, subjectType: 'LINE', line: first[0], startLine: null });
+  console.log(JSON.stringify(threads.map((t) => ({ path: t.path, line: t.line, startLine: t.startLine, subjectType: t.subjectType, body: t.comments.nodes[0].body }))));
+  // 한 줄 스레드의 startLine은 GitHub가 null 또는 같은 줄로 돌려준다(2026-10-23 testbed 실측: 같은 줄)
+  expect(by('fits')).toMatchObject({ path: FILE, subjectType: 'LINE', line: first[0] });
+  expect([null, first[0]]).toContain(by('fits').startLine);
   expect(by('clipped')).toMatchObject({ subjectType: 'LINE', line: first[1], startLine: first[0] === first[1] ? null : first[0] });
   expect(by('clipped').comments.nodes[0].body).toContain(`trimmed to`);
   expect(by('unchanged')).toMatchObject({ subjectType: 'FILE', line: null });
