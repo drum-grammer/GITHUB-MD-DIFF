@@ -32,7 +32,7 @@ function route(s: ReviewSession, method: string, path: string, url: URL, body: u
     return s.apiThreads(p);
   }
   if (key === 'GET /api/summary') return { drafts: s.draftCount() };
-  if (key === 'GET /api/drafts') return { drafts: s.draftList() };
+  if (key === 'GET /api/drafts') return s.apiDrafts();
   if (key === 'GET /api/poll') {
     const rev = url.searchParams.get('rev');
     need(rev, 'rev is required');

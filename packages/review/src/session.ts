@@ -222,6 +222,10 @@ export class ReviewSession {
     return this.send(rev);
   }
 
+  async apiDrafts(): Promise<{ drafts: DraftListItem[] }> {
+    return { drafts: this.draftList() };
+  }
+
   async apiPush(_rev: string): Promise<PushPayload> {
     throw new HttpError(404, 'Pending review is only in PR mode.');
   }

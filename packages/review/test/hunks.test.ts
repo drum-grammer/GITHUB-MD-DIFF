@@ -56,16 +56,18 @@ describe('planUpload', () => {
     expect(items).toEqual([
       { draft: 'd1', kind: 'line', path: 'docs/a.md', side: 'RIGHT', start: 2, end: 3, body: 'Please shorten.' },
       { draft: 'd2', kind: 'line', path: 'docs/a.md', side: 'RIGHT', start: 20, end: 25, body: '`L2–25` — trimmed to `L20–25`, the changed lines GitHub accepts\n\nPlease shorten.' },
-      { draft: 'd3', kind: 'file', path: 'docs/a.md', body: '`L8–9` (unchanged lines; GitHub accepts line comments only on changed lines)\n\n> eight\n>\n> nine\n\nWhy is this here?' },
+      { draft: 'd3', kind: 'file', path: 'docs/a.md', body: '`L8–9` (unchanged lines; GitHub accepts line comments only on changed lines)\n\n```text\neight\n\nnine\n```\n\nWhy is this here?' },
     ]);
   });
 
-  it('인용은 20줄까지', () => {
-    const quote = Array.from({ length: 25 }, (_, i) => `q${i + 1}`).join('\n');
+  it('인용은 20줄까지, 펜스 안에 — 원문 속 @이름·#번호가 제출 때 알림·링크가 되지 않게', () => {
+    const quote = ['Ask @alice about #12', ...Array.from({ length: 24 }, (_, i) => `q${i + 2}`)].join('\n');
     const [item] = planUpload([draft({ start: 5, end: 15, quote })], files({ 'docs/a.md': PATCH }));
     expect(item.kind).toBe('file');
     const body = (item as { body: string }).body;
-    expect(body).toContain('> q20\n> …\n\nPlease shorten.');
+    expect(body).toContain('```text\nAsk @alice about #12\nq2\n');
+    expect(body).toContain('q20\n…\n```\n\nPlease shorten.');
+    expect(body).not.toMatch(/^> /m);
     expect(body).not.toContain('q21');
   });
 
@@ -93,11 +95,11 @@ describe('planUpload', () => {
       files({ 'docs/a.md': PATCH, 'docs/big.md': null }),
     );
     expect(items).toEqual([
-      { draft: 'd1', kind: 'file', path: 'docs/big.md', body: '`L2` (GitHub shows no diff for this file, so the comment is on the whole file)\n\n> two\n\nPlease shorten.' },
+      { draft: 'd1', kind: 'file', path: 'docs/big.md', body: '`L2` (GitHub shows no diff for this file, so the comment is on the whole file)\n\n```text\ntwo\n```\n\nPlease shorten.' },
       { draft: 'd2', kind: 'line', path: 'docs/a.md', side: 'LEFT', start: 21, end: 21, body: 'Please shorten.' },
       { draft: 'd3', kind: 'reply', thread: 'PRRT_abc', body: 'Agreed.' },
       { draft: 'd4', kind: 'error', error: 'docs/other.md is not among the changed files of the pull request' },
-      { draft: 'd5', kind: 'file', path: 'docs/a.md', body: '`L8 (old)` (unchanged lines; GitHub accepts line comments only on changed lines)\n\n> old eight\n\nPlease shorten.' },
+      { draft: 'd5', kind: 'file', path: 'docs/a.md', body: '`L8 (old)` (unchanged lines; GitHub accepts line comments only on changed lines)\n\n```text\nold eight\n```\n\nPlease shorten.' },
     ]);
   });
 });

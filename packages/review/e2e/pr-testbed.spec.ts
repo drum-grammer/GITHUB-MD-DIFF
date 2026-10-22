@@ -60,7 +60,7 @@ test('testbed PR #8 — 보류 중 리뷰에 줄·잘린 범위·파일 스레�
   await add(first[0], first[0], 'fits — markdown-diff-cat M4 testbed run');
   await add(first[0] - 1, first[1], 'clipped — markdown-diff-cat M4 testbed run');
   await add(outside!, outside!, 'unchanged — markdown-diff-cat M4 testbed run');
-  await add(first[1], first[1], '`@.env` {repo} @- literal — markdown-diff-cat M4 testbed run');
+  await add(first[1], first[1], '@- {repo} `@.env` literal — markdown-diff-cat M4 testbed run'); // @로 시작해도 글자 그대로(스펙 §10). @-는 사람 이름이 아니라 알림이 가지 않는다
   await page.reload();
 
   await page.locator('.mdc-push').click();
@@ -77,6 +77,6 @@ test('testbed PR #8 — 보류 중 리뷰에 줄·잘린 범위·파일 스레�
   expect(by('clipped').comments.nodes[0].body).toContain(`trimmed to`);
   expect(by('unchanged')).toMatchObject({ subjectType: 'FILE', line: null });
   expect(by('unchanged').comments.nodes[0].body).toContain('(unchanged lines; GitHub accepts line comments only on changed lines)');
-  expect(by('literal').comments.nodes[0].body).toBe('`@.env` {repo} @- literal — markdown-diff-cat M4 testbed run');
+  expect(by('literal').comments.nodes[0].body).toBe('@- {repo} `@.env` literal — markdown-diff-cat M4 testbed run');
   await review.stop();
 });

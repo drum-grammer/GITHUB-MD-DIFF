@@ -56,6 +56,7 @@ test('PR 모드 한 바퀴 — 기존 스레드·코멘트·답글·확인 상�
   await expect.poll(() => review.output()).toContain('Reviewing acme/docs#7 "Docs"'); // 주소 줄 다음에 나온다
   await page.goto(review.url);
   await expect(page.locator('.mdc-pr-link')).toHaveText('acme/docs#7');
+  await expect(page.locator('.mdc-header .mdc-redraw')).toHaveText('Redraw');
   await expect(page.locator('.mdc-base')).toContainText('→ head ');
   await expect(page.locator('.mdc-notice')).toContainText('run gh pr checkout 7');
   const file = fileSection(page, 'docs/guide.md');
@@ -85,7 +86,11 @@ test('PR 모드 한 바퀴 — 기존 스레드·코멘트·답글·확인 상�
   await page.locator('.mdc-push').click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.locator('h2')).toHaveText('Add 3 to your pending review on acme/docs#7?');
-  await expect(dialog.locator('li')).toHaveText(['docs/guide.md · L13 · Say what changed.', 'docs/guide.md · L5 · `@.env` {repo} @- stays literal', 'docs/guide.md · L13 · Yes — still true.']);
+  await expect(dialog.locator('li')).toHaveText([
+    'docs/guide.md · L13 · Say what changed.',
+    'docs/guide.md · L5 · `@.env` {repo} @- stays literal → added as a whole-file comment with the quoted lines',
+    'docs/guide.md · L13 · Yes — still true. → reply',
+  ]);
   await dialog.getByRole('button', { name: 'Add' }).click();
   await expect(page.locator('.mdc-toast')).toHaveText('Added 3 to your pending review. Submit it on GitHub');
   await expect(dialog).toHaveCount(0);
@@ -96,7 +101,7 @@ test('PR 모드 한 바퀴 — 기존 스레드·코멘트·답글·확인 상�
   expect(gh.createdReviews).toBe(1);
   expect(gh.mutations.map((m) => m.input)).toEqual([
     { pullRequestReviewId: 'PRR_new', path: 'docs/guide.md', body: 'Say what changed.', subjectType: 'LINE', line: 13, side: 'RIGHT' },
-    { pullRequestReviewId: 'PRR_new', path: 'docs/guide.md', body: '`L5` (unchanged lines; GitHub accepts line comments only on changed lines)\n\n> Install it.\n\n`@.env` {repo} @- stays literal', subjectType: 'FILE' },
+    { pullRequestReviewId: 'PRR_new', path: 'docs/guide.md', body: '`L5` (unchanged lines; GitHub accepts line comments only on changed lines)\n\n```text\nInstall it.\n```\n\n`@.env` {repo} @- stays literal', subjectType: 'FILE' },
     { pullRequestReviewId: 'PRR_new', pullRequestReviewThreadId: 'PRRT_note', body: 'Yes — still true.' },
   ]);
 

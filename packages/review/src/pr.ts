@@ -39,7 +39,7 @@ export function pickRemote(root: string, owner: string, repo: string): string | 
 
 /** fetch만 쓰기(받은 ref) — 자격 증명 질문으로 멈추지 않게 터미널 프롬프트를 끈다 */
 function fetch(root: string, source: string, refspecs: string[]): void {
-  execFileSync('git', ['-c', 'core.quotePath=false', 'fetch', '--no-tags', '--quiet', source, ...refspecs], {
+  execFileSync('git', ['-c', 'core.quotePath=false', 'fetch', '--no-tags', '--no-recurse-submodules', '--quiet', source, ...refspecs], {
     cwd: root,
     stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' },

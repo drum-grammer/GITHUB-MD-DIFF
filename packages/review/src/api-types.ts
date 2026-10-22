@@ -92,12 +92,24 @@ export interface DraftInput {
   replyTo?: string;
 }
 
+/** PR 모드 — 보류 중 리뷰에 넣으면 그 초안이 어디에 들어가나(확인 상자 미리보기, 스펙 §6-3) */
+export type DraftPlace =
+  | { kind: 'line' }
+  | { kind: 'trimmed'; lines: string }
+  | { kind: 'file' }
+  | { kind: 'reply' }
+  /** 그 뒤 줄이 바뀌어 넣지 않는다 */
+  | { kind: 'stale' }
+  | { kind: 'error'; error: string };
+
 /** 초안 목록 한 줄(GET /api/drafts) — 파일 전체 코멘트는 lines가 "whole file" */
 export interface DraftListItem {
   id: string;
   path: string;
   lines: string;
   excerpt: string;
+  /** PR 모드에서 GitHub를 읽었을 때만 */
+  place?: DraftPlace;
 }
 
 /** 보류 중 리뷰에 넣기의 결과 — 실패한 것만 남는다 */

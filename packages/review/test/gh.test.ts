@@ -30,14 +30,14 @@ describe('Gh', () => {
     expect(JSON.parse(calls[0].input!)).toEqual({ query: 'mutation($b:String!){x(body:$b)}', variables: { b: '@.env {repo} @octocat' } });
   });
 
-  it('rest — 메서드·경로·--input -, 페이지 넘김은 --paginate --slurp로 받아 하나로 편다', async () => {
-    const { run, calls } = fake({ stdout: '{"node_id":"PRR_1"}' }, { stdout: '[[{"filename":"a.md"}],[{"filename":"b.md"}]]' });
+  it('rest — 메서드·경로·--input -, 페이지 넘김은 --paginate --jq .[]로 한 줄에 하나씩 받는다(--slurp는 gh 2.48부터라 쓰지 않는다)', async () => {
+    const { run, calls } = fake({ stdout: '{"node_id":"PRR_1"}' }, { stdout: '{"filename":"a.md"}\n{"filename":"b.md"}\n' });
     const gh = new Gh(run, '/repo');
     expect(await gh.rest('POST', repoPath('acme', 'docs', 'pulls/7/reviews'), { commit_id: 'abc' })).toEqual({ node_id: 'PRR_1' });
     expect(calls[0].args).toEqual(['api', '--method', 'POST', 'repos/acme/docs/pulls/7/reviews', '--input', '-']);
     expect(JSON.parse(calls[0].input!)).toEqual({ commit_id: 'abc' });
     expect(await gh.rest('GET', repoPath('acme', 'docs', 'pulls/7/files?per_page=100'), undefined, { paginate: true })).toEqual([{ filename: 'a.md' }, { filename: 'b.md' }]);
-    expect(calls[1].args).toEqual(['api', '--method', 'GET', 'repos/acme/docs/pulls/7/files?per_page=100', '--paginate', '--slurp']);
+    expect(calls[1].args).toEqual(['api', '--method', 'GET', 'repos/acme/docs/pulls/7/files?per_page=100', '--paginate', '--jq', '.[]']);
     expect(calls[1].input).toBeUndefined();
   });
 

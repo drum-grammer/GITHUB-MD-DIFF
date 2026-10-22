@@ -2,12 +2,12 @@
 // 작업 트리 세션과 저장 폴더를 같이 쓰되 초안은 "pr:<owner>/<repo>#<n>" 범위로 나눈다
 import { randomBytes } from 'node:crypto';
 import type { ReviewThread } from '../../../src/types';
-import type { PollPayload, PushPayload, SendPayload, ThreadsPayload, ViewPayload } from './api-types';
+import type { DraftListItem, DraftPlace, PollPayload, PushPayload, SendPayload, ThreadsPayload, ViewPayload } from './api-types';
 import { HttpError } from './errors';
 import type { Gh } from './gh';
 import { addItems, currentHead, loadThreads, pendingReviewId, prFileInfos, type PrThreads } from './github';
 import { isoLocal, lineLabel } from './handoff';
-import { planUpload } from './hunks';
+import { planUpload, type UploadItem } from './hunks';
 import { checkoutWarning, prFiles } from './pr';
 import { sanitizeQuote } from './quote';
 import type { Draft, Mark, PrRef, ReviewMode, Round, RoundBase, SourceSide } from './records';
@@ -21,6 +21,14 @@ export interface PrSessionOptions extends SessionOptions {
 }
 
 export const prLabel = (pr: Pick<PrRef, 'owner' | 'repo' | 'number'>): string => `${pr.owner}/${pr.repo}#${pr.number}`;
+
+export const STALE_DRAFT = 'The lines changed since you wrote this — delete it and comment again in the right place.';
+
+const placeOf = (d: Draft, item: UploadItem): DraftPlace => {
+  if (item.kind === 'line') return item.start === d.start && item.end === d.end ? { kind: 'line' } : { kind: 'trimmed', lines: lineLabel(item.start, item.end) };
+  if (item.kind === 'error') return { kind: 'error', error: item.error };
+  return { kind: item.kind };
+};
 
 export class PrSession extends ReviewSession {
   private pr: PrRef;
@@ -242,17 +250,47 @@ export class PrSession extends ReviewSession {
     return this.sendRound(rev, () => ({ extra, fields: { excluded: Math.max(0, othersAll - othersIn), ...(warning ? { warning } : {}) } }));
   }
 
-  /** 보류 중 리뷰에 넣기(스펙 §6-3) — 넣기 직전 head를 다시 읽고, GitHub hunk로 줄을 맞춰 하나씩. 성공한 초안만 지운다 */
+  /** 다시 그린 판에서 줄이 바뀐 초안 — 옛 줄 번호로 넣으면 엉뚱한 줄에 간다 */
+  private isStale(d: Draft, c: Current): boolean {
+    return d.moved === true || d.rev !== c.record.id;
+  }
+
+  /** 확인 상자 — 초안마다 어디에 들어가나. GitHub를 못 읽으면 미리보기 없이 목록만 */
+  async apiDrafts(): Promise<{ drafts: DraftListItem[] }> {
+    const c = this.current ?? this.paint();
+    const list = this.draftList();
+    let files;
+    try {
+      files = await prFileInfos(this.gh, this.pr);
+    } catch {
+      return { drafts: list };
+    }
+    const drafts = this.ownDrafts();
+    const plan = new Map(planUpload(drafts.filter((d) => !this.isStale(d, c)), files).map((i) => [i.draft, i]));
+    return {
+      drafts: list.map((item) => {
+        const d = drafts.find((x) => x.id === item.id)!;
+        const p = plan.get(item.id);
+        return { ...item, place: p ? placeOf(d, p) : { kind: 'stale' } };
+      }),
+    };
+  }
+
+  /** 보류 중 리뷰에 넣기(스펙 §6-3) — 넣기 직전 head를 다시 읽고, GitHub hunk로 줄을 맞춰 하나씩. 성공한 초안만 지운다. 줄이 바뀐 초안은 넣지 않는다 */
   async apiPush(rev: string): Promise<PushPayload> {
-    this.checkRev(rev, 'This view is out of date — press Redraw, check your comments, and add them again.');
+    const c = this.checkRev(rev, 'This view is out of date — press Redraw, check your comments, and add them again.');
     const drafts = this.ownDrafts().sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     if (!drafts.length) throw new HttpError(400, 'Add a comment first.');
     const pr = this.pr;
-    if ((await currentHead(this.gh, pr)) !== pr.headOid) {
-      throw new HttpError(409, `New commits were pushed to ${prLabel(pr)} after this view — press Redraw, check your comments, and add them again.`);
+    const fresh = drafts.filter((d) => !this.isStale(d, c));
+    const results: Array<{ draft: string; error?: string }> = drafts.filter((d) => this.isStale(d, c)).map((d) => ({ draft: d.id, error: STALE_DRAFT }));
+    if (fresh.length) {
+      if ((await currentHead(this.gh, pr)) !== pr.headOid) {
+        throw new HttpError(409, `New commits were pushed to ${prLabel(pr)} after this view — press Redraw, check your comments, and add them again.`);
+      }
+      const items = planUpload(fresh, await prFileInfos(this.gh, pr));
+      results.push(...(await addItems(this.gh, await pendingReviewId(this.gh, pr), items)));
     }
-    const items = planUpload(drafts, await prFileInfos(this.gh, pr));
-    const results = await addItems(this.gh, await pendingReviewId(this.gh, pr), items);
     const added = new Set(results.filter((r) => !r.error).map((r) => r.draft));
     const { store } = this.opts;
     store.withLock('drafts', () => store.saveDrafts(store.drafts().filter((d) => !added.has(d.id))));

@@ -10,6 +10,11 @@ interface Seen {
   body: { query?: string; variables?: Record<string, unknown> } & Record<string, unknown>;
 }
 
+/** 그대로 낼 출력(--jq 줄 단위 등) */
+class Raw {
+  constructor(readonly text: string) {}
+}
+
 /** 요청을 보고 답을 고르는 가짜 gh — answer가 undefined를 돌려주면 시험 실패 */
 function fakeGh(answer: (s: Seen) => unknown): { gh: Gh; seen: Seen[] } {
   const seen: Seen[] = [];
@@ -19,6 +24,7 @@ function fakeGh(answer: (s: Seen) => unknown): { gh: Gh; seen: Seen[] } {
     const out = answer(s);
     if (out === undefined) throw new Error(`unexpected gh call ${args.join(' ')} ${opts.input ?? ''}`);
     if (out instanceof Error) return { code: 1, stdout: '', stderr: out.message };
+    if (out instanceof Raw) return { code: 0, stdout: out.text, stderr: '' };
     return { code: 0, stdout: JSON.stringify(out), stderr: '' };
   };
   return { gh: new Gh(run, '/repo'), seen };
@@ -110,7 +116,7 @@ describe('보류 중 리뷰', () => {
   it('currentHead·prFileInfos', async () => {
     const { gh, seen } = fakeGh((s) => {
       if (s.body.query?.includes('headRefOid')) return { data: { repository: { pullRequest: { headRefOid: 'n'.repeat(40) } } } };
-      if (s.args.includes('repos/acme/docs/pulls/7/files?per_page=100')) return [[{ filename: 'docs/a.md', patch: '@@ -1 +1 @@' }], [{ filename: 'docs/big.md' }]];
+      if (s.args.includes('repos/acme/docs/pulls/7/files?per_page=100')) return new Raw('{"filename":"docs/a.md","patch":"@@ -1 +1 @@"}\n{"filename":"docs/big.md"}\n');
       return undefined;
     });
     expect(await currentHead(gh, PR)).toBe('n'.repeat(40));

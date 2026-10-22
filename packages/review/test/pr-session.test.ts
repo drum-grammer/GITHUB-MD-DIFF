@@ -7,6 +7,7 @@ import { fetchPr } from '../src/pr';
 import { PrSession } from '../src/pr-session';
 import { ReviewSession } from '../src/session';
 import { StateStore, stateDirFor } from '../src/state';
+import type { PrRef } from '../src/records';
 import { fakeComment, fakeGitHub, fakeRunner, fakeThread, type FakeGitHub } from './helpers/fake-github';
 import { tempDir } from './helpers/git-repo';
 import { prWorld, type PrWorld } from './helpers/pr-world';
@@ -98,7 +99,7 @@ describe('PrSession', () => {
     expect(gh.mutations).toEqual([
       { name: 'addPullRequestReviewThread', input: { pullRequestReviewId: 'PRR_new', path: 'docs/guide.md', body: 'fits', subjectType: 'LINE', line: 13, side: 'RIGHT' } },
       { name: 'addPullRequestReviewThread', input: { pullRequestReviewId: 'PRR_new', path: 'docs/guide.md', body: '`L9–13` — trimmed to `L10–13`, the changed lines GitHub accepts\n\nclipped', subjectType: 'LINE', line: 13, side: 'RIGHT', startLine: 10, startSide: 'RIGHT' } },
-      { name: 'addPullRequestReviewThread', input: { pullRequestReviewId: 'PRR_new', path: 'docs/guide.md', body: '`L5` (unchanged lines; GitHub accepts line comments only on changed lines)\n\n> Install it.\n\nfolded', subjectType: 'FILE' } },
+      { name: 'addPullRequestReviewThread', input: { pullRequestReviewId: 'PRR_new', path: 'docs/guide.md', body: '`L5` (unchanged lines; GitHub accepts line comments only on changed lines)\n\n```text\nInstall it.\n```\n\nfolded', subjectType: 'FILE' } },
       { name: 'addPullRequestReviewThread', input: { pullRequestReviewId: 'PRR_new', path: 'docs/guide.md', body: 'old side', subjectType: 'LINE', line: 13, side: 'LEFT' } },
       { name: 'addPullRequestReviewThreadReply', input: { pullRequestReviewId: 'PRR_new', pullRequestReviewThreadId: T1.id, body: 'reply' } },
     ]);
@@ -185,4 +186,70 @@ describe('PrSession', () => {
     gh.auth = undefined;
     expect((await session.apiThreads('docs/guide.md')).threads).toHaveLength(3);
   });
+
+  /** PR에 새 커밋 — 맨 위에 네 줄을 끼워 "New note."가 17줄로 내려간다 */
+  function pushNewHead(w: PrWorld, gh: FakeGitHub): { head: string; text: string } {
+    w.author.git('checkout', '-q', 'feature');
+    const text = `Intro one.\n\nIntro two.\n\n${NEW}`;
+    w.author.write('docs/guide.md', text);
+    const head = w.author.commit('more');
+    w.author.git('push', '-q', '-f', 'origin', 'feature:refs/pull/7/head');
+    w.author.git('checkout', '-q', 'main');
+    gh.pr.headRefOid = head;
+    gh.head = head;
+    gh.files = [{ filename: 'docs/guide.md', patch: '@@ -1,13 +1,17 @@\n+Intro one.' }];
+    return { head, text };
+  }
+  const withRefetch = (w: PrWorld, gh: FakeGitHub, store: StateStore, pr: PrRef) => {
+    const ghc = new Gh(fakeRunner(gh), w.clone.dir);
+    return new PrSession({ root: w.clone.dir, store, view: 'merge-base', pr, gh: ghc, refetch: async () => fetchPr(w.clone.dir, await ghc.prView('7')) });
+  };
+
+  it('다시 그리기는 PR을 다시 받는다 — 새 head로 그리고, 그 줄로 넣는다', async () => {
+    const { w, gh, store, pr } = setup();
+    const session = withRefetch(w, gh, store, pr);
+    session.view();
+    const { head, text } = pushNewHead(w, gh);
+    const v2 = await session.apiRedraw();
+    expect(v2.pr!.head).toBe(head.slice(0, 7));
+    expect(v2.files[0].newText).toBe(text);
+    session.addDraft({ rev: v2.rev, path: 'docs/guide.md', side: 'right', start: 17, end: 17, body: 'after redraw' });
+    expect(await session.apiPush(v2.rev)).toMatchObject({ added: 1, failed: [] });
+    expect(gh.mutations.at(-1)!.input).toMatchObject({ line: 17, side: 'RIGHT', body: 'after redraw' });
+  });
+
+  it('줄이 바뀐 초안은 넣지 않고 이유를 돌려준다(옛 줄 번호로 엉뚱한 줄에 가지 않게)', async () => {
+    const { w, gh, store, pr } = setup();
+    const session = withRefetch(w, gh, store, pr);
+    const rev = session.view().rev;
+    const d = session.addDraft({ rev, path: 'docs/guide.md', side: 'right', start: 13, end: 13, body: 'about New note' });
+    pushNewHead(w, gh);
+    const v2 = await session.apiRedraw();
+    expect(store.drafts()[0]).toMatchObject({ id: d.id, moved: true });
+    expect((await session.apiDrafts()).drafts).toEqual([{ id: d.id, path: 'docs/guide.md', lines: 'L13', excerpt: 'about New note', place: { kind: 'stale' } }]);
+    expect(await session.apiPush(v2.rev)).toEqual({ added: 0, failed: [{ id: d.id, path: 'docs/guide.md', lines: 'L13', error: 'The lines changed since you wrote this — delete it and comment again in the right place.' }], url: 'https://github.com/acme/docs/pull/7/files' });
+    expect(gh.mutations).toEqual([]);
+    expect(store.drafts().map((x) => x.id)).toEqual([d.id]);
+  });
+
+  it('확인 상자 미리보기 — 줄 그대로·잘림·파일 전체·답글·PR 밖을 초안마다(스펙 §6-3)', async () => {
+    const { session, T1, gh } = setup();
+    const rev = session.view().rev;
+    await session.apiThreads('docs/guide.md');
+    const a = session.addDraft({ rev, path: 'docs/guide.md', side: 'right', start: 13, end: 13, body: 'fits' });
+    const b = session.addDraft({ rev, path: 'docs/guide.md', side: 'right', start: 9, end: 13, body: 'clipped' });
+    const c = session.addDraft({ rev, path: 'docs/guide.md', side: 'right', start: 5, end: 5, body: 'folded' });
+    const r = session.addDraft({ rev, path: 'docs/guide.md', side: 'right', start: 0, end: 0, body: 'reply', replyTo: T1.id });
+    expect((await session.apiDrafts()).drafts.map((x) => [x.id, x.place])).toEqual([
+      [a.id, { kind: 'line' }],
+      [b.id, { kind: 'trimmed', lines: 'L10–13' }],
+      [c.id, { kind: 'file' }],
+      [r.id, { kind: 'reply' }],
+    ]);
+    gh.files = [];
+    expect((await session.apiDrafts()).drafts[0].place).toEqual({ kind: 'error', error: 'docs/guide.md is not among the changed files of the pull request' });
+    gh.auth = 'missing';
+    expect((await session.apiDrafts()).drafts[0].place).toBeUndefined(); // GitHub를 못 읽으면 미리보기 없이 목록만
+  });
 });
+

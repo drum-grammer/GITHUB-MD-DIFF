@@ -108,7 +108,8 @@ export function fakeRunner(gh: FakeGitHub): GhRunner {
       }
       return { code: 1, stdout: '', stderr: `fake gh: unknown query ${query.slice(0, 60)}` };
     }
-    if (args[0] === 'api' && args[2] === 'GET' && /pulls\/\d+\/files/.test(args[3])) return ok([gh.files]);
+    // --paginate --jq '.[]' — 한 줄에 하나
+    if (args[0] === 'api' && args[2] === 'GET' && /pulls\/\d+\/files/.test(args[3])) return { code: 0, stdout: gh.files.map((f) => `${JSON.stringify(f)}\n`).join(''), stderr: '' };
     if (args[0] === 'api' && args[2] === 'POST' && /pulls\/\d+\/reviews$/.test(args[3])) {
       gh.createdReviews++;
       gh.pendingReviewId = 'PRR_new';

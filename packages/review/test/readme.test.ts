@@ -19,6 +19,9 @@ describe('npm README', () => {
     expect(readme).toContain('You submit the review on GitHub');
     expect(readme).toContain('refs/markdown-diff-cat/');
     expect(readme).not.toContain('A pull request mode is planned');
+    // .git에 무엇을 쓰는지 정확히(보안 설명) — 받은 ref만이 아니다
+    expect(readme).toContain('FETCH_HEAD');
+    expect(readme).not.toContain('pull request mode writes only the fetched refs');
   });
   it('개인 홈 경로를 싣지 않는다(공개 패키지)', () => {
     expect(readme).not.toMatch(/\/Users\/[a-z]|\/home\/[a-z]/);

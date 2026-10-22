@@ -52,6 +52,12 @@
   "reviewIncludeThread": {"message": "Include in Send to agent"},
   "reviewOutdatedHidden": {"message": "$COUNT$ outdated threads hidden — see them on GitHub", "placeholders": {"count": {"content": "$1"}}},
   "reviewOutdatedHiddenOne": {"message": "1 outdated thread hidden — see it on GitHub"},
+  "reviewPrRedrawHint": {"message": "Fetch the pull request again and redraw (new commits)"},
+  "reviewPlaceTrimmed": {"message": "trimmed to $LINES$, the changed lines GitHub accepts", "placeholders": {"lines": {"content": "$1"}}},
+  "reviewPlaceFile": {"message": "added as a whole-file comment with the quoted lines"},
+  "reviewPlaceReply": {"message": "reply"},
+  "reviewPlaceStale": {"message": "not added — the lines changed since you wrote this"},
+  "reviewPlaceError": {"message": "not added — $WHAT$", "placeholders": {"what": {"content": "$1"}}},
   "reviewGithubError": {"message": "Could not read review threads from GitHub: $WHAT$", "placeholders": {"what": {"content": "$1"}}},
   "reviewNoticePrCheckout": {"message": "This worktree is not on the head of pull request #$NUMBER$ — run gh pr checkout $NUMBER$ before an agent edits the files.", "placeholders": {"number": {"content": "$1"}}}
 }

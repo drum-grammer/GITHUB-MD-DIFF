@@ -183,7 +183,16 @@ describe('조각 함수', () => {
 describe('PR 모드 페이지', () => {
   const PR = { owner: 'acme', repo: 'docs', number: 7, url: 'https://github.com/acme/docs/pull/7', title: 'Docs', head: '9f8e7d6' };
   const prView = (extra: Partial<ViewPayload> = {}): ViewPayload => view({ pr: PR, baseText: '1a2b3c4 (merge-base of acme/docs#7)', ...extra });
-  const DRAFTS = { drafts: [{ id: 'd1', path: 'docs/guide.md', lines: 'L3', excerpt: 'Shorter.' }, { id: 'd2', path: 'docs/guide.md', lines: 'whole file', excerpt: 'Reply text' }] };
+  const DRAFTS = {
+    drafts: [
+      { id: 'd1', path: 'docs/guide.md', lines: 'L3', excerpt: 'Shorter.', place: { kind: 'line' } },
+      { id: 'd2', path: 'docs/guide.md', lines: 'whole file', excerpt: 'Reply text', place: { kind: 'reply' } },
+      { id: 'd3', path: 'docs/guide.md', lines: 'L2–5', excerpt: 'Range', place: { kind: 'trimmed', lines: 'L3–5' } },
+      { id: 'd4', path: 'docs/guide.md', lines: 'L9', excerpt: 'Folded', place: { kind: 'file' } },
+      { id: 'd5', path: 'docs/guide.md', lines: 'L7', excerpt: 'Old', place: { kind: 'stale' } },
+      { id: 'd6', path: 'docs/x.md', lines: 'L1', excerpt: 'Elsewhere', place: { kind: 'error', error: 'docs/x.md is not among the changed files of the pull request' } },
+    ],
+  };
   const comment = (id: string, author: string, mine = false) => ({ id, author, body: 'b', bodyHTML: '<p>b</p>', url: mine ? '' : 'https://github.com/x', pending: false, bodyVersion: '', canEdit: mine, canDelete: mine });
   const GH_THREADS: ThreadsPayload = {
     threads: [
@@ -246,8 +255,15 @@ describe('PR 모드 페이지', () => {
     const box = document.querySelector<HTMLElement>('.mdc-confirm')!;
     expect(box.getAttribute('role')).toBe('dialog');
     expect(box.getAttribute('aria-modal')).toBe('true');
-    expect(box.querySelector('h2')!.textContent).toBe('Add 2 to your pending review on acme/docs#7?');
-    expect([...box.querySelectorAll('li')].map((li) => li.textContent)).toEqual(['docs/guide.md · L3 · Shorter.', 'docs/guide.md · whole file · Reply text']);
+    expect(box.querySelector('h2')!.textContent).toBe('Add 4 to your pending review on acme/docs#7?');
+    expect([...box.querySelectorAll('li')].map((li) => li.textContent)).toEqual([
+      'docs/guide.md · L3 · Shorter.',
+      'docs/guide.md · whole file · Reply text → reply',
+      'docs/guide.md · L2–5 · Range → trimmed to L3–5, the changed lines GitHub accepts',
+      'docs/guide.md · L9 · Folded → added as a whole-file comment with the quoted lines',
+      'docs/guide.md · L7 · Old → not added — the lines changed since you wrote this',
+      'docs/x.md · L1 · Elsewhere → not added — docs/x.md is not among the changed files of the pull request',
+    ]);
     expect(box.querySelector('.mdc-confirm-hint')!.textContent).toBe('Nothing is published until you submit the review on GitHub.');
     box.querySelector<HTMLButtonElement>('.mdc-confirm-cancel')!.click();
     expect(document.querySelector('.mdc-confirm')).toBeNull();
@@ -280,6 +296,26 @@ describe('PR 모드 페이지', () => {
     document.querySelector<HTMLButtonElement>('.mdc-confirm-add')!.click();
     await vi.waitFor(() => expect(document.querySelector('.mdc-confirm-error')!.textContent).toContain('New commits were pushed'));
     expect(document.querySelector<HTMLButtonElement>('.mdc-confirm-add')!.disabled).toBe(false);
+    // 새 커밋(409)이면 상자 안에서 바로 다시 그린다 — 막다른 길이 아니게
+    document.querySelector<HTMLButtonElement>('.mdc-confirm-redraw')!.click();
+    await vi.waitFor(() => expect(refused.calls).toContain('POST /api/redraw'));
+    expect(document.querySelector('.mdc-confirm')).toBeNull();
+  });
+
+  it('PR 머리에는 늘 Redraw — PR을 다시 받아 그린다(새 커밋)', async () => {
+    const { root, page, calls } = mountPr(prView({ drafts: 1 }));
+    await page.load();
+    const redraw = root.querySelector<HTMLButtonElement>('.mdc-header .mdc-redraw')!;
+    expect(redraw.textContent).toBe('Redraw');
+    redraw.click();
+    await vi.waitFor(() => expect(calls).toContain('POST /api/redraw'));
+  });
+
+  it('PR 모드에도 원격 이미지 보기', async () => {
+    const remote = file({ html: '<p class="rich-diff-level-zero vicinity" data-mdc-new="1-1"><img data-mdc-remote="https://example.com/a.png" alt="a"></p>' });
+    const { root, page } = mountPr(prView({ files: [remote] }));
+    await page.load();
+    expect(root.querySelector('.mdc-remote')!.textContent).toBe('Show remote images (1)');
   });
 
   it('남의 코멘트가 있는 스레드에만 포함 상자, 고른 것이 보내기 include로, 숨긴 낡은 스레드 수 알림', async () => {

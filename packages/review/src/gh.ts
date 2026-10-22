@@ -102,12 +102,12 @@ export class Gh {
     return res.data as T;
   }
 
-  /** paginate는 --paginate --slurp로 받아 페이지 배열들을 하나로 편다 */
+  /** paginate는 배열 응답을 --paginate --jq '.[]'로 받아(한 줄에 하나) 배열로 모은다 — --slurp는 gh 2.48부터라 쓰지 않는다 */
   async rest<T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: unknown, opts: { paginate?: boolean } = {}): Promise<T> {
-    const args = ['api', '--method', method, path, ...(body === undefined ? [] : ['--input', '-']), ...(opts.paginate ? ['--paginate', '--slurp'] : [])];
+    const args = ['api', '--method', method, path, ...(body === undefined ? [] : ['--input', '-']), ...(opts.paginate ? ['--paginate', '--jq', '.[]'] : [])];
     const out = await this.call(args, body === undefined ? undefined : JSON.stringify(body));
+    if (opts.paginate) return out.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l) as unknown) as T;
     if (!out.trim()) return undefined as T;
-    const data = JSON.parse(out) as unknown;
-    return (opts.paginate && Array.isArray(data) ? data.flat() : data) as T;
+    return JSON.parse(out) as T;
   }
 }

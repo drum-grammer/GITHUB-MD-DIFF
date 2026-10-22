@@ -51,11 +51,12 @@ const MAX_QUOTE_LINES = 20;
 
 const label = (side: SourceSide, start: number, end: number): string => `\`${lineLabel(start, end)}${side === 'old' ? ' (old)' : ''}\``;
 
+/** 인용은 펜스 안에 — `> `로 두면 원문 속 @이름·#번호가 리뷰를 제출할 때 알림·링크가 된다 */
 function quoteBlock(quote: string): string {
   const lines = quote.split('\n');
-  const shown = lines.slice(0, MAX_QUOTE_LINES).map((l) => (l ? `> ${l}` : '>'));
-  if (lines.length > MAX_QUOTE_LINES) shown.push('> …');
-  return shown.join('\n');
+  const shown = lines.slice(0, MAX_QUOTE_LINES);
+  if (lines.length > MAX_QUOTE_LINES) shown.push('…');
+  return fenced(shown.join('\n'));
 }
 
 /** 줄이 바뀌면 제안 블록이 다른 줄에 적용된다 — 적용되지 않는 text 펜스로 바꾼다 */
