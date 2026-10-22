@@ -11,7 +11,6 @@ import { api, startReview, type Repo } from './support';
 const OWNER = 'drum-grammer';
 const NAME = 'markdown-diff-cat-testbed';
 const NUMBER = 8;
-const FILE = 'parity/paragraphs.md';
 
 test.skip(process.env.MDC_PR_TESTBED !== '1', 'writes a pending review on the public testbed — set MDC_PR_TESTBED=1 to run');
 
@@ -42,14 +41,18 @@ test('testbed PR #8 — 보류 중 리뷰에 줄·잘린 범위·파일 스레�
   execFileSync('git', ['clone', '-q', `https://github.com/${OWNER}/${NAME}.git`, clone]);
   const repo: Repo = { dir: clone, state: join(dir, 'state'), write: () => {}, move: () => {}, git: (...a) => execFileSync('git', a, { cwd: clone, encoding: 'utf8' }).trim(), cleanup: () => {} };
 
-  // GitHub가 준 hunk로 줄을 고른다 — 맞는 줄, hunk 앞 줄까지 걸친 범위(잘림), hunk 밖 줄(파일 스레드)
+  // GitHub가 준 hunk로 파일·줄을 고른다 — 앞에 바뀌지 않은 줄이 있는 hunk(그 hunk 안 한 줄, hunk 앞 줄까지 걸친 범위는 잘림, hunk 밖 줄은 파일 스레드)
   const files = JSON.parse(execFileSync('gh', ['api', `repos/${OWNER}/${NAME}/pulls/${NUMBER}/files?per_page=100`], { encoding: 'utf8' })) as Array<{ filename: string; patch?: string }>;
-  const hunks = parsePatch(files.find((f) => f.filename === FILE)!.patch!);
-  const right = hunks.map((h) => h.right).filter((r): r is [number, number] => r !== null);
-  const inHunk = (n: number): boolean => right.some(([a, b]) => a <= n && n <= b);
-  const [first] = right;
-  expect(first[0], 'the first hunk must not start at line 1').toBeGreaterThan(1);
-  expect(inHunk(first[0] - 1)).toBe(false);
+  const pick = files
+    .map((f) => {
+      const right = parsePatch(f.patch ?? '').map((h) => h.right).filter((r): r is [number, number] => r !== null);
+      const inHunk = (n: number): boolean => right.some(([a, b]) => a <= n && n <= b);
+      const first = right.find(([a]) => a > 1 && !inHunk(a - 1));
+      return first ? { file: f.filename, first, inHunk } : null;
+    })
+    .find((x) => x !== null);
+  expect(pick, 'needs a hunk with an unchanged line before it').toBeTruthy();
+  const { file: FILE, first, inHunk } = pick!;
   const review = await startReview(repo, '--pr', String(NUMBER));
   await page.goto(review.url);
   const view = await api<{ rev: string; files: Array<{ path: string; newText: string }> }>(page, 'GET', '/api/view');
