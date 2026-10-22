@@ -64,6 +64,8 @@ export interface ThreadsPayload {
   hidden?: number;
   /** PR 모드 — GitHub 스레드 id → 남의 코멘트 수(에이전트에게 보내기에 넣을지 고르는 상자) */
   github?: Record<string, { others: number }>;
+  /** PR 모드 — GitHub 스레드를 못 읽은 이유(내 초안은 그대로 보인다) */
+  githubError?: string;
 }
 
 export interface PollPayload {

@@ -8,7 +8,7 @@ import { repoInfo, resolveBase, type BaseInfo } from './git';
 import { formatRound, isoLocal, lineLabel } from './handoff';
 import { ImageIssuer } from './images';
 import { fenced, sanitizeQuote, splitSuggestion } from './quote';
-import type { Draft, Mark, RenderRecord, Round, RoundBase, SourceSide, StoredComment } from './records';
+import type { Draft, Mark, RenderRecord, ReviewMode, Round, RoundBase, SourceSide, StoredComment } from './records';
 import type { StateStore } from './state';
 import { fingerprint, latestBaseline, sinceLastFiles, snapshot, type ViewFile } from './views';
 
@@ -20,7 +20,7 @@ export interface SessionOptions {
   now?: () => Date;
 }
 
-interface Current {
+export interface Current {
   record: RenderRecord;
   base: BaseInfo;
   /** 지난 리뷰 이후 보기의 기준 판(분기점 보기면 null) */
@@ -38,6 +38,35 @@ const MAX_EARLIER = 50;
 const MAX_HTML_CACHE = 500;
 
 const MAX_BODY = 65_536;
+
+/** 사람이 쓴 코멘트 글 — 앞뒤 공백을 떼고, 비었거나 너무 길면 400 */
+export function cleanBody(body: unknown): string {
+  const text = String(body ?? '').trim();
+  if (!text) throw new HttpError(400, 'The comment is empty.');
+  if (text.length > MAX_BODY) throw new HttpError(400, 'The comment is too long.');
+  return text;
+}
+
+/** 그릴 재료 — 모드마다 다르다(작업 트리: 분기점·작업 트리, PR: 받은 git 객체) */
+export interface Source {
+  base: BaseInfo;
+  from: RenderRecord | null;
+  files: ViewFile[];
+  /** 렌더 판에 담을 원문 */
+  recordFiles: Record<string, string | null>;
+  notices: Notice[];
+  /** 옛 쪽 이미지를 읽을 커밋 */
+  oldOid: string;
+  /** 새 쪽 이미지 id — 없으면 작업 트리에서 */
+  newImage?: (rev: string, path: string) => string | null;
+  /** 판에 더할 것(PR 모드의 mode·pr·baseLabel) */
+  record?: Partial<RenderRecord>;
+  /** 폴링 지문(PR 모드는 빈 글) */
+  print: string;
+}
+
+/** 보낼 라운드에 초안과 함께 넣을 코멘트(PR 모드의 골라 넣은 GitHub 스레드) — id·round는 보내기가 매긴다 */
+export type ExtraComment = Omit<StoredComment, 'id' | 'round'>;
 
 export function toThread(id: string, side: SourceSide, start: number, end: number, comment: ReviewComment): ReviewThread {
   return { id, subject: 'line', side: side === 'old' ? 'left' : 'right', start, end, resolved: false, canReply: false, comments: [comment] };
@@ -225,8 +254,8 @@ export class ReviewSession {
     return out;
   }
 
-  /** 새 렌더 판 — HEAD가 움직였을 수 있어 저장소 정보부터 다시 읽는다 */
-  protected paint(): Current {
+  /** 작업 트리 모드의 재료 — HEAD가 움직였을 수 있어 저장소 정보부터 다시 읽는다 */
+  protected source(): Source {
     const { root, store } = this.opts;
     const base = resolveBase(repoInfo(root), this.baseRef);
     const snap = snapshot(root, base.oid);
@@ -242,6 +271,15 @@ export class ReviewSession {
     if (base.upstream && !this.baseRef) notices.push({ key: 'reviewNoticeUpstream', subs: [base.upstream] });
     for (const s of snap.skipped) notices.push({ key: 'reviewNoticeSkipped', subs: [s.path] });
     const files = from ? sinceLastFiles(root, from, snap) : snap.viewFiles;
+    // 지난 리뷰 이후 보기의 옛 쪽 이미지는 판이 담지 않으므로 그 판의 기준 커밋에서 읽는다
+    return { base, from, files, recordFiles: snap.files, notices, oldOid: from ? from.baseOid : base.oid, print: fingerprint(root, base.oid) };
+  }
+
+  /** 새 렌더 판 */
+  protected paint(): Current {
+    const { store } = this.opts;
+    const src = this.source();
+    const { base, from, files, notices } = src;
     const record: RenderRecord = {
       id: store.newRenderId(),
       createdAt: isoLocal(this.now()),
@@ -249,16 +287,16 @@ export class ReviewSession {
       baseOid: base.oid,
       baseLabel: base.label,
       view: from ? { kind: 'since-last', from: from.id } : { kind: 'merge-base' },
-      files: snap.files,
+      files: src.recordFiles,
       shown: files.map((f) => f.path),
+      ...src.record,
     };
     store.saveRender(record);
-    // 지난 리뷰 이후 보기의 옛 쪽 이미지는 판이 담지 않으므로 그 판의 기준 커밋에서 읽는다
-    const oldOid = from ? from.baseOid : base.oid;
     const diffs = new Map<string, FileDiff>();
-    const rendered = files.map((f) => this.renderFile(f, record.id, oldOid, diffs));
+    const newImage = src.newImage;
+    const rendered = files.map((f) => this.renderFile(f, record.id, src.oldOid, diffs, newImage && ((p) => newImage(record.id, p))));
     const previous = this.current?.record.id;
-    this.current = { record, base, from, files, diffs, rendered, notices, print: fingerprint(root, base.oid) };
+    this.current = { record, base, from, files, diffs, rendered, notices, print: src.print };
     this.rebaseDrafts();
     this.images.forgetExcept(previous ? [record.id, previous] : [record.id]);
     store.pruneRenders(KEEP_RENDERS, [record.id]);
@@ -287,7 +325,8 @@ export class ReviewSession {
     const badges: Record<string, Badge> = {};
     const threads: ReviewThread[] = [];
     for (const d of this.ownDrafts()) {
-      if (d.path !== path || !onView(c.files, d)) continue; // 보기 밖 초안은 목록(offView)으로만
+      // 보기 밖 초안은 목록(offView)으로만, 답글 초안은 그 GitHub 스레드 안에(PR 모드)
+      if (d.replyTo || d.path !== path || !onView(c.files, d)) continue;
       threads.push(toThread(d.id, d.side, d.start, d.end, toComment(d.id, d.body, this.html(d.body), true)));
       if (d.moved) badges[d.id] = 'stale';
     }
@@ -306,8 +345,7 @@ export class ReviewSession {
 
   /** 페이지의 "Add comment" — 줄 번호는 지금 판 기준, 인용·종류·제목 경로는 서버가 판에서 채운다 */
   addDraft(input: DraftInput): Draft {
-    const c = this.current ?? this.paint();
-    if (input.rev !== c.record.id) throw new HttpError(409, 'This view is out of date — press Redraw and comment again.');
+    const c = this.checkRev(input.rev, 'This view is out of date — press Redraw and comment again.');
     const file = c.files.find((f) => f.path === input.path);
     if (!file) throw new HttpError(400, `${input.path} is not in this view`);
     const side: SourceSide = input.side === 'left' ? 'old' : 'new';
@@ -317,9 +355,7 @@ export class ReviewSession {
     if (!Number.isInteger(input.start) || !Number.isInteger(input.end) || input.start < 1 || input.end < input.start || input.end > count) {
       throw new HttpError(400, `lines ${input.start}-${input.end} are outside ${input.path}`);
     }
-    const body = String(input.body ?? '').trim();
-    if (!body) throw new HttpError(400, 'The comment is empty.');
-    if (body.length > MAX_BODY) throw new HttpError(400, 'The comment is too long.');
+    const body = cleanBody(input.body);
     const quote = quoteOf(text, input.start, input.end);
     const diff = c.diffs.get(file.path);
     const leaf = diff ? leafAt(diff, side, input.start, input.end) : { kind: 'paragraph', headingPath: [] };
@@ -346,9 +382,7 @@ export class ReviewSession {
   }
 
   editDraft(id: string, body: string): Draft {
-    const text = String(body ?? '').trim();
-    if (!text) throw new HttpError(400, 'The comment is empty.');
-    if (text.length > MAX_BODY) throw new HttpError(400, 'The comment is too long.');
+    const text = cleanBody(body);
     const { store } = this.opts;
     return store.withLock('drafts', () => {
       const list = store.drafts();
@@ -371,19 +405,43 @@ export class ReviewSession {
 
   /** "에이전트에게 보내기" — 모든 초안을 다음 라운드로. 라운드는 사람이 본 판(rev)을 기록한다 */
   send(rev: string): SendPayload {
+    return this.sendRound(rev, () => ({ extra: [], fields: {} }));
+  }
+
+  protected mode(): ReviewMode {
+    return 'worktree';
+  }
+
+  protected roundBase(c: Current): RoundBase {
+    return c.from ? { kind: 'review-render', rev: c.from.id } : { kind: 'merge-base', oid: c.base.oid, label: c.base.label };
+  }
+
+  /** 그린 뒤 보내기 전에 파일이 바뀌었나 */
+  protected changedSince(c: Current): boolean {
+    return fingerprint(this.opts.root, c.base.oid) !== c.print;
+  }
+
+  /** 사람이 본 판이 지금 판인가 — 아니면 409와 그 문구 */
+  protected checkRev(rev: string, message: string): Current {
     const c = this.current ?? this.paint();
-    if (rev !== c.record.id) throw new HttpError(409, 'This view is out of date — press Redraw, check your comments, and send again.');
+    if (rev !== c.record.id) throw new HttpError(409, message);
+    return c;
+  }
+
+  /** 초안(과 extra)을 다음 라운드로 — extra는 잠금 안에서 만든다(그 판의 초안을 보고 뺀 수를 셀 수 있게) */
+  protected sendRound(rev: string, more: (c: Current) => { extra: ExtraComment[]; fields: Partial<Round> }): SendPayload {
+    const c = this.checkRev(rev, 'This view is out of date — press Redraw, check your comments, and send again.');
     const { store } = this.opts;
     return store.withLock('rounds', () => {
       const drafts = this.ownDrafts().sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-      if (!drafts.length) throw new HttpError(400, 'Add a comment first.');
+      const { extra, fields } = more(c);
+      if (!drafts.length && !extra.length) throw new HttpError(400, 'Add a comment first.');
       const n = store.nextRoundNumber();
-      const base: RoundBase = c.from ? { kind: 'review-render', rev: c.from.id } : { kind: 'merge-base', oid: c.base.oid, label: c.base.label };
-      const comments: StoredComment[] = drafts.map((d, i) => {
+      const base = this.roundBase(c);
+      const mode = this.mode();
+      const fromDrafts: ExtraComment[] = drafts.map((d) => {
         const split = d.side === 'new' ? splitSuggestion(d.body) : { body: d.body, suggestion: null };
         return {
-          id: `c${i + 1}`,
-          round: n,
           rev: d.rev,
           path: d.path,
           side: d.side,
@@ -397,19 +455,21 @@ export class ReviewSession {
           body: split.body,
           suggestion: split.suggestion,
           base: c.from ? c.from.id : c.base.oid,
-          mode: 'worktree',
+          mode,
           createdAt: d.createdAt,
         };
       });
+      const comments: StoredComment[] = [...fromDrafts, ...extra].map((k, i) => ({ id: `c${i + 1}`, round: n, ...k }));
       const round: Round = {
         round: n,
         createdAt: isoLocal(this.now()),
         rev: c.record.id,
-        mode: 'worktree',
+        mode,
         base,
-        changedAfterRender: fingerprint(this.opts.root, c.base.oid) !== c.print,
+        changedAfterRender: this.changedSince(c),
         files: c.record.shown,
         comments,
+        ...fields,
       };
       store.saveRound(round, formatRound(round));
       store.saveDrafts(store.drafts().filter((d) => !this.inScope(d)));
@@ -418,7 +478,7 @@ export class ReviewSession {
   }
 
   /** 새 판에서 초안 줄의 원문이 그대로면 새 판으로 옮기고, 달라졌으면 "위치 확인 필요". 이 보기에 없는 파일의 초안은 그대로 둔다 */
-  private rebaseDrafts(): void {
+  protected rebaseDrafts(): void {
     const c = this.current!;
     const { store } = this.opts;
     store.withLock('drafts', () => {

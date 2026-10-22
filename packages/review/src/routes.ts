@@ -1,6 +1,7 @@
 // 앱 동작 — 서버(server.ts)가 관문을 통과시킨 요청을 세션에 잇는다
 import type { DraftInput } from './api-types';
 import { HttpError } from './errors';
+import { GhError } from './gh';
 import { GitError } from './git';
 import { FILE_CSP } from './security';
 import type { AppHandlers, Reply } from './server';
@@ -83,6 +84,7 @@ export function appHandlers(session: ReviewSession): AppHandlers {
       } catch (e) {
         if (e instanceof HttpError) return { status: e.status, json: { error: e.message } };
         if (e instanceof GitError) return { status: 409, json: { error: e.message } }; // 기준 브랜치가 사라짐 등
+        if (e instanceof GhError) return { status: 502, json: { error: e.message } }; // GitHub 요청 실패(PR 모드)
         throw e;
       }
     },
