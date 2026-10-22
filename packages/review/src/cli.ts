@@ -6,8 +6,11 @@ import { fileURLToPath } from 'node:url';
 import type { ViewKind, ViewPayload } from './api-types';
 import { skillTemplate } from './assets';
 import { CliError } from './errors';
+import { Gh, runGh, type GhRunner, type PrView } from './gh';
 import { GitError, readTextAt, repoInfo, type RepoInfo } from './git';
 import { formatRounds, isoLocal, roundsJson } from './handoff';
+import { cleanPrRefs, fetchPr, parsePrRef } from './pr';
+import { PrSession, prLabel } from './pr-session';
 import type { Round } from './records';
 import { appHandlers } from './routes';
 import { IDLE_MS, startServer, type RunningServer } from './server';
@@ -29,6 +32,8 @@ export interface Io {
   open(url: string): void;
   /** 지금 도는 .mjs의 절대 경로 — skill 실행 명령을 고를 때 */
   selfPath: string;
+  /** PR 모드의 gh 실행기 — 없으면 진짜 gh. 시험은 바꿔 끼운다 */
+  gh?: GhRunner;
 }
 
 function openInBrowser(url: string): void {
@@ -57,6 +62,7 @@ export const USAGE = `markdown-diff-cat ${VERSION} — review changed Markdown a
 Usage:
   markdown-diff-cat review [--base <ref>] [--since-last] [--open]   start the review page and keep running
   markdown-diff-cat review --reopen [--open]                         print a new one-time link for the running page
+  markdown-diff-cat review --pr <number|URL> [--open]                review a GitHub pull request (needs gh signed in)
   markdown-diff-cat comments [--json] [--round N]                    print the rounds not delivered yet
   markdown-diff-cat wait                                             wait for the next "Send to agent", then print it
   markdown-diff-cat mark --rev <id>                                  treat a review render as the last review
@@ -65,7 +71,8 @@ Usage:
   markdown-diff-cat skill install [--user|--project] [--check]       install or check the agent skill
   markdown-diff-cat --version
 
-Needs macOS or Linux, Node 22.19 or newer, and git.
+Needs macOS or Linux, Node 22.19 or newer, and git. PR mode also needs the GitHub CLI (gh).
+In PR mode, comments go to your pending review only when you press "Add to pending review"; you submit the review on GitHub.
 State lives in \${XDG_STATE_HOME:-~/.local/state}/markdown-diff-cat (MDC_STATE_DIR overrides it).`;
 
 export { CliError };
@@ -117,6 +124,7 @@ const NOTICE_TEXT: Record<string, (subs: string[]) => string> = {
   reviewNoticeHeadIsBase: () => 'HEAD is the tip of the default branch, so only uncommitted changes are shown.',
   reviewNoticeUpstream: ([ref]) => `This repository has an upstream remote. For a fork, compare with --base ${ref}.`,
   reviewNoticeSkipped: ([path]) => `Not shown: ${path} resolves outside the repository.`,
+  reviewNoticePrCheckout: ([n]) => `This worktree is not on the head of pull request #${n} — run gh pr checkout ${n} before an agent edits the files.`,
 };
 
 function stateFor(io: Io, repo: RepoInfo): StateStore {
@@ -135,13 +143,13 @@ const busyText = (info: ServerInfo, again: string): string =>
   `the review server on port ${info.port} is busy (it may still be drawing a large change) — wait a moment and run markdown-diff-cat ${again}`;
 
 /** server.json의 서버가 살아 있고 이 worktree의 것인가 — 아니면 낡은 파일을 지운다(pid로 죽이지 않는다). 늦게 답하면 바쁜 것으로 보고 파일을 둔다 */
-async function liveServer(store: StateStore, repo: RepoInfo, again: string): Promise<ServerInfo | null> {
+async function liveServer(store: StateStore, repo: RepoInfo, again: string): Promise<(ServerInfo & { mode: string }) | null> {
   const info = store.readServer();
   if (!info) return null;
   try {
     const res = await control(info, '/control/ping', {}, 1500);
-    const body = (await res.json()) as { root?: string };
-    if (res.ok && body.root === repo.root) return info;
+    const body = (await res.json()) as { root?: string; mode?: string };
+    if (res.ok && body.root === repo.root) return { ...info, mode: body.mode ?? 'worktree' };
   } catch (e) {
     if (timedOut(e)) throw new CliError(1, busyText(info, again));
     // 연결 거부 등 — 낡은 상태 파일
@@ -169,35 +177,70 @@ function claimStart(claim: string): void {
   }
 }
 
+const modeText = (mode: string): string => (mode.startsWith('pr:') ? mode.slice(3) : 'the working tree');
+
+/** PR 모드에서 이미 확인한 것 — gh와 PR(받기 전) */
+interface PrStart {
+  gh: Gh;
+  view: PrView;
+  ref: string;
+}
+
 /** 떠 있는 서버에 요청하거나(0을 돌려준다) 새 서버를 띄워 server.json을 쓴다 — 시작 잠금 안에서 돈다 */
-async function startOrReuse(args: Args, io: Io, repo: RepoInfo, store: StateStore): Promise<number | { server: RunningServer; first: ViewPayload }> {
+async function startOrReuse(args: Args, io: Io, repo: RepoInfo, store: StateStore, pr: PrStart | null): Promise<number | { server: RunningServer; first: ViewPayload; session: ReviewSession }> {
   const view: ViewKind = args.flags.has('since-last') ? 'since-last' : 'merge-base';
   const base = args.flags.get('base');
   const baseRef = typeof base === 'string' ? base : undefined;
+  const mode = pr ? `pr:${prLabel(pr.view)}` : 'worktree';
   const running = await liveServer(store, repo, args.flags.has('reopen') ? 'review --reopen' : 'review');
+  // 서버는 worktree마다 하나 — 다른 모드(작업 트리 ↔ PR, 다른 PR)로 바꾸지 않고 멈추게 한다(--reopen은 모드를 묻지 않는다)
+  if (running && !args.flags.has('reopen') && running.mode !== mode) {
+    throw new CliError(1, `A review server for ${modeText(running.mode)} is already running in this worktree (port ${running.port}) — run markdown-diff-cat stop first.`);
+  }
   if (running) {
-    const url = args.flags.has('reopen') ? await newUrl(running, '/control/code', {}) : await newUrl(running, '/control/base', { view, base: baseRef });
+    const url = args.flags.has('reopen') || pr ? await newUrl(running, '/control/code', {}) : await newUrl(running, '/control/base', { view, base: baseRef });
     io.out(`A review server is already running for this worktree (port ${running.port}).`);
     io.out(`Review page (one-time link, valid 2 minutes): ${url}`);
     if (args.flags.has('open')) io.open(url);
     return 0;
   }
   if (args.flags.has('reopen')) throw new CliError(1, 'no review server is running for this worktree — run markdown-diff-cat review');
-  const session = new ReviewSession({ root: repo.root, store, baseRef, view });
+  let session: ReviewSession;
+  if (pr) {
+    const fetched = fetchPr(repo.root, pr.view);
+    // 다시 그리기는 PR을 다시 받는다(사이에 올라온 새 커밋)
+    const refetch = async () => fetchPr(repo.root, await pr.gh.prView(pr.ref));
+    session = new PrSession({ root: repo.root, store, view: 'merge-base', pr: fetched, gh: pr.gh, refetch });
+  } else session = new ReviewSession({ root: repo.root, store, baseRef, view });
   const first = session.view();
   for (const n of first.notices) io.out(NOTICE_TEXT[n.key]?.(n.subs ?? []) ?? n.key);
   if (first.files.length === 0) {
-    io.out(`No Markdown changes between ${first.baseText} and the working tree.`);
+    io.out(pr ? `No Markdown changes in ${prLabel(pr.view)}.` : `No Markdown changes between ${first.baseText} and the working tree.`);
     return 0;
   }
-  const server = await startServer({ app: appHandlers(session), idleMs: IDLE_MS, pid: process.pid, root: repo.root });
+  const server = await startServer({ app: appHandlers(session), idleMs: IDLE_MS, pid: process.pid, root: repo.root, mode });
   store.writeServer({ port: server.port, pid: process.pid, startedAt: new Date().toISOString(), controlSecret: server.controlSecret, root: repo.root, version: VERSION });
-  return { server, first };
+  return { server, first, session };
+}
+
+/** --pr이면 gh 로그인과 PR을 먼저 확인한다(받기는 새 서버를 띄울 때만) */
+async function prStart(args: Args, io: Io, repo: RepoInfo): Promise<PrStart | null> {
+  const arg = args.flags.get('pr');
+  if (arg === undefined) return null;
+  const ref = parsePrRef(String(arg));
+  const gh = new Gh(io.gh ?? runGh, repo.root);
+  await gh.checkAuth();
+  return { gh, ref, view: await gh.prView(ref) };
 }
 
 async function review(args: Args, io: Io): Promise<number> {
-  if (args.flags.has('pr')) throw new CliError(2, 'PR mode (--pr) is not available in this version yet');
+  // 사용법 오류(2)는 저장소·네트워크보다 먼저
+  if (args.flags.has('pr')) {
+    if (args.flags.has('base') || args.flags.has('since-last')) throw new CliError(2, '--pr does not take --base or --since-last');
+    parsePrRef(String(args.flags.get('pr')));
+  }
   const repo = repoInfo(io.cwd);
+  const pr = await prStart(args, io, repo);
   const store = stateFor(io, repo);
   const kept: string[] = [];
   const removed = cleanupStale(store.base, kept);
@@ -207,15 +250,20 @@ async function review(args: Args, io: Io): Promise<number> {
   claimStart(claim);
   let started: Awaited<ReturnType<typeof startOrReuse>>;
   try {
-    started = await startOrReuse(args, io, repo, store);
+    started = await startOrReuse(args, io, repo, store, pr);
   } finally {
     rmSync(claim, { force: true });
   }
   if (typeof started === 'number') return started;
-  const { server, first } = started;
+  const { server, first, session } = started;
   const url = server.newCodeUrl();
+  const count = `${first.files.length} Markdown ${first.files.length === 1 ? 'file' : 'files'}`;
   io.out(`Review page (one-time link, valid 2 minutes): ${url}`);
-  io.out(`Comparing ${first.baseText} → working tree · ${first.files.length} Markdown ${first.files.length === 1 ? 'file' : 'files'}`);
+  if (session instanceof PrSession) {
+    const p = session.prRef();
+    io.out(`Reviewing ${prLabel(p)} ${JSON.stringify(p.title)} — base ${p.mergeBase.slice(0, 7)} → head ${p.headOid.slice(0, 7)} · ${count}`);
+    io.out('Comments go to your pending review only when you press "Add to pending review"; you submit the review on GitHub.');
+  } else io.out(`Comparing ${first.baseText} → working tree · ${count}`);
   io.out('Keep this command running. After the user presses "Send to agent", read the comments with: markdown-diff-cat wait (or markdown-diff-cat comments)');
   if (!server.ipv6) io.out('IPv6 loopback (::1) is not available; listening on 127.0.0.1 only.');
   if (args.flags.has('open')) io.open(url);
@@ -339,6 +387,8 @@ async function stop(args: Args, io: Io): Promise<number> {
   if (args.flags.has('clean')) {
     rmSync(store.dir, { recursive: true, force: true });
     io.out(`Removed this worktree's review state: ${store.dir}`);
+    const refs = cleanPrRefs(store.root);
+    if (refs.length) io.out(`Removed ${refs.length} fetched pull request ${refs.length === 1 ? 'ref' : 'refs'} (refs/markdown-diff-cat/).`);
   }
   return 0;
 }

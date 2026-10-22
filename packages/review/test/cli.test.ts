@@ -13,8 +13,8 @@ afterEach(() => {
   for (const r of repos.splice(0)) r.cleanup();
 });
 
-type TestIo = Io & { lines: string[]; errs: string[]; opened: string[]; abort(): void; waitFor(re: RegExp): Promise<string> };
-function testIo(cwd: string, state: string): TestIo {
+export type TestIo = Io & { lines: string[]; errs: string[]; opened: string[]; abort(): void; waitFor(re: RegExp): Promise<string> };
+export function testIo(cwd: string, state: string): TestIo {
   const lines: string[] = [];
   const errs: string[] = [];
   const opened: string[] = [];
@@ -91,12 +91,10 @@ describe('간단한 명령', () => {
     expect(await main(['comments', '--base', 'x'], io)).toBe(2);
     expect(io.errs.join('\n')).toContain('comments does not take --base');
   });
-  it('git 저장소가 아니면 2, --pr은 아직 없음(2)', async () => {
+  it('git 저장소가 아니면 2', async () => {
     const io = testIo(tempDir(), tempDir());
     expect(await main(['review'], io)).toBe(2);
     expect(io.errs[0]).toBe('markdown-diff-cat: not a git repository — run it inside a working tree');
-    expect(await main(['review', '--pr', '12'], io)).toBe(2);
-    expect(io.errs[1]).toContain('PR mode (--pr) is not available');
   });
   it('저장 폴더를 못 쓰면 이유와 함께 1', async () => {
     const r = repoWith({ 'a.md': 'a\n' }, { 'a.md': 'b\n' });

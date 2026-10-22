@@ -98,7 +98,7 @@ describe('관문', () => {
     const control = { 'x-mdc-control': s.controlSecret };
     expect((await request(s.port, { path: '/control/ping' })).status).toBe(403);
     expect((await request(s.port, { path: '/control/ping', headers: { ...control, origin: `http://localhost:${s.port}` } })).status).toBe(403);
-    expect(JSON.parse((await request(s.port, { path: '/control/ping', headers: control })).text)).toEqual({ pid: 4242, root: '/repo', port: s.port });
+    expect(JSON.parse((await request(s.port, { path: '/control/ping', headers: control })).text)).toEqual({ pid: 4242, root: '/repo', port: s.port, mode: 'worktree' });
     expect(JSON.parse((await request(s.port, { method: 'POST', path: '/control/code', headers: control })).text).url).toMatch(/\?code=/);
     calls.length = 0;
     const res = await request(s.port, { method: 'POST', path: '/control/base', headers: control, body: { view: 'since-last' } });

@@ -33,6 +33,8 @@ export interface ServerOptions {
   /** /control/ping이 돌려줄 값 — CLI가 살아 있는 서버인지, 같은 worktree인지 본다 */
   pid?: number;
   root?: string;
+  /** /control/ping의 mode — 'worktree' 또는 'pr:<owner>/<repo>#<n>'. 같은 worktree의 다음 review가 같은 모드인지 본다 */
+  mode?: string;
 }
 
 export interface RunningServer {
@@ -190,7 +192,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
   };
 
   const control = async (req: IncomingMessage, path: string): Promise<Reply> => {
-    if (req.method === 'GET' && path === '/control/ping') return { status: 200, json: { pid: opts.pid ?? process.pid, root: opts.root ?? '', port } };
+    if (req.method === 'GET' && path === '/control/ping') return { status: 200, json: { pid: opts.pid ?? process.pid, root: opts.root ?? '', port, mode: opts.mode ?? 'worktree' } };
     if (req.method !== 'POST') return { status: 405, json: { error: 'method not allowed' } };
     if (path === '/control/code') return { status: 200, json: { url: newCodeUrl() } };
     if (path === '/control/base') {
