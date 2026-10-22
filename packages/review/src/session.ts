@@ -2,7 +2,7 @@
 import { randomBytes } from 'node:crypto';
 import { diffMarkdown, renderMarkdown, renderProseDiff, type FileDiff } from '@markdown-diff-cat/engine';
 import type { ReviewComment, ReviewThread } from '../../../src/types';
-import type { Badge, DraftInput, EarlierItem, FilePayload, Notice, PollPayload, PushPayload, SendPayload, ThreadsPayload, ViewKind, ViewPayload } from './api-types';
+import type { Badge, DraftInput, DraftListItem, EarlierItem, FilePayload, Notice, PollPayload, PushPayload, SendPayload, ThreadsPayload, ViewKind, ViewPayload } from './api-types';
 import { HttpError } from './errors';
 import { repoInfo, resolveBase, type BaseInfo } from './git';
 import { formatRound, isoLocal, lineLabel } from './handoff';
@@ -199,6 +199,13 @@ export class ReviewSession {
 
   draftCount(): number {
     return this.ownDrafts().length;
+  }
+
+  /** 확인 상자에 보일 초안 목록(만든 순서) */
+  draftList(): DraftListItem[] {
+    return this.ownDrafts()
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((d) => ({ id: d.id, path: d.path, lines: d.start === 0 ? 'whole file' : lineLabel(d.start, d.end), excerpt: excerpt(d.body) }));
   }
 
   // 라우트가 부르는 비동기 자리 — PR 모드(PrSession)는 GitHub 요청 때문에 여기서 기다린다

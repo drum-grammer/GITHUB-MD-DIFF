@@ -2,7 +2,7 @@
 import type { CommentBackend, CommentState } from '../../../../src/comment-controller';
 import { mappingFromAttributes, type BlockTarget } from '../../../../src/dom-blocks';
 import { t } from '../../../../src/i18n';
-import type { PostMode, ReviewComment } from '../../../../src/types';
+import type { PostMode, ReviewComment, ReviewThread } from '../../../../src/types';
 import type { Badge, ThreadsPayload } from '../api-types';
 import type { Api } from './api';
 
@@ -20,17 +20,32 @@ export interface LocalBackendOptions {
   badges: Map<string, Badge>;
   /** 초안이 바뀌었다(보내기 버튼 수를 고친다) */
   onChange(): void;
+  /** PR 모드 — GitHub 스레드에 답글(보류 중 리뷰에 넣기 전까지는 초안) */
+  pr?: boolean;
+  /** 받은 스레드 정보(PR 모드의 숨긴 수·포함 상자·GitHub 오류) — 페이지가 그린다 */
+  onThreads?(data: ThreadsPayload): void;
 }
 
 export class LocalBackend implements CommentBackend {
   /** 작업 트리 모드 — "Add comment" 버튼 하나, 아바타 없음(스펙 §5-6) */
   readonly form = { buttons: 'local' as const, showAvatar: false, singleLabel: t('reviewAddComment') };
 
-  constructor(private readonly o: LocalBackendOptions) {}
+  /** PR 모드에만 — 없으면 확장 스레드 상자가 답글 버튼을 그리지 않는다 */
+  readonly reply?: (thread: ReviewThread, text: string, mode: PostMode) => Promise<void>;
+
+  constructor(private readonly o: LocalBackendOptions) {
+    if (o.pr) {
+      this.reply = async (thread, text) => {
+        await o.api('POST', '/api/drafts', { rev: o.rev(), path: o.path, side: thread.side, start: thread.start, end: thread.end, body: text, replyTo: thread.id });
+        o.onChange();
+      };
+    }
+  }
 
   async load(): Promise<CommentState> {
     const data = await this.o.api<ThreadsPayload>('GET', `/api/threads?path=${encodeURIComponent(this.o.path)}`);
     for (const [id, badge] of Object.entries(data.badges)) this.o.badges.set(id, badge);
+    this.o.onThreads?.(data);
     return { threads: data.threads, pendingReview: false };
   }
 

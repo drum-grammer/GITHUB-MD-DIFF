@@ -124,4 +124,10 @@ describe('/file/<id>', () => {
     expect(await call('POST', '/api/review', { rev: view.rev })).toEqual({ status: 404, data: { error: 'Pending review is only in PR mode.' } });
     expect((await call('POST', '/api/send', { rev: view.rev, include: 'x' })).status).toBe(400);
   });
+  it('GET /api/drafts — 이 보기의 초안 목록(확인 상자용)', async () => {
+    const { call } = await boot({ 'a.md': 'a\n\nb\n' }, { 'a.md': 'a\n\nB\n' });
+    const view = (await call<ViewPayload>('GET', '/api/view')).data;
+    const d = (await call<{ id: string }>('POST', '/api/drafts', { rev: view.rev, path: 'a.md', side: 'right', start: 1, end: 3, body: 'First line\nsecond' })).data;
+    expect((await call('GET', '/api/drafts')).data).toEqual({ drafts: [{ id: d.id, path: 'a.md', lines: 'L1–3', excerpt: 'First line' }] });
+  });
 });
