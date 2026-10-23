@@ -130,7 +130,7 @@ One command per tier. Each runs its steps in order, keeps going after a failure,
 
 ## Roadmap
 
-[ROADMAP.md](ROADMAP.md) says where development stands and what comes next (Korean, with an English summary). As of 2026-10-23 the Chrome Web Store, GitHub Releases and npm all have **1.6.0**.
+[ROADMAP.md](ROADMAP.md) says where development stands and what comes next (Korean, with an English summary). As of 2026-10-23 GitHub Releases and npm have **1.7.0** (local review pull request mode); the Chrome Web Store has **1.6.0**, the same extension.
 
 ## Research and test reports
 
@@ -217,7 +217,7 @@ macOS 또는 Linux, Node.js 22.19 이상, git이 있어야 해요. 명령·에�
 
 ### 로드맵·조사·테스트
 
-어디까지 왔고 다음에 무엇을 할지는 [ROADMAP.md](ROADMAP.md)에 있어요. 2026-10-23 기준으로 크롬 웹 스토어·GitHub Releases·npm 모두 **1.6.0**이에요.
+어디까지 왔고 다음에 무엇을 할지는 [ROADMAP.md](ROADMAP.md)에 있어요. 2026-10-23 기준으로 GitHub Releases·npm은 **1.7.0**(로컬 리뷰 PR 모드), 크롬 웹 스토어는 확장이 같아 **1.6.0**이에요.
 
 | 날짜 | 보고서 | 찾은 것 |
 |---|---|---|
