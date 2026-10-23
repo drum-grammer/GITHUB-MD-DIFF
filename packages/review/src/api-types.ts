@@ -50,6 +50,8 @@ export interface ViewPayload {
   offView: OffViewItem[];
   /** 다른 판에서 보낸 코멘트(페이지 위 목록으로만) */
   earlier: EarlierItem[];
+  /** PR 모드의 PR(head는 7자) */
+  pr?: { owner: string; repo: string; number: number; url: string; title: string; head: string };
 }
 
 export type Badge = 'sent' | 'stale';
@@ -58,6 +60,12 @@ export interface ThreadsPayload {
   threads: ReviewThread[];
   /** 스레드 id → 배지(보냄·위치 확인 필요) */
   badges: Record<string, Badge>;
+  /** PR 모드 — 숨긴 낡은(outdated) 스레드 수 */
+  hidden?: number;
+  /** PR 모드 — GitHub 스레드 id → 남의 코멘트 수(에이전트에게 보내기에 넣을지 고르는 상자) */
+  github?: Record<string, { others: number }>;
+  /** PR 모드 — GitHub 스레드를 못 읽은 이유(내 초안은 그대로 보인다) */
+  githubError?: string;
 }
 
 export interface PollPayload {
@@ -80,4 +88,34 @@ export interface DraftInput {
   start: number;
   end: number;
   body: string;
+  /** PR 모드의 답글 — GitHub 스레드 id */
+  replyTo?: string;
+}
+
+/** PR 모드 — 보류 중 리뷰에 넣으면 그 초안이 어디에 들어가나(확인 상자 미리보기, 스펙 §6-3) */
+export type DraftPlace =
+  | { kind: 'line' }
+  | { kind: 'trimmed'; lines: string }
+  | { kind: 'file' }
+  | { kind: 'reply' }
+  /** 그 뒤 줄이 바뀌어 넣지 않는다 */
+  | { kind: 'stale' }
+  | { kind: 'error'; error: string };
+
+/** 초안 목록 한 줄(GET /api/drafts) — 파일 전체 코멘트는 lines가 "whole file" */
+export interface DraftListItem {
+  id: string;
+  path: string;
+  lines: string;
+  excerpt: string;
+  /** PR 모드에서 GitHub를 읽었을 때만 */
+  place?: DraftPlace;
+}
+
+/** 보류 중 리뷰에 넣기의 결과 — 실패한 것만 남는다 */
+export interface PushPayload {
+  added: number;
+  failed: Array<{ id: string; path: string; lines: string; error: string }>;
+  /** 리뷰를 제출할 GitHub 주소 */
+  url: string;
 }

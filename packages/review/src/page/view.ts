@@ -5,7 +5,7 @@ import { safeFragment } from '../../../../src/comment-ui';
 import { t } from '../../../../src/i18n';
 import { changeTargets } from '../../../../src/nav';
 import { MDF_ATTR } from '../../../../src/prose-markup';
-import type { Badge, FilePayload, PollPayload, SendPayload, ViewPayload } from '../api-types';
+import type { Badge, DraftListItem, DraftPlace, FilePayload, PollPayload, PushPayload, SendPayload, ThreadsPayload, ViewPayload } from '../api-types';
 import { ApiError, type Api } from './api';
 import { LocalBackend } from './local-backend';
 
@@ -33,6 +33,26 @@ function el<K extends keyof HTMLElementTagNameMap>(doc: Document, tag: K, classN
   if (text) e.textContent = text;
   return e;
 }
+
+/** 확인 상자 — 그 초안이 보류 중 리뷰의 어디에 들어가나(줄 그대로면 말하지 않는다) */
+function placeText(place: DraftPlace | undefined): string {
+  switch (place?.kind) {
+    case 'trimmed':
+      return t('reviewPlaceTrimmed', [place.lines]);
+    case 'file':
+      return t('reviewPlaceFile');
+    case 'reply':
+      return t('reviewPlaceReply');
+    case 'stale':
+      return t('reviewPlaceStale');
+    case 'error':
+      return t('reviewPlaceError', [place.error]);
+    default:
+      return '';
+  }
+}
+
+const addable = (d: DraftListItem): boolean => d.place?.kind !== 'stale' && d.place?.kind !== 'error';
 
 function button(doc: Document, label: string, className = 'mdf-btn'): HTMLButtonElement {
   const b = el(doc, 'button', className, label);
@@ -85,6 +105,12 @@ export class ReviewPage {
   private banner: HTMLElement | null = null;
   private bannerState = '';
   private sendButton: HTMLButtonElement | null = null;
+  private pushButton: HTMLButtonElement | null = null;
+  private drafts = 0;
+  /** PR 모드 — 에이전트에게 보내기에 넣을 GitHub 스레드(사람이 고른 것) */
+  private readonly include = new Set<string>();
+  /** PR 모드 — GitHub 스레드 id → 남의 코멘트 수(포함 상자를 다는 스레드) */
+  private readonly github = new Map<string, { others: number }>();
   private timer: ReturnType<typeof setInterval> | undefined;
 
   constructor(
@@ -104,6 +130,7 @@ export class ReviewPage {
   render(view: ViewPayload): void {
     this.dispose();
     this.view = view;
+    this.include.clear();
     const doc = this.deps.doc;
     this.banner = el(doc, 'div', 'mdc-banner');
     this.banner.hidden = true;
@@ -133,18 +160,98 @@ export class ReviewPage {
     void this.deps.mermaid(this.root);
   }
 
-  /** "에이전트에게 보내기" — 사람이 본 판(rev)을 보낸다 */
+  /** "에이전트에게 보내기" — 사람이 본 판(rev)을 보낸다. PR 모드는 고른 GitHub 스레드도 */
   async send(): Promise<void> {
     if (!this.view || !this.sendButton) return;
     this.sendButton.disabled = true;
     try {
-      const r = await this.deps.api<SendPayload>('POST', '/api/send', { rev: this.view.rev });
+      const r = await this.deps.api<SendPayload>('POST', '/api/send', { rev: this.view.rev, ...(this.include.size ? { include: [...this.include] } : {}) });
       await this.load();
       this.toast(r.comments === 1 ? t('reviewSentOne', [r.round]) : t('reviewSent', [r.round, r.comments]));
     } catch (e) {
       this.toast(e instanceof Error ? e.message : String(e));
       await this.refreshSummary();
     }
+  }
+
+  /**
+   * PR 모드 "보류 중 리뷰에 넣기" — 확인 상자(PR·건수·글)를 거쳐야 넣는다. 페이지는 에이전트도 누를 수 있는 브라우저에서 열리므로
+   * 공개는 하지 않고 보류 중 리뷰에만, 제출은 사람이 GitHub에서(스펙 §6-3)
+   */
+  async push(): Promise<void> {
+    const view = this.view;
+    if (!view?.pr) return;
+    let list: DraftListItem[];
+    try {
+      list = (await this.deps.api<{ drafts: DraftListItem[] }>('GET', '/api/drafts')).drafts;
+    } catch (e) {
+      this.toast(e instanceof Error ? e.message : String(e));
+      return;
+    }
+    const doc = this.deps.doc;
+    doc.querySelector('.mdc-confirm')?.remove();
+    const label = `${view.pr.owner}/${view.pr.repo}#${view.pr.number}`;
+    const overlay = el(doc, 'div', 'mdc-confirm');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    const box = el(doc, 'div', 'mdc-confirm-box');
+    const title = el(doc, 'h2', '', t('reviewPushConfirm', [list.filter(addable).length, label]));
+    title.id = 'mdc-confirm-title';
+    overlay.setAttribute('aria-labelledby', title.id);
+    const ul = el(doc, 'ul');
+    const fill = (items: string[]): void => ul.replaceChildren(...items.map((text) => el(doc, 'li', '', text)));
+    fill(
+      list.map((d) => {
+        const where = placeText(d.place);
+        return `${d.path} · ${d.lines} · ${d.excerpt}${where ? ` → ${where}` : ''}`;
+      }),
+    );
+    const hint = el(doc, 'p', 'mdc-confirm-hint', t('reviewPushHint'));
+    const error = el(doc, 'p', 'mdc-confirm-error');
+    error.hidden = true;
+    error.setAttribute('role', 'alert');
+    const cancel = button(doc, t('cancel'), 'mdf-btn mdc-confirm-cancel');
+    const add = button(doc, t('reviewPushAdd'), 'mdf-btn mdf-btn-primary mdc-confirm-add');
+    add.disabled = !list.some(addable);
+    cancel.addEventListener('click', () => overlay.remove());
+    add.addEventListener('click', async () => {
+      add.disabled = true;
+      error.hidden = true;
+      try {
+        const r = await this.deps.api<PushPayload>('POST', '/api/review', { rev: view.rev });
+        if (!r.failed.length) {
+          this.toast(t('reviewPushed', [r.added]), { text: t('reviewPushedLink'), href: r.url });
+          overlay.remove();
+          await this.load();
+          return;
+        }
+        title.textContent = t('reviewPushFailed', [r.added]);
+        fill(r.failed.map((f) => `${f.path} · ${f.lines} · ${f.error}`));
+        hint.hidden = true;
+        add.hidden = true;
+        cancel.textContent = t('reviewPushClose');
+        if (r.added) void this.load();
+      } catch (e) {
+        error.textContent = e instanceof Error ? e.message : String(e);
+        // 새 커밋·낡은 판(409) — 상자 안에서 바로 다시 그린다
+        if (e instanceof ApiError && e.status === 409) {
+          const redraw = button(doc, t('reviewRedraw'), 'mdf-btn mdc-confirm-redraw');
+          redraw.addEventListener('click', () => {
+            overlay.remove();
+            void this.load('POST', '/api/redraw');
+          });
+          error.append(' ', redraw);
+        }
+        error.hidden = false;
+        add.disabled = false;
+      }
+    });
+    const actions = el(doc, 'div', 'mdc-confirm-actions');
+    actions.append(cancel, add);
+    box.append(title, ul, hint, error, actions);
+    overlay.append(box);
+    doc.body.append(overlay);
+    add.focus();
   }
 
   /** 파일이 바뀌었거나 기준이 바뀌었으면 위에 알림 — 저절로 다시 그리지 않는다(쓰던 상자를 잃지 않게) */
@@ -184,19 +291,83 @@ export class ReviewPage {
     if (this.deps.remote) showRemoteImages(body);
     applyBody(body);
     const view = this.view!;
-    const backend = new LocalBackend({ api: this.deps.api, path: file.path, rev: () => view.rev, newText: () => file.newText, badges: this.badges, onChange: () => void this.refreshSummary() });
+    const backend = new LocalBackend({
+      api: this.deps.api,
+      path: file.path,
+      rev: () => view.rev,
+      newText: () => file.newText,
+      badges: this.badges,
+      onChange: () => void this.refreshSummary(),
+      pr: Boolean(view.pr),
+      onThreads: (data) => this.onThreads(body, data),
+    });
     this.controllers.push(new CommentController(body, backend));
     const observer = new MutationObserver(() => {
       decorateThreads(body, this.badges);
+      this.decorateIncludes(body);
       this.updateCounts();
     });
     observer.observe(body, { childList: true, subtree: true });
     this.observers.push(observer);
   }
 
+  /** PR 모드 — 숨긴 낡은 스레드 수·GitHub를 못 읽은 이유를 파일 머리에, 포함 상자를 달 스레드를 기억한다 */
+  private onThreads(body: HTMLElement, data: ThreadsPayload): void {
+    for (const [id, g] of Object.entries(data.github ?? {})) this.github.set(id, g);
+    const section = body.closest('section');
+    const prose = section?.querySelector('.prose-diff');
+    if (!section || !prose) return;
+    const notice = (cls: string, text: string): void => {
+      let p = section.querySelector<HTMLElement>(`.${cls}`);
+      if (!text) {
+        p?.remove();
+        return;
+      }
+      p ??= el(this.deps.doc, 'p', `mdc-file-notice ${cls}`);
+      p.textContent = text;
+      if (!p.isConnected) section.insertBefore(p, prose);
+    };
+    notice('mdc-outdated', data.hidden ? (data.hidden === 1 ? t('reviewOutdatedHiddenOne') : t('reviewOutdatedHidden', [data.hidden])) : '');
+    notice('mdc-github-error', data.githubError ? t('reviewGithubError', [data.githubError]) : '');
+  }
+
+  /** 남의 코멘트가 있는 GitHub 스레드에 "에이전트에게 보내기에 넣기" 상자 — 기본은 넣지 않는다(스펙 §6-4) */
+  private decorateIncludes(body: HTMLElement): void {
+    for (const box of body.querySelectorAll<HTMLElement>(`[${MDF_ATTR}="thread"]`)) {
+      const id = box.dataset.threadId ?? '';
+      if (!this.github.has(id) || box.querySelector('.mdc-include')) continue;
+      const doc = box.ownerDocument;
+      const label = el(doc, 'label', 'mdc-include');
+      const input = el(doc, 'input', 'mdc-include-box');
+      input.type = 'checkbox';
+      input.checked = this.include.has(id);
+      input.addEventListener('change', () => {
+        if (input.checked) this.include.add(id);
+        else this.include.delete(id);
+        this.setDrafts(this.drafts);
+      });
+      label.append(input, doc.createTextNode(t('reviewIncludeThread')));
+      box.querySelector('.mdf-thread-head')?.after(label);
+    }
+  }
+
   private header(view: ViewPayload): HTMLElement {
     const doc = this.deps.doc;
     const header = el(doc, 'header', 'mdc-header');
+    if (view.pr) {
+      const pr = view.pr;
+      const link = el(doc, 'a', 'mdc-pr-link', `${pr.owner}/${pr.repo}#${pr.number}`);
+      link.setAttribute('href', pr.url);
+      link.setAttribute('rel', 'noreferrer');
+      link.title = pr.title;
+      // PR 모드에는 "파일이 바뀜" 알림이 없다 — 새 커밋은 늘 있는 Redraw로 다시 받는다
+      const redraw = button(doc, t('reviewRedraw'), 'mdf-btn mdc-redraw');
+      redraw.title = t('reviewPrRedrawHint');
+      redraw.addEventListener('click', () => void this.load('POST', '/api/redraw'));
+      header.append(el(doc, 'h1', 'mdc-title', t('reviewTitle')), link, el(doc, 'span', 'mdc-base', t('reviewPrBaseLine', [view.baseText, pr.head])), redraw);
+      this.headerButtons(header, view);
+      return header;
+    }
     const select = el(doc, 'select', 'mdc-base-select');
     select.setAttribute('aria-label', t('reviewBaseLabel'));
     for (const [value, key] of [
@@ -211,25 +382,44 @@ export class ReviewPage {
     select.disabled = !view.sinceLastAvailable;
     select.addEventListener('change', () => void this.load('POST', '/api/base', { view: select.value }));
     header.append(el(doc, 'h1', 'mdc-title', t('reviewTitle')), el(doc, 'span', 'mdc-base', t('reviewBaseLine', [view.baseText])), select);
+    this.headerButtons(header, view);
+    return header;
+  }
+
+  /** 작업 트리 모드는 "에이전트에게 보내기"가 주 버튼, PR 모드는 "보류 중 리뷰에 넣기"가 주 버튼이고 보내기는 옆에 */
+  private headerButtons(header: HTMLElement, view: ViewPayload): void {
+    const doc = this.deps.doc;
     const remote = countRemoteImages(view.files);
     if (remote || this.deps.remote) {
       const r = button(doc, this.deps.remote ? t('reviewRemoteHide') : t('reviewRemoteShow', [remote]), 'mdf-btn mdc-remote');
       r.addEventListener('click', () => this.deps.navigate(this.deps.remote ? '/' : '/?remote=1'));
       header.append(r);
     }
-    const send = button(doc, '', 'mdf-btn mdf-btn-primary mdc-send');
+    const send = button(doc, '', view.pr ? 'mdf-btn mdc-send' : 'mdf-btn mdf-btn-primary mdc-send');
     send.addEventListener('click', () => void this.send());
     this.sendButton = send;
-    this.setDrafts(view.drafts);
     header.append(send);
-    return header;
+    this.pushButton = null;
+    if (view.pr) {
+      const push = button(doc, '', 'mdf-btn mdf-btn-primary mdc-push');
+      push.addEventListener('click', () => void this.push());
+      this.pushButton = push;
+      header.append(push);
+    }
+    this.setDrafts(view.drafts);
   }
 
   private setDrafts(n: number): void {
+    this.drafts = n;
+    if (this.pushButton) {
+      this.pushButton.textContent = n ? t('reviewPushCount', [n]) : t('reviewPush');
+      this.pushButton.disabled = n === 0;
+    }
     if (!this.sendButton) return;
-    this.sendButton.textContent = n ? t('reviewSendCount', [n]) : t('reviewSend');
-    this.sendButton.disabled = n === 0;
-    this.sendButton.title = n ? '' : t('reviewSendEmpty');
+    const count = n + this.include.size;
+    this.sendButton.textContent = count ? t('reviewSendCount', [count]) : t('reviewSend');
+    this.sendButton.disabled = count === 0;
+    this.sendButton.title = count ? '' : t('reviewSendEmpty');
   }
 
   private async refreshSummary(): Promise<void> {
@@ -300,10 +490,16 @@ export class ReviewPage {
     return box;
   }
 
-  private toast(text: string): void {
+  private toast(text: string, link?: { text: string; href: string }): void {
     const doc = this.deps.doc;
     doc.querySelector('.mdc-toast')?.remove();
     const box = el(doc, 'div', 'mdc-toast', text);
+    if (link) {
+      const a = el(doc, 'a', '', link.text);
+      a.setAttribute('href', link.href);
+      a.setAttribute('rel', 'noreferrer');
+      box.append(' ', a);
+    }
     box.setAttribute('role', 'status');
     doc.body.append(box);
     setTimeout(() => box.remove(), TOAST_MS);

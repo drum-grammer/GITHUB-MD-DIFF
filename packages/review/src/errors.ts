@@ -7,3 +7,13 @@ export class HttpError extends Error {
     super(message);
   }
 }
+
+/** 명령의 실패 — code가 종료 코드다(사용법 2, 그 밖 1) */
+export class CliError extends Error {
+  constructor(
+    readonly code: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}

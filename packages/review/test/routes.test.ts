@@ -116,4 +116,18 @@ describe('/file/<id>', () => {
     const html = (await call<ViewPayload>('GET', '/api/view')).data.files[0].html;
     expect(html).not.toMatch(/src="\/file\//);
   });
+  it('보내기는 include를 받아도 작업 트리 모드에서 무시하고, 보류 중 리뷰는 작업 트리 모드에서 404', async () => {
+    const { call } = await boot({ 'a.md': 'a\n' }, { 'a.md': 'b\n' });
+    const view = (await call<ViewPayload>('GET', '/api/view')).data;
+    await call('POST', '/api/drafts', { rev: view.rev, path: 'a.md', side: 'right', start: 1, end: 1, body: 'x' });
+    expect((await call('POST', '/api/send', { rev: view.rev, include: ['PRRT_x'] })).data).toEqual({ round: 1, comments: 1 });
+    expect(await call('POST', '/api/review', { rev: view.rev })).toEqual({ status: 404, data: { error: 'Pending review is only in PR mode.' } });
+    expect((await call('POST', '/api/send', { rev: view.rev, include: 'x' })).status).toBe(400);
+  });
+  it('GET /api/drafts — 이 보기의 초안 목록(확인 상자용)', async () => {
+    const { call } = await boot({ 'a.md': 'a\n\nb\n' }, { 'a.md': 'a\n\nB\n' });
+    const view = (await call<ViewPayload>('GET', '/api/view')).data;
+    const d = (await call<{ id: string }>('POST', '/api/drafts', { rev: view.rev, path: 'a.md', side: 'right', start: 1, end: 3, body: 'First line\nsecond' })).data;
+    expect((await call('GET', '/api/drafts')).data).toEqual({ drafts: [{ id: d.id, path: 'a.md', lines: 'L1–3', excerpt: 'First line' }] });
+  });
 });

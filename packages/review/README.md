@@ -9,6 +9,7 @@ It is the command-line companion of [Markdown Diff Cat for GitHub](https://chrom
 - macOS or Linux (Windows is not supported yet)
 - Node.js 22.19 or newer
 - git
+- For pull request mode only: the [GitHub CLI](https://cli.github.com) (`gh`), signed in with `gh auth login`
 
 ## Quick start
 
@@ -38,17 +39,32 @@ By default, the branch point → your working tree, including uncommitted and un
 
 Edits that do not change the rendering (Markdown syntax, a link target, an HTML comment, zero-width characters) are not folded away. They show as a "Source changed — not visible in the rendering" bar that opens the source diff.
 
+## Review a pull request
+
+```bash
+npx -y markdown-diff-cat review --pr 123
+```
+
+`review --pr <number|URL>` takes the number or the pull request URL (`https://github.com/<owner>/<repo>/pull/123`) and shows that pull request in the same page. Run it in a clone of the repository. It fetches the pull request into `refs/markdown-diff-cat/pr/<number>/` without touching your branches or working tree, and compares the merge base with the pull request head, the way GitHub's "Files changed" does. In a fork, it fetches from the remote that points at the base repository.
+
+- Existing review threads appear under their blocks (whole-file threads at the top of the file; outdated ones are counted and left on GitHub). You can reply to them.
+- Your comments stay drafts in the page until you press **Add to pending review** and confirm. They then go to **your pending review** on GitHub. Nothing is published from the page: You submit the review on GitHub. If you already started a review there, they are added to it.
+- GitHub accepts line comments only on lines inside the pull request's diff. A comment that reaches outside it is trimmed to the changed lines, and one on unchanged lines becomes a comment on the whole file with the quoted lines; the comment says so, and the confirm dialog shows it before anything is added.
+- If new commits arrive after you opened the page, nothing is added. Press **Redraw** to fetch the pull request again; a comment whose lines changed is not added at its old line numbers — delete it and comment again in the right place.
+- **Send to agent** works here too, for fixing your own pull request: your comments, plus the threads by others that you tick. Check out the pull request head (`gh pr checkout 123`) before the agent edits, so the line numbers match.
+
 ## Commands
 
 | Command | What it does |
 |---|---|
 | `review [--base <ref>] [--since-last] [--open]` | Start the review page and keep running. `--open` opens your default browser. A second `review` in the same worktree reuses the running server and prints a new link |
 | `review --reopen` | Print a new one-time link for the running page |
+| `review --pr <number\|URL> [--open]` | Review a GitHub pull request (needs `gh`). One server per worktree: stop a running review of something else first |
 | `comments [--json] [--round N]` | Print the rounds not delivered yet (oldest first) and mark them delivered. With nothing new, it shows the last round again, marked "already delivered" |
 | `wait` | Wait for the next **Send to agent**, then print it like `comments`. Returns at once if a round is already waiting |
 | `mark --rev <id>` | Treat a review render as the last review, for `--since-last` |
 | `show --rev <id> [--side old\|new] <path> [<start>-<end>]` | Print the source lines of either side of a review render (default: new) |
-| `stop [--clean]` | Stop the server. `--clean` also removes this worktree's saved state |
+| `stop [--clean]` | Stop the server. `--clean` also removes this worktree's saved state and the fetched pull request refs (`refs/markdown-diff-cat/`) |
 | `skill install [--user\|--project] [--check]` | Install the agent skill, or check that installed copies match this version |
 
 ## Use it with an agent
@@ -67,10 +83,10 @@ In the handoff, quoted source and comments by others are marked as untrusted dat
 
 ## Privacy and security
 
-- **Nothing leaves your machine by default.** The server listens only on `127.0.0.1` and `::1`, and the page talks only to it. Remote images stay blocked until you press **Show remote images**. A pull request mode is planned; it will reach GitHub only through the GitHub CLI (`gh`).
+- **Nothing leaves your machine by default.** The server listens only on `127.0.0.1` and `::1`, and the page talks only to it. Remote images stay blocked until you press **Show remote images**. Pull request mode reaches GitHub only through the GitHub CLI (`gh`), which keeps your credentials; this tool never reads a token. Comment text goes to `gh` as JSON on standard input, never as a command-line argument.
 - The printed link carries a one-time code that expires after about two minutes. The page swaps it for a secret kept in that browser tab only, so a link left in your terminal or chat history cannot be reused. No cookies.
 - The server accepts only `localhost`, `127.0.0.1`, and `[::1]` as the host, rejects requests from other origins, and serves the page under a strict Content Security Policy. HTML in your Markdown is sanitized.
-- It reads git without writing to `.git`, and it does not follow symbolic links out of the repository.
+- Worktree mode reads git without writing to `.git`. Pull request mode runs `git fetch`, which writes the refs under `refs/markdown-diff-cat/` and the objects they need, `FETCH_HEAD`, and — as any fetch from a named remote does — may update that remote's tracking branch for the base branch. It does not fetch submodules. Neither mode follows symbolic links out of the repository.
 - Its state (review renders, comment rounds, drafts) lives in `${XDG_STATE_HOME:-~/.local/state}/markdown-diff-cat/` (folders `0700`, files `0600`), never in your working tree or `.git`. `MDC_STATE_DIR` moves it, `stop --clean` removes this worktree's part, and the folders of worktrees that no longer exist are removed when `review` starts.
 - The server stops by itself after 8 hours without activity.
 

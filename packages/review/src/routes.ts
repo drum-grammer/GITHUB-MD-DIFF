@@ -1,6 +1,7 @@
 // 앱 동작 — 서버(server.ts)가 관문을 통과시킨 요청을 세션에 잇는다
 import type { DraftInput } from './api-types';
 import { HttpError } from './errors';
+import { GhError } from './gh';
 import { GitError } from './git';
 import { FILE_CSP } from './security';
 import type { AppHandlers, Reply } from './server';
@@ -15,10 +16,12 @@ function need(cond: unknown, message: string): asserts cond {
 const isView = (v: unknown): v is 'merge-base' | 'since-last' => v === 'merge-base' || v === 'since-last';
 const DRAFT = /^\/api\/drafts\/(d[0-9a-f]{8})$/;
 
+const isStrings = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
+
 function route(s: ReviewSession, method: string, path: string, url: URL, body: unknown): unknown {
   const key = `${method} ${path}`;
   if (key === 'GET /api/view') return s.view();
-  if (key === 'POST /api/redraw') return s.draw();
+  if (key === 'POST /api/redraw') return s.apiRedraw();
   if (key === 'POST /api/base') {
     need(isObject(body) && isView(body.view), 'view must be merge-base or since-last');
     return s.setView(body.view);
@@ -26,9 +29,10 @@ function route(s: ReviewSession, method: string, path: string, url: URL, body: u
   if (key === 'GET /api/threads') {
     const p = url.searchParams.get('path');
     need(p, 'path is required');
-    return s.threads(p);
+    return s.apiThreads(p);
   }
   if (key === 'GET /api/summary') return { drafts: s.draftCount() };
+  if (key === 'GET /api/drafts') return s.apiDrafts();
   if (key === 'GET /api/poll') {
     const rev = url.searchParams.get('rev');
     need(rev, 'rev is required');
@@ -40,7 +44,12 @@ function route(s: ReviewSession, method: string, path: string, url: URL, body: u
   }
   if (key === 'POST /api/send') {
     need(isObject(body) && typeof body.rev === 'string', 'rev is required');
-    return s.send(body.rev);
+    need(body.include === undefined || isStrings(body.include), 'include must be a list of thread ids');
+    return s.apiSend(body.rev, body.include ?? []);
+  }
+  if (key === 'POST /api/review') {
+    need(isObject(body) && typeof body.rev === 'string', 'rev is required');
+    return s.apiPush(body.rev);
   }
   if (key === 'POST /api/drafts') {
     need(
@@ -50,7 +59,8 @@ function route(s: ReviewSession, method: string, path: string, url: URL, body: u
         (body.side === 'left' || body.side === 'right') &&
         typeof body.start === 'number' &&
         typeof body.end === 'number' &&
-        typeof body.body === 'string',
+        typeof body.body === 'string' &&
+        (body.replyTo === undefined || typeof body.replyTo === 'string'),
       'rev, path, side, start, end and body are required',
     );
     return s.addDraft(body as unknown as DraftInput);
@@ -69,12 +79,13 @@ function route(s: ReviewSession, method: string, path: string, url: URL, body: u
 
 export function appHandlers(session: ReviewSession): AppHandlers {
   return {
-    api(method, path, url, body): Reply {
+    async api(method, path, url, body): Promise<Reply> {
       try {
-        return { status: 200, json: route(session, method, path, url, body) };
+        return { status: 200, json: await route(session, method, path, url, body) };
       } catch (e) {
         if (e instanceof HttpError) return { status: e.status, json: { error: e.message } };
         if (e instanceof GitError) return { status: 409, json: { error: e.message } }; // 기준 브랜치가 사라짐 등
+        if (e instanceof GhError) return { status: 502, json: { error: e.message } }; // GitHub 요청 실패(PR 모드)
         throw e;
       }
     },

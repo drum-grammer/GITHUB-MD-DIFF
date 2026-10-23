@@ -1,12 +1,28 @@
 // 저장 폴더에 남는 기록의 모양(스펙 §5-4). 줄은 1부터, 끝 포함
 export type SourceSide = 'old' | 'new';
+export type ReviewMode = 'worktree' | 'pr';
+
+/** PR 모드가 받은 PR — OID는 gh pr view로 확정하고 git fetch로 받은 것(스펙 §6-1) */
+export interface PrRef {
+  owner: string;
+  repo: string;
+  number: number;
+  url: string;
+  title: string;
+  baseOid: string;
+  headOid: string;
+  /** 옛 쪽 — git merge-base baseOid headOid(GitHub "Files changed"의 세 점 비교) */
+  mergeBase: string;
+}
 
 /** 렌더 판 — 서버가 diff를 그릴 때마다 하나. 코멘트의 줄 번호와 인용은 이 판 기준이다 */
 export interface RenderRecord {
   /** 'r' + 5자(base36) */
   id: string;
   createdAt: string;
-  mode: 'worktree';
+  mode: ReviewMode;
+  /** PR 모드 판의 PR */
+  pr?: PrRef;
   /** 그릴 때의 분기점 OID(첫 커밋 전이면 빈 트리) */
   baseOid: string;
   baseLabel: string;
@@ -40,6 +56,10 @@ export interface Draft {
   updatedAt: string;
   /** 다시 그린 판에서 그 줄의 원문이 달라졌다 — 사람이 위치를 확인해야 한다 */
   moved?: true;
+  /** 어느 세션의 초안인가 — PR 모드는 "pr:<owner>/<repo>#<n>", 작업 트리 모드는 없음. 세션은 자기 범위의 초안만 본다 */
+  scope?: string;
+  /** PR 모드의 답글 — GitHub 스레드 id(쪽·줄은 그 스레드 것) */
+  replyTo?: string;
 }
 
 /** 보낸 코멘트 한 건 — 스펙 §5-4의 JSON 모양 그대로 */
@@ -65,11 +85,15 @@ export interface StoredComment {
   suggestion: string | null;
   /** 분기점 OID 또는 지난 리뷰 판 id */
   base: string;
-  mode: 'worktree';
+  mode: ReviewMode;
   createdAt: string;
 }
 
-export type RoundBase = { kind: 'merge-base'; oid: string; label: string } | { kind: 'review-render'; rev: string };
+export type RoundBase =
+  | { kind: 'merge-base'; oid: string; label: string }
+  | { kind: 'review-render'; rev: string }
+  /** PR 모드 — oid는 분기점, head는 PR head, label은 "owner/repo#n" */
+  | { kind: 'pr'; oid: string; head: string; label: string };
 
 /** "에이전트에게 보내기" 1회 */
 export interface Round {
@@ -77,7 +101,7 @@ export interface Round {
   createdAt: string;
   /** 사람이 본 렌더 판 */
   rev: string;
-  mode: 'worktree';
+  mode: ReviewMode;
   base: RoundBase;
   /** 그린 뒤 보내기 전에 파일이 바뀌었다 */
   changedAfterRender: boolean;
@@ -86,6 +110,8 @@ export interface Round {
   comments: StoredComment[];
   /** PR 모드에서 사람이 빼낸 남의 코멘트 수(작업 트리 모드는 0) */
   excluded?: number;
+  /** PR 모드 — 작업 트리가 PR head가 아니어서 줄 번호가 맞지 않을 수 있다(넘기기 머리에 그대로) */
+  warning?: string;
 }
 
 export interface Mark {

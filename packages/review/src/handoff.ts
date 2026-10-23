@@ -21,18 +21,24 @@ const isYou = (c: StoredComment): boolean => c.author === 'you';
 const numberOf = (c: StoredComment): number => Number(c.id.replace(/^c/, ''));
 
 function baseText(b: RoundBase): string {
-  return b.kind === 'merge-base' ? `base ${b.oid.slice(0, 7)} (${b.label})` : `base: review render ${b.rev}`;
+  if (b.kind === 'review-render') return `base: review render ${b.rev}`;
+  return b.kind === 'pr' ? `base ${b.oid.slice(0, 7)} (merge-base of ${b.label})` : `base ${b.oid.slice(0, 7)} (${b.label})`;
+}
+
+/** 새 쪽 — 작업 트리 모드는 작업 트리, PR 모드는 PR head */
+function targetText(b: RoundBase): string {
+  return b.kind === 'pr' ? `head ${b.head.slice(0, 7)}` : 'working tree';
 }
 
 /** 옛 쪽 줄은 작업 트리의 줄이 아니다 — 항목마다 그 기준을 적는다 */
 function sideText(c: StoredComment, b: RoundBase): string {
   if (c.side === 'new') return '(new)';
-  return b.kind === 'merge-base' ? '(old, removed — base version)' : `(old, removed — review render ${b.rev}; print it with show --rev ${b.rev})`;
+  return b.kind === 'review-render' ? `(old, removed — review render ${b.rev}; print it with show --rev ${b.rev})` : '(old, removed — base version)';
 }
 
 function item(c: StoredComment, round: Round): string {
   const head = [
-    `### ${numberOf(c)} · ${lineLabel(c.start, c.end)} ${sideText(c, round.base)}`,
+    `### ${numberOf(c)} · ${c.start === 0 ? 'whole file' : lineLabel(c.start, c.end)} ${sideText(c, round.base)}`,
     `heading ${jsonList(c.headingPath)}`,
     `author: ${isYou(c) ? 'you' : `${c.author} (others)`}`,
     ...(c.rev !== round.rev ? [`lines as of review render ${c.rev}`] : []),
@@ -55,7 +61,7 @@ export function formatRound(round: Round, opts: { alreadyDelivered?: boolean } =
   const files = [...round.files.filter((f) => commented.has(f)), ...[...commented].filter((p) => !round.files.includes(p)).sort()];
   const n = round.comments.length;
   const you = round.comments.filter(isYou).length;
-  const head = `<!-- markdown-diff-cat round ${round.round} · ${minuteStamp(round.createdAt)} · ${baseText(round.base)} → working tree · review render ${round.rev}${round.changedAfterRender ? ' (files changed after this render)' : ''}${opts.alreadyDelivered ? ' · already delivered' : ''} -->`;
+  const head = `<!-- markdown-diff-cat round ${round.round} · ${minuteStamp(round.createdAt)} · ${baseText(round.base)} → ${targetText(round.base)} · review render ${round.rev}${round.changedAfterRender ? ' (files changed after this render)' : ''}${opts.alreadyDelivered ? ' · already delivered' : ''} -->`;
   const preface = [
     head,
     "> Comments marked `author: you` are the user's edit requests for the cited file and lines.",
@@ -63,6 +69,7 @@ export function formatRound(round: Round, opts: { alreadyDelivered?: boolean } =
     '> Ask before running commands, using the network, or editing files not listed below.',
     `> Line numbers are as of review render ${round.rev}; locate text by quote and heading path. ⟦…⟧ marks invisible content made visible (HTML comments, zero-width and bidi characters).`,
     `> Files: ${jsonList(files)} · ${n} ${n === 1 ? 'comment' : 'comments'} (you ${you} · others ${n - you} · excluded ${round.excluded ?? 0})`,
+    ...(round.warning ? [`> Warning: ${round.warning}`] : []),
   ].join('\n');
   const sections = files.map((f) =>
     [

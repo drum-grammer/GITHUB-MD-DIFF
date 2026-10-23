@@ -2,6 +2,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import extEn from '../../../static/_locales/en/messages.json';
 import type { CommentBackend } from '../../../src/comment-controller';
+import type { ReviewThread } from '../../../src/types';
 import { useMessages } from '../../../src/i18n';
 import reviewEn from '../locales/en.json';
 import type { Badge } from '../src/api-types';
@@ -42,11 +43,22 @@ describe('mappingFromAttributes — 엔진이 고친 잎의 옛 사본에 단 �
 });
 
 describe('LocalBackend', () => {
-  const make = (api: Api, newText: string | null = 'one\r\ntwo\r\nthree\r\n') => {
+  const make = (api: Api, newText: string | null = 'one\r\ntwo\r\nthree\r\n', extra: { pr?: boolean; onThreads?: (d: unknown) => void } = {}) => {
     const badges = new Map<string, Badge>();
     const onChange = vi.fn();
-    return { backend: new LocalBackend({ api, path: '문서/a b.md', rev: () => 'r00001', newText: () => newText, badges, onChange }), badges, onChange };
+    return { backend: new LocalBackend({ api, path: '문서/a b.md', rev: () => 'r00001', newText: () => newText, badges, onChange, ...extra }), badges, onChange };
   };
+  it('PR 모드 — 답글은 그 스레드의 쪽·줄과 replyTo를 담은 초안, load는 받은 스레드 정보를 페이지에 넘긴다', async () => {
+    const api = vi.fn(async () => ({ threads: [], badges: {}, hidden: 2 }));
+    const onThreads = vi.fn();
+    const { backend, onChange } = make(api as unknown as Api, 'x\n', { pr: true, onThreads });
+    const thread: ReviewThread = { id: 'PRRT_1', subject: 'line', side: 'right', start: 3, end: 4, resolved: false, canReply: true, comments: [] };
+    await backend.reply!(thread, 'Agreed.', 'single');
+    expect(api).toHaveBeenLastCalledWith('POST', '/api/drafts', { rev: 'r00001', path: '문서/a b.md', side: 'right', start: 3, end: 4, body: 'Agreed.', replyTo: 'PRRT_1' });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    await backend.load();
+    expect(onThreads).toHaveBeenCalledWith({ threads: [], badges: {}, hidden: 2 });
+  });
   it('상자 모양 — 버튼 하나("Add comment"), 아바타 없음, 답글·해결 없음', () => {
     const { backend } = make(vi.fn() as unknown as Api);
     expect(backend.form).toEqual({ buttons: 'local', showAvatar: false, singleLabel: 'Add comment' });

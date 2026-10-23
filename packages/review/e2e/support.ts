@@ -11,6 +11,8 @@ const URL_RE = /http:\/\/localhost:\d+\/\?code=[0-9a-f]{32}/;
 export interface Repo {
   dir: string;
   state: string;
+  /** CLI에 더할 환경(PR 모드 E2E의 가짜 gh PATH 등) */
+  env?: Record<string, string>;
   write(path: string, text: string): void;
   move(from: string, to: string): void;
   git(...args: string[]): string;
@@ -51,7 +53,7 @@ export function makeRepo(files: Record<string, string>, opts: { branch?: string 
 
 export function cli(repo: Repo, ...args: string[]): { code: number; stdout: string; stderr: string } {
   try {
-    const stdout = execFileSync(process.execPath, [CLI, ...args], { cwd: repo.dir, env: { ...process.env, MDC_STATE_DIR: repo.state }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    const stdout = execFileSync(process.execPath, [CLI, ...args], { cwd: repo.dir, env: { ...process.env, MDC_STATE_DIR: repo.state, ...repo.env }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     return { code: 0, stdout, stderr: '' };
   } catch (e) {
     const x = e as { status: number; stdout: string; stderr: string };
@@ -67,7 +69,7 @@ export interface Review {
 
 /** review를 백그라운드로 띄우고 1회용 주소가 나오면 돌려준다(에이전트가 run_in_background로 띄우는 것과 같다) */
 export function startReview(repo: Repo, ...args: string[]): Promise<Review> {
-  const child = spawn(process.execPath, [CLI, 'review', ...args], { cwd: repo.dir, env: { ...process.env, MDC_STATE_DIR: repo.state }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, [CLI, 'review', ...args], { cwd: repo.dir, env: { ...process.env, MDC_STATE_DIR: repo.state, ...repo.env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = '';
   return new Promise((ok, fail) => {
     const timer = setTimeout(() => fail(new Error(`no review URL in 20s:\n${out}`)), 20_000);

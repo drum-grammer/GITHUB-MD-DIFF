@@ -179,3 +179,171 @@ describe('조각 함수', () => {
     expect(b.querySelector('.mdc-badge-sent')!.textContent).toBe('Sent');
   });
 });
+
+describe('PR 모드 페이지', () => {
+  const PR = { owner: 'acme', repo: 'docs', number: 7, url: 'https://github.com/acme/docs/pull/7', title: 'Docs', head: '9f8e7d6' };
+  const prView = (extra: Partial<ViewPayload> = {}): ViewPayload => view({ pr: PR, baseText: '1a2b3c4 (merge-base of acme/docs#7)', ...extra });
+  const DRAFTS = {
+    drafts: [
+      { id: 'd1', path: 'docs/guide.md', lines: 'L3', excerpt: 'Shorter.', place: { kind: 'line' } },
+      { id: 'd2', path: 'docs/guide.md', lines: 'whole file', excerpt: 'Reply text', place: { kind: 'reply' } },
+      { id: 'd3', path: 'docs/guide.md', lines: 'L2–5', excerpt: 'Range', place: { kind: 'trimmed', lines: 'L3–5' } },
+      { id: 'd4', path: 'docs/guide.md', lines: 'L9', excerpt: 'Folded', place: { kind: 'file' } },
+      { id: 'd5', path: 'docs/guide.md', lines: 'L7', excerpt: 'Old', place: { kind: 'stale' } },
+      { id: 'd6', path: 'docs/x.md', lines: 'L1', excerpt: 'Elsewhere', place: { kind: 'error', error: 'docs/x.md is not among the changed files of the pull request' } },
+    ],
+  };
+  const comment = (id: string, author: string, mine = false) => ({ id, author, body: 'b', bodyHTML: '<p>b</p>', url: mine ? '' : 'https://github.com/x', pending: false, bodyVersion: '', canEdit: mine, canDelete: mine });
+  const GH_THREADS: ThreadsPayload = {
+    threads: [
+      { id: 'PRRT_1', subject: 'line', side: 'right', start: 3, end: 3, resolved: false, canReply: true, comments: [comment('C1', 'octocat')] },
+      { id: 'd00000001', subject: 'line', side: 'right', start: 3, end: 3, resolved: false, canReply: false, comments: [comment('d00000001', 'you', true)] },
+    ],
+    badges: {},
+    hidden: 2,
+    github: { PRRT_1: { others: 1 } },
+  };
+
+  function mountPr(v: ViewPayload, push: unknown = { added: 2, failed: [], url: 'https://github.com/acme/docs/pull/7/files' }, threads: ThreadsPayload = NO_THREADS) {
+    document.body.innerHTML = '<main id="mdc-app"></main>';
+    const root = document.getElementById('mdc-app')!;
+    const calls: string[] = [];
+    const api = vi.fn(async (method: string, path: string, body?: unknown) => {
+      calls.push(`${method} ${path}${body === undefined ? '' : ` ${JSON.stringify(body)}`}`);
+      if (path === '/api/view' || path === '/api/redraw') return v;
+      if (path.startsWith('/api/threads')) return threads;
+      if (path === '/api/summary') return { drafts: v.drafts };
+      if (path === '/api/drafts' && method === 'GET') return DRAFTS;
+      if (path === '/api/send') return { round: 1, comments: 3 };
+      if (path === '/api/review') {
+        if (push instanceof Error) throw push;
+        return push;
+      }
+      if (path.startsWith('/api/poll')) return { changed: false, superseded: false };
+      throw new Error(`unexpected ${method} ${path}`);
+    });
+    const page = new ReviewPage(root, { api: api as unknown as Api, doc: document, remote: false, mermaid: vi.fn(async () => {}), navigate: vi.fn() });
+    return { root, page, calls };
+  }
+
+  it('PR 머리 — 링크·→ head·기준 고르기 없음·보류 중 리뷰 버튼 수', async () => {
+    const { root, page } = mountPr(prView({ drafts: 2 }));
+    await page.load();
+    const link = root.querySelector<HTMLAnchorElement>('.mdc-pr-link')!;
+    expect(link.textContent).toBe('acme/docs#7');
+    expect(link.getAttribute('href')).toBe('https://github.com/acme/docs/pull/7');
+    expect(link.getAttribute('rel')).toBe('noreferrer');
+    expect(root.querySelector('.mdc-base')!.textContent).toBe('1a2b3c4 (merge-base of acme/docs#7) → head 9f8e7d6');
+    expect(root.querySelector('.mdc-base-select')).toBeNull();
+    const push = root.querySelector<HTMLButtonElement>('.mdc-push')!;
+    expect(push.textContent).toBe('Add to pending review (2)');
+    expect(push.disabled).toBe(false);
+    expect(push.classList.contains('mdf-btn-primary')).toBe(true);
+    const send = root.querySelector<HTMLButtonElement>('.mdc-send')!;
+    expect(send.textContent).toBe('Send to agent (2)');
+    expect(send.classList.contains('mdf-btn-primary')).toBe(false);
+    const empty = mountPr(prView({ drafts: 0 }));
+    await empty.page.load();
+    expect(empty.root.querySelector<HTMLButtonElement>('.mdc-push')!.textContent).toBe('Add to pending review');
+    expect(empty.root.querySelector<HTMLButtonElement>('.mdc-push')!.disabled).toBe(true);
+  });
+
+  it('넣기 — 확인 상자에 PR·건수·글, Cancel이면 요청 없음, Add면 POST /api/review 뒤 알림과 다시 그리기', async () => {
+    const { root, page, calls } = mountPr(prView({ drafts: 2 }));
+    await page.load();
+    await page.push();
+    const box = document.querySelector<HTMLElement>('.mdc-confirm')!;
+    expect(box.getAttribute('role')).toBe('dialog');
+    expect(box.getAttribute('aria-modal')).toBe('true');
+    expect(box.querySelector('h2')!.textContent).toBe('Add 4 to your pending review on acme/docs#7?');
+    expect([...box.querySelectorAll('li')].map((li) => li.textContent)).toEqual([
+      'docs/guide.md · L3 · Shorter.',
+      'docs/guide.md · whole file · Reply text → reply',
+      'docs/guide.md · L2–5 · Range → trimmed to L3–5, the changed lines GitHub accepts',
+      'docs/guide.md · L9 · Folded → added as a whole-file comment with the quoted lines',
+      'docs/guide.md · L7 · Old → not added — the lines changed since you wrote this',
+      'docs/x.md · L1 · Elsewhere → not added — docs/x.md is not among the changed files of the pull request',
+    ]);
+    expect(box.querySelector('.mdc-confirm-hint')!.textContent).toBe('Nothing is published until you submit the review on GitHub.');
+    box.querySelector<HTMLButtonElement>('.mdc-confirm-cancel')!.click();
+    expect(document.querySelector('.mdc-confirm')).toBeNull();
+    expect(calls.some((c) => c.startsWith('POST /api/review'))).toBe(false);
+    await page.push();
+    document.querySelector<HTMLButtonElement>('.mdc-confirm-add')!.click();
+    await vi.waitFor(() => expect(document.querySelector('.mdc-confirm')).toBeNull());
+    expect(calls).toContain('POST /api/review {"rev":"r00001"}');
+    const toast = document.querySelector('.mdc-toast')!;
+    expect(toast.textContent).toBe('Added 2 to your pending review. Submit it on GitHub');
+    expect(toast.querySelector('a')!.getAttribute('href')).toBe('https://github.com/acme/docs/pull/7/files');
+    expect(calls.filter((c) => c === 'GET /api/view')).toHaveLength(2);
+    expect(root.querySelector('.mdc-push')).not.toBeNull();
+  });
+
+  it('넣기 실패 — 넣지 못한 것은 이유와 함께 상자에 남고, 요청 오류는 상자에 그 문구', async () => {
+    const partial = mountPr(prView({ drafts: 2 }), { added: 1, failed: [{ id: 'd2', path: 'docs/guide.md', lines: 'L9', error: 'docs/guide.md is not among the changed files of the pull request' }], url: 'u' });
+    await partial.page.load();
+    await partial.page.push();
+    document.querySelector<HTMLButtonElement>('.mdc-confirm-add')!.click();
+    await vi.waitFor(() => expect(document.querySelector('.mdc-confirm h2')!.textContent).toBe('Added 1. Not added — still drafts here:'));
+    const box = document.querySelector<HTMLElement>('.mdc-confirm')!;
+    expect([...box.querySelectorAll('li')].map((li) => li.textContent)).toEqual(['docs/guide.md · L9 · docs/guide.md is not among the changed files of the pull request']);
+    expect(box.querySelector<HTMLButtonElement>('.mdc-confirm-add')!.hidden).toBe(true);
+    expect(box.querySelector('.mdc-confirm-cancel')!.textContent).toBe('Close');
+
+    const refused = mountPr(prView({ drafts: 2 }), new ApiError(409, 'New commits were pushed to acme/docs#7 after this view — press Redraw, check your comments, and add them again.'));
+    await refused.page.load();
+    await refused.page.push();
+    document.querySelector<HTMLButtonElement>('.mdc-confirm-add')!.click();
+    await vi.waitFor(() => expect(document.querySelector('.mdc-confirm-error')!.textContent).toContain('New commits were pushed'));
+    expect(document.querySelector<HTMLButtonElement>('.mdc-confirm-add')!.disabled).toBe(false);
+    // 새 커밋(409)이면 상자 안에서 바로 다시 그린다 — 막다른 길이 아니게
+    document.querySelector<HTMLButtonElement>('.mdc-confirm-redraw')!.click();
+    await vi.waitFor(() => expect(refused.calls).toContain('POST /api/redraw'));
+    expect(document.querySelector('.mdc-confirm')).toBeNull();
+  });
+
+  it('PR 머리에는 늘 Redraw — PR을 다시 받아 그린다(새 커밋)', async () => {
+    const { root, page, calls } = mountPr(prView({ drafts: 1 }));
+    await page.load();
+    const redraw = root.querySelector<HTMLButtonElement>('.mdc-header .mdc-redraw')!;
+    expect(redraw.textContent).toBe('Redraw');
+    redraw.click();
+    await vi.waitFor(() => expect(calls).toContain('POST /api/redraw'));
+  });
+
+  it('PR 모드에도 원격 이미지 보기', async () => {
+    const remote = file({ html: '<p class="rich-diff-level-zero vicinity" data-mdc-new="1-1"><img data-mdc-remote="https://example.com/a.png" alt="a"></p>' });
+    const { root, page } = mountPr(prView({ files: [remote] }));
+    await page.load();
+    expect(root.querySelector('.mdc-remote')!.textContent).toBe('Show remote images (1)');
+  });
+
+  it('남의 코멘트가 있는 스레드에만 포함 상자, 고른 것이 보내기 include로, 숨긴 낡은 스레드 수 알림', async () => {
+    const { root, page, calls } = mountPr(prView({ drafts: 2 }), undefined, GH_THREADS);
+    await page.load();
+    await vi.waitFor(() => expect(root.querySelectorAll('[data-mdf="thread"]')).toHaveLength(2));
+    const boxes = root.querySelectorAll<HTMLElement>('[data-mdf="thread"]');
+    const include = boxes[0].querySelector<HTMLInputElement>('input.mdc-include-box')!;
+    expect(include.closest('label')!.textContent).toBe('Include in Send to agent');
+    expect(boxes[1].querySelector('input.mdc-include-box')).toBeNull();
+    include.checked = true;
+    include.dispatchEvent(new Event('change'));
+    expect(root.querySelector('.mdc-send')!.textContent).toBe('Send to agent (3)');
+    await page.send();
+    expect(calls).toContain('POST /api/send {"rev":"r00001","include":["PRRT_1"]}');
+    expect(root.querySelector('#file-1 .mdc-outdated')!.textContent).toBe('2 outdated threads hidden — see them on GitHub');
+  });
+
+  it('숨긴 낡은 스레드가 하나면 단수', async () => {
+    const { root, page } = mountPr(prView(), undefined, { threads: [], badges: {}, hidden: 1 });
+    await page.load();
+    await vi.waitFor(() => expect(root.querySelector('#file-1 .mdc-outdated')!.textContent).toBe('1 outdated thread hidden — see it on GitHub'));
+  });
+
+  it('GitHub를 못 읽으면 파일 머리에 그 이유', async () => {
+    const { root, page } = mountPr(prView(), undefined, { threads: [], badges: {}, githubError: 'gh api: HTTP 502' });
+    await page.load();
+    await vi.waitFor(() => expect(root.querySelector('#file-1 .mdc-github-error')!.textContent).toBe('Could not read review threads from GitHub: gh api: HTTP 502'));
+  });
+});
+
