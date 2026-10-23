@@ -1,6 +1,6 @@
 {
   "name": "markdown-diff-cat",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Review changed Markdown as a rendered diff in a local page, and hand your block comments to a coding agent.",
   "type": "module",
   "bin": { "markdown-diff-cat": "dist/markdown-diff-cat.mjs" },
