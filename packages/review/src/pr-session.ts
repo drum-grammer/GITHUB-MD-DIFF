@@ -11,7 +11,7 @@ import { planUpload, type UploadItem } from './hunks';
 import { checkoutWarning, prFiles } from './pr';
 import { sanitizeQuote } from './quote';
 import type { Draft, Mark, PrRef, ReviewMode, Round, RoundBase, SourceSide } from './records';
-import { ReviewSession, cleanBody, leafAt, quoteOf, toComment, type Current, type ExtraComment, type SessionOptions, type Source } from './session';
+import { ReviewSession, cleanBody, leafAt, quoteOf, toComment, toThread, type Current, type ExtraComment, type SessionOptions, type Source } from './session';
 
 export interface PrSessionOptions extends SessionOptions {
   pr: PrRef;
@@ -143,13 +143,16 @@ export class PrSession extends ReviewSession {
   async apiThreads(path: string): Promise<ThreadsPayload> {
     const c = this.current ?? this.paint();
     const local = this.threads(path);
+    const replies = this.ownDrafts().filter((d) => d.replyTo && d.path === path);
+    // 붙을 GitHub 스레드가 없는 답글 초안(낡아 숨음·GitHub를 못 읽음) — 제 줄에 따로 둬 고치거나 지울 수 있게
+    const loose = (ids: Set<string>) =>
+      replies.filter((d) => !ids.has(d.replyTo!)).map((d) => toThread(d.id, d.side, d.start, d.end, toComment(d.id, d.body, this.html(d.body), true)));
     let t: PrThreads;
     try {
       t = await this.threadsOf(c.record.id);
     } catch (e) {
-      return { ...local, githubError: e instanceof Error ? e.message : String(e) };
+      return { ...local, threads: [...local.threads, ...loose(new Set())], githubError: e instanceof Error ? e.message : String(e) };
     }
-    const replies = this.ownDrafts().filter((d) => d.replyTo);
     const gh = (t.byPath.get(path) ?? []).map((th) => ({
       ...th,
       comments: [...th.comments, ...replies.filter((d) => d.replyTo === th.id).map((d) => toComment(d.id, d.body, this.html(d.body), true))],
@@ -159,7 +162,7 @@ export class PrSession extends ReviewSession {
       const others = t.others.get(th.id);
       if (others) github[th.id] = { others };
     }
-    return { threads: [...gh, ...local.threads], badges: local.badges, hidden: t.hidden.get(path) ?? 0, github };
+    return { threads: [...gh, ...local.threads, ...loose(new Set(gh.map((th) => th.id)))], badges: local.badges, hidden: t.hidden.get(path) ?? 0, github };
   }
 
   /** 답글 초안은 그 GitHub 스레드의 쪽·줄로(파일 전체 스레드는 줄 0) */

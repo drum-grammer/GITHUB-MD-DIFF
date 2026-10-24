@@ -279,4 +279,19 @@ describe('PrSession', () => {
     expect(store.drafts()).toEqual([]);
     void a;
   });
+
+  it('스레드가 숨거나 GitHub를 못 읽으면 답글 초안은 따로 보인다(고치거나 지울 수 있게)', async () => {
+    const { session, T1, gh } = setup();
+    const rev = session.view().rev;
+    await session.apiThreads('docs/guide.md');
+    const reply = session.addDraft({ rev, path: 'docs/guide.md', side: 'right', start: 0, end: 0, body: 'Yes.', replyTo: T1.id });
+    gh.threads.find((t) => t.id === T1.id)!.isOutdated = true;
+    session.draw();
+    const shown = (await session.apiThreads('docs/guide.md')).threads.find((t) => t.id === reply.id);
+    expect(shown).toMatchObject({ side: 'right', start: 13, end: 13, comments: [expect.objectContaining({ id: reply.id, body: 'Yes.', canEdit: true, canDelete: true })] });
+    gh.auth = 'missing';
+    session.draw();
+    expect((await session.apiThreads('docs/guide.md')).threads.map((t) => t.id)).toContain(reply.id);
+  });
 });
+
