@@ -38,6 +38,8 @@ export class PrSession extends ReviewSession {
   private ghThreads: { rev: string; promise: Promise<PrThreads> } | null = null;
   /** 다 읽은 스레드 — 답글 초안이 그 스레드의 쪽·줄을 찾는다 */
   private loaded: { rev: string; threads: PrThreads } | null = null;
+  /** 넣는 중 — 두 탭(사람과 에이전트의 브라우저)이 같이 누르면 같은 코멘트가 두 번 들어간다 */
+  private pushing = false;
 
   constructor(opts: PrSessionOptions) {
     super(opts);
@@ -280,6 +282,16 @@ export class PrSession extends ReviewSession {
 
   /** 보류 중 리뷰에 넣기(스펙 §6-3) — 넣기 직전 head를 다시 읽고, GitHub hunk로 줄을 맞춰 하나씩. 성공한 초안만 지운다. 줄이 바뀐 초안은 넣지 않는다 */
   async apiPush(rev: string): Promise<PushPayload> {
+    if (this.pushing) throw new HttpError(409, 'Adding to your pending review is already in progress — wait for it to finish.');
+    this.pushing = true;
+    try {
+      return await this.push(rev);
+    } finally {
+      this.pushing = false;
+    }
+  }
+
+  private async push(rev: string): Promise<PushPayload> {
     const c = this.checkRev(rev, 'This view is out of date — press Redraw, check your comments, and add them again.');
     const drafts = this.ownDrafts().sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     if (!drafts.length) throw new HttpError(400, 'Add a comment first.');
@@ -291,7 +303,9 @@ export class PrSession extends ReviewSession {
         throw new HttpError(409, `New commits were pushed to ${prLabel(pr)} after this view — press Redraw, check your comments, and add them again.`);
       }
       const items = planUpload(fresh, await prFileInfos(this.gh, pr));
-      results.push(...(await addItems(this.gh, await pendingReviewId(this.gh, pr), items)));
+      const { store } = this.opts;
+      const drop = (id: string): void => store.withLock('drafts', () => store.saveDrafts(store.drafts().filter((d) => d.id !== id)));
+      results.push(...(await addItems(this.gh, await pendingReviewId(this.gh, pr), items, drop)));
     }
     const added = new Set(results.filter((r) => !r.error).map((r) => r.draft));
     const { store } = this.opts;

@@ -253,5 +253,30 @@ describe('PrSession', () => {
     gh.auth = 'missing';
     expect((await session.apiDrafts()).drafts[0].place).toBeUndefined(); // GitHub를 못 읽으면 미리보기 없이 목록만
   });
-});
 
+  it('넣는 도중 두 번째 넣기는 409, 들어간 초안은 그때그때 지운다(중간에 끊겨도 다시 넣지 않게)', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((ok) => (release = ok));
+    let reached!: () => void;
+    const second = new Promise<void>((ok) => (reached = ok));
+    const { session, store } = setup((g) => {
+      g.beforeMutation = async (n) => {
+        if (n === 1) {
+          reached();
+          await gate;
+        }
+      };
+    });
+    const rev = session.view().rev;
+    const a = session.addDraft({ rev, path: 'docs/guide.md', side: 'right', start: 13, end: 13, body: 'one' });
+    const b = session.addDraft({ rev, path: 'docs/guide.md', side: 'right', start: 12, end: 12, body: 'two' });
+    const first = session.apiPush(rev);
+    await second;
+    expect(store.drafts().map((d) => d.id)).toEqual([b.id]);
+    await expect(session.apiPush(rev)).rejects.toMatchObject({ status: 409, message: 'Adding to your pending review is already in progress — wait for it to finish.' });
+    release();
+    expect(await first).toMatchObject({ added: 2, failed: [] });
+    expect(store.drafts()).toEqual([]);
+    void a;
+  });
+});

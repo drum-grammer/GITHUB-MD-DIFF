@@ -94,11 +94,13 @@ describe('review --pr', () => {
     const threads = JSON.parse((await request(port, { path: '/api/threads?path=docs%2Fa.md', headers: pageHeaders(port, secret) })).text);
     expect(threads.threads[0].comments[0].body).toBe('Hmm');
     expect(w.clone.git('for-each-ref', '--format=%(refname)', 'refs/markdown-diff-cat/')).toContain('refs/markdown-diff-cat/pr/7/head');
+    // 같은 저장소의 다른 worktree가 받은 PR — 이 worktree의 stop --clean은 건드리지 않는다
+    w.clone.git('update-ref', 'refs/markdown-diff-cat/pr/99/head', 'HEAD');
     const stop = io();
     expect(await main(['stop', '--clean'], stop)).toBe(0);
     expect(stop.lines.join('\n')).toContain('Removed 2 fetched pull request refs (refs/markdown-diff-cat/).');
     expect(await running).toBe(0);
-    expect(w.clone.git('for-each-ref', '--format=%(refname)', 'refs/markdown-diff-cat/')).toBe('');
+    expect(w.clone.git('for-each-ref', '--format=%(refname)', 'refs/markdown-diff-cat/')).toBe('refs/markdown-diff-cat/pr/99/head');
   });
 
   it('작업 트리 서버가 떠 있으면 review --pr은 1(stop 안내), 같은 PR이면 새 주소, PR 서버에 작업 트리 review도 1', async () => {

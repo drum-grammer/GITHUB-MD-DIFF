@@ -95,9 +95,13 @@ export function prFiles(root: string, pr: PrRef): ViewFile[] {
   return out;
 }
 
-/** refs/markdown-diff-cat/ 아래 ref를 모두 지운다 — 지운 ref 이름(정렬) */
-export function cleanPrRefs(root: string): string[] {
-  const refs = (tryGit(root, ['for-each-ref', '--format=%(refname)', REF_ROOT]) ?? '').split('\n').filter(Boolean).sort();
+/** refs/markdown-diff-cat/ 아래 ref를 지운다 — numbers를 주면 그 PR들만(ref는 worktree끼리 같이 쓴다). 지운 ref 이름(정렬) */
+export function cleanPrRefs(root: string, numbers?: number[]): string[] {
+  const mine = numbers && new Set(numbers.map((n) => `${REF_ROOT}pr/${n}/`));
+  const refs = (tryGit(root, ['for-each-ref', '--format=%(refname)', REF_ROOT]) ?? '')
+    .split('\n')
+    .filter((r) => r && (!mine || [...mine].some((p) => r.startsWith(p))))
+    .sort();
   for (const ref of refs) gitText(root, ['update-ref', '-d', ref]);
   return refs;
 }

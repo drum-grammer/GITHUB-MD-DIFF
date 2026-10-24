@@ -116,8 +116,8 @@ export async function pendingReviewId(gh: Gh, pr: PrRef): Promise<string> {
 const ADD_THREAD = 'mutation($input: AddPullRequestReviewThreadInput!) { addPullRequestReviewThread(input: $input) { thread { id } } }';
 const ADD_REPLY = 'mutation($input: AddPullRequestReviewThreadReplyInput!) { addPullRequestReviewThreadReply(input: $input) { comment { id } } }';
 
-/** 하나씩 넣는다 — 실패해도 다음 것을 계속하고, 실패한 것만 오류로 돌려준다 */
-export async function addItems(gh: Gh, reviewId: string, items: UploadItem[]): Promise<Array<{ draft: string; error?: string }>> {
+/** 하나씩 넣는다 — 실패해도 다음 것을 계속하고, 실패한 것만 오류로 돌려준다. onAdded는 들어간 즉시(중간에 끊겨도 다시 넣지 않게) */
+export async function addItems(gh: Gh, reviewId: string, items: UploadItem[], onAdded: (draft: string) => void = () => {}): Promise<Array<{ draft: string; error?: string }>> {
   const out: Array<{ draft: string; error?: string }> = [];
   for (const item of items) {
     if (item.kind === 'error') {
@@ -147,6 +147,7 @@ export async function addItems(gh: Gh, reviewId: string, items: UploadItem[]): P
         const d = await gh.graphql<{ addPullRequestReviewThread: { thread: { id: string } | null } }>(ADD_THREAD, { input });
         added = d.addPullRequestReviewThread?.thread;
       }
+      if (added) onAdded(item.draft);
       out.push(added ? { draft: item.draft } : { draft: item.draft, error: 'GitHub did not add the comment' });
     } catch (e) {
       out.push({ draft: item.draft, error: e instanceof Error ? e.message : String(e) });
