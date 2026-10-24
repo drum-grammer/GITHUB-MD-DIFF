@@ -245,7 +245,9 @@ export class PrSession extends ReviewSession {
     }
     // 뺀 수 — 화면에 보이는 남의 코멘트 가운데 넣지 않은 것. 스레드를 아직 안 읽었으면 읽어서 센다
     const all = t ?? (await this.threadsOf(c.record.id).catch(() => null));
-    const othersAll = all ? [...all.others.values()].reduce((a, b) => a + b, 0) : 0;
+    // 화면에 그린 md 파일의 스레드만 — md가 아닌 파일의 남의 코멘트는 사람이 고를 수 없었다
+    const shownThreads = all ? c.record.shown.flatMap((p) => all.byPath.get(p) ?? []) : [];
+    const othersAll = all ? shownThreads.reduce((n, th) => n + (all.others.get(th.id) ?? 0), 0) : 0;
     const warning = checkoutWarning(this.opts.root, this.pr, c.record.shown);
     return this.sendRound(rev, () => ({ extra, fields: { excluded: Math.max(0, othersAll - othersIn), ...(warning ? { warning } : {}) } }));
   }

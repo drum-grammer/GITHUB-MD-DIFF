@@ -139,6 +139,8 @@ describe('PrSession', () => {
   it('에이전트에게 보내기 — 남의 스레드는 고른 것만, excluded 수, base → head, 체크아웃 경고', async () => {
     const { session, store, pr, T1, gh } = setup();
     gh.threads.push(fakeThread({ path: 'docs/guide.md', line: 9, comments: { nodes: [fakeComment('hubot', 'Not included')] } }));
+    // md가 아닌 파일의 스레드는 화면에 없다 — 뺀 수에 세지 않는다
+    gh.threads.push(fakeThread({ path: 'src/app.ts', line: 2, comments: { nodes: [fakeComment('hubot', 'code review'), fakeComment('octocat', 'agreed')] } }));
     const rev = session.view().rev;
     await session.apiThreads('docs/guide.md');
     session.addDraft({ rev, path: 'docs/guide.md', side: 'right', start: 13, end: 13, body: 'Mine.' });

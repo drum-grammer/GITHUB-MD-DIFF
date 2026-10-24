@@ -61,7 +61,12 @@ describe('loadThreads', () => {
         pageInfo: { hasNextPage: true, endCursor: 'CUR' },
       },
       {
-        nodes: [thread({ id: 'T4', path: 'docs/b.md', diffSide: 'LEFT', line: 2, isResolved: true, comments: { nodes: [comment('C4', null, 'old note')] } }), thread({ id: 'T5', line: null })],
+        nodes: [
+          thread({ id: 'T4', path: 'docs/b.md', diffSide: 'LEFT', line: 2, isResolved: true, comments: { nodes: [comment('C4', null, 'old note')] } }),
+          thread({ id: 'T5', line: null }),
+          // 옛 쪽 4줄 → 새 쪽 9줄에 걸친 스레드 — 한 쪽 줄 범위로 못 나타내므로 끝 줄에만 둔다
+          thread({ id: 'T6', path: 'docs/c.md', startLine: 4, startDiffSide: 'LEFT', line: 9, diffSide: 'RIGHT', comments: { nodes: [comment('C6', 'me', 'span')] } }),
+        ],
         pageInfo: { hasNextPage: false, endCursor: null },
       },
     ];
@@ -89,6 +94,7 @@ describe('loadThreads', () => {
       expect.objectContaining({ id: 'T2', subject: 'file', side: 'right', start: 0, end: 0, canReply: false }),
     ]);
     expect(got.byPath.get('docs/b.md')).toEqual([expect.objectContaining({ id: 'T4', side: 'left', start: 2, end: 2, resolved: true, comments: [expect.objectContaining({ author: 'ghost' })] })]);
+    expect(got.byPath.get('docs/c.md')).toEqual([expect.objectContaining({ id: 'T6', side: 'right', start: 9, end: 9 })]);
     expect(got.hidden).toEqual(new Map([['docs/a.md', 2]]));
     expect(got.others).toEqual(new Map([['T1', 1], ['T2', 1], ['T4', 1]]));
   });
@@ -117,7 +123,7 @@ describe('보류 중 리뷰', () => {
   it('currentHead·prFileInfos', async () => {
     const { gh, seen } = fakeGh((s) => {
       if (s.body.query?.includes('headRefOid')) return { data: { repository: { pullRequest: { headRefOid: 'n'.repeat(40) } } } };
-      if (s.args.includes('repos/acme/docs/pulls/7/files?per_page=100')) return new Raw('{"filename":"docs/a.md","patch":"@@ -1 +1 @@"}\n{"filename":"docs/big.md"}\n');
+      if (s.args.includes('repos/acme/docs/pulls/7/files?per_page=100')) return new Raw('{"filename":"docs/a.md","patch":"@@ -1 +1 @@"}\n{"filename":"docs/big.md"}\n{"filename":"docs/new.md","previous_filename":"docs/old.md","patch":"@@ -2 +2 @@"}\n');
       return undefined;
     });
     expect(await currentHead(gh, PR)).toBe('n'.repeat(40));
@@ -125,6 +131,7 @@ describe('보류 중 리뷰', () => {
       new Map([
         ['docs/a.md', { path: 'docs/a.md', patch: '@@ -1 +1 @@' }],
         ['docs/big.md', { path: 'docs/big.md', patch: null }],
+        ['docs/new.md', { path: 'docs/new.md', patch: '@@ -2 +2 @@', previous: 'docs/old.md' }],
       ]),
     );
     expect(seen[1].args).toContain('--paginate');

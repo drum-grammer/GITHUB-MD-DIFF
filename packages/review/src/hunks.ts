@@ -39,6 +39,13 @@ export function fitRange(hunks: Hunk[], side: SourceSide, start: number, end: nu
 export interface PrFileInfo {
   path: string;
   patch: string | null;
+  /** GitHub가 이름 바꿈으로 본 파일의 옛 경로 */
+  previous?: string;
+}
+
+/** 그 초안의 GitHub 파일 — git은 지움+추가로 봤는데 GitHub는 이름 바꿈으로 봤으면, 옛 경로의 옛 쪽 초안은 새 경로의 옛 쪽이다 */
+function fileFor(files: Map<string, PrFileInfo>, d: Draft): PrFileInfo | undefined {
+  return files.get(d.path) ?? (d.side === 'old' ? [...files.values()].find((f) => f.previous === d.path) : undefined);
 }
 
 export type UploadItem =
@@ -70,17 +77,17 @@ function demoteSuggestion(body: string, where: string): string {
 export function planUpload(drafts: Draft[], files: Map<string, PrFileInfo>): UploadItem[] {
   return drafts.map((d): UploadItem => {
     if (d.replyTo) return { draft: d.id, kind: 'reply', thread: d.replyTo, body: d.body };
-    const file = files.get(d.path);
+    const file = fileFor(files, d);
     if (!file) return { draft: d.id, kind: 'error', error: `${d.path} is not among the changed files of the pull request` };
     const where = label(d.side, d.start, d.end);
     const fit = file.patch === null ? null : fitRange(parsePatch(file.patch), d.side, d.start, d.end);
     if (!fit) {
       const why = file.patch === null ? 'GitHub shows no diff for this file, so the comment is on the whole file' : 'unchanged lines; GitHub accepts line comments only on changed lines';
-      return { draft: d.id, kind: 'file', path: d.path, body: `${where} (${why})\n\n${quoteBlock(d.quote)}\n\n${demoteSuggestion(d.body, where)}` };
+      return { draft: d.id, kind: 'file', path: file.path, body: `${where} (${why})\n\n${quoteBlock(d.quote)}\n\n${demoteSuggestion(d.body, where)}` };
     }
     const side = d.side === 'old' ? 'LEFT' : 'RIGHT';
-    if (fit.start === d.start && fit.end === d.end) return { draft: d.id, kind: 'line', path: d.path, side, start: d.start, end: d.end, body: d.body };
+    if (fit.start === d.start && fit.end === d.end) return { draft: d.id, kind: 'line', path: file.path, side, start: d.start, end: d.end, body: d.body };
     const body = `${where} — trimmed to ${label(d.side, fit.start, fit.end)}, the changed lines GitHub accepts\n\n${demoteSuggestion(d.body, where)}`;
-    return { draft: d.id, kind: 'line', path: d.path, side, start: fit.start, end: fit.end, body };
+    return { draft: d.id, kind: 'line', path: file.path, side, start: fit.start, end: fit.end, body };
   });
 }

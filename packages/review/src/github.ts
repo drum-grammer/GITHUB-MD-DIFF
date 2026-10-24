@@ -20,6 +20,7 @@ interface ThreadNode {
   line: number | null;
   startLine: number | null;
   diffSide: 'LEFT' | 'RIGHT';
+  startDiffSide: 'LEFT' | 'RIGHT' | null;
   subjectType: 'LINE' | 'FILE';
   isResolved: boolean;
   isOutdated: boolean;
@@ -71,7 +72,8 @@ export async function loadThreads(gh: Gh, pr: PrRef, html: (markdown: string) =>
       }));
       const thread: ReviewThread = file
         ? { id: n.id, subject: 'file', side: 'right', start: 0, end: 0, resolved: n.isResolved, canReply: n.viewerCanReply, comments }
-        : { id: n.id, subject: 'line', side: n.diffSide === 'LEFT' ? 'left' : 'right', start: n.startLine ?? n.line!, end: n.line!, resolved: n.isResolved, canReply: n.viewerCanReply, comments };
+        : // 옛 쪽에서 새 쪽으로 걸친 스레드는 한 쪽 줄 범위로 못 나타낸다 — 끝 줄(diffSide 쪽)에만 둔다
+          { id: n.id, subject: 'line', side: n.diffSide === 'LEFT' ? 'left' : 'right', start: n.startDiffSide && n.startDiffSide !== n.diffSide ? n.line! : (n.startLine ?? n.line!), end: n.line!, resolved: n.isResolved, canReply: n.viewerCanReply, comments };
       out.byPath.set(n.path, [...(out.byPath.get(n.path) ?? []), thread]);
       const others = comments.filter((c) => c.author !== out.viewer).length;
       if (others) out.others.set(n.id, others);
@@ -83,8 +85,8 @@ export async function loadThreads(gh: Gh, pr: PrRef, html: (markdown: string) =>
 
 /** GitHub가 준 파일 목록과 patch(hunk) — patch가 없으면 diff를 주지 않은 큰 파일 */
 export async function prFileInfos(gh: Gh, pr: PrRef): Promise<Map<string, PrFileInfo>> {
-  const files = await gh.rest<Array<{ filename: string; patch?: string }>>('GET', repoPath(pr.owner, pr.repo, `pulls/${pr.number}/files?per_page=100`), undefined, { paginate: true });
-  return new Map(files.map((f) => [f.filename, { path: f.filename, patch: f.patch ?? null }]));
+  const files = await gh.rest<Array<{ filename: string; patch?: string; previous_filename?: string }>>('GET', repoPath(pr.owner, pr.repo, `pulls/${pr.number}/files?per_page=100`), undefined, { paginate: true });
+  return new Map(files.map((f) => [f.filename, { path: f.filename, patch: f.patch ?? null, ...(f.previous_filename ? { previous: f.previous_filename } : {}) }]));
 }
 
 /** 지금 PR head — 넣기 직전에 다시 읽어 그린 뒤 새 커밋이 왔는지 본다 */
