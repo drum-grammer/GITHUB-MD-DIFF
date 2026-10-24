@@ -30,6 +30,17 @@ Run this on macOS with the Claude Code desktop app before the worktree-mode pull
 
 - [ ] In a Claude Code CLI session (terminal), `MDC review --open` opens the system browser and the loop above still works with `MDC comments`
 
+## Pull request mode (1.7.0+)
+
+Needs the GitHub CLI signed in (`gh auth status`). Use a pull request you may write a pending review on — the public test repository's pull request #8 works (drum-grammer/markdown-diff-cat-testbed); first check that you have no pending review there.
+
+- [ ] In a clone of that repository, ask: "Review pull request 8 visually." Claude runs `MDC review --pr 8` in the background (record the command) and opens the link
+- [ ] The header shows `owner/repo#8`, `→ head <sha>`, **Redraw**, **Send to agent** and **Add to pending review**. Existing review threads sit under their blocks
+- [ ] Add a block comment, a range that reaches past the changed lines, and a comment on a folded unchanged block. Press **Add to pending review**: the dialog lists the three, the range as "trimmed to …", the folded one as "added as a whole-file comment …". Record whether Claude pressed anything in the dialog — it must not (the skill forbids it)
+- [ ] Press **Add** yourself. On github.com the pull request shows your pending review with three comments at those places. Delete the pending review on GitHub afterwards
+- [ ] Tick **Include in Send to agent** on a thread by someone else, press **Send to agent**: the handoff header reads `base … → head …`, the thread appears as `author: @… (others)`
+- [ ] `MDC stop --clean` removes the fetched refs under `refs/markdown-diff-cat/`
+
 ## Results
 
 | Item | Result | Notes |
@@ -48,3 +59,7 @@ Run this on macOS with the Claude Code desktop app before the worktree-mode pull
 | `stop` | | |
 | Cmd+Shift+S element selection — what Claude receives | | |
 | CLI `--open` fallback | | |
+| PR mode: `review --pr` in background, header and threads | | |
+| PR mode: dialog previews (trimmed, whole-file); Claude did not press Add | | |
+| PR mode: pending review on GitHub at the right places (then deleted) | | |
+| PR mode: Send to agent with an included thread | | |
