@@ -11,7 +11,7 @@ import { planUpload, type UploadItem } from './hunks';
 import { checkoutWarning, prFiles } from './pr';
 import { sanitizeQuote } from './quote';
 import type { Draft, Mark, PrRef, ReviewMode, Round, RoundBase, SourceSide } from './records';
-import { ReviewSession, cleanBody, leafAt, quoteOf, toComment, type Current, type ExtraComment, type SessionOptions, type Source } from './session';
+import { ReviewSession, cleanBody, leafAt, quoteOf, toComment, toThread, type Current, type ExtraComment, type SessionOptions, type Source } from './session';
 
 export interface PrSessionOptions extends SessionOptions {
   pr: PrRef;
@@ -38,6 +38,8 @@ export class PrSession extends ReviewSession {
   private ghThreads: { rev: string; promise: Promise<PrThreads> } | null = null;
   /** 다 읽은 스레드 — 답글 초안이 그 스레드의 쪽·줄을 찾는다 */
   private loaded: { rev: string; threads: PrThreads } | null = null;
+  /** 넣는 중 — 두 탭(사람과 에이전트의 브라우저)이 같이 누르면 같은 코멘트가 두 번 들어간다 */
+  private pushing = false;
 
   constructor(opts: PrSessionOptions) {
     super(opts);
@@ -141,13 +143,16 @@ export class PrSession extends ReviewSession {
   async apiThreads(path: string): Promise<ThreadsPayload> {
     const c = this.current ?? this.paint();
     const local = this.threads(path);
+    const replies = this.ownDrafts().filter((d) => d.replyTo && d.path === path);
+    // 붙을 GitHub 스레드가 없는 답글 초안(낡아 숨음·GitHub를 못 읽음) — 제 줄에 따로 둬 고치거나 지울 수 있게
+    const loose = (ids: Set<string>) =>
+      replies.filter((d) => !ids.has(d.replyTo!)).map((d) => toThread(d.id, d.side, d.start, d.end, toComment(d.id, d.body, this.html(d.body), true)));
     let t: PrThreads;
     try {
       t = await this.threadsOf(c.record.id);
     } catch (e) {
-      return { ...local, githubError: e instanceof Error ? e.message : String(e) };
+      return { ...local, threads: [...local.threads, ...loose(new Set())], githubError: e instanceof Error ? e.message : String(e) };
     }
-    const replies = this.ownDrafts().filter((d) => d.replyTo);
     const gh = (t.byPath.get(path) ?? []).map((th) => ({
       ...th,
       comments: [...th.comments, ...replies.filter((d) => d.replyTo === th.id).map((d) => toComment(d.id, d.body, this.html(d.body), true))],
@@ -157,7 +162,7 @@ export class PrSession extends ReviewSession {
       const others = t.others.get(th.id);
       if (others) github[th.id] = { others };
     }
-    return { threads: [...gh, ...local.threads], badges: local.badges, hidden: t.hidden.get(path) ?? 0, github };
+    return { threads: [...gh, ...local.threads, ...loose(new Set(gh.map((th) => th.id)))], badges: local.badges, hidden: t.hidden.get(path) ?? 0, github };
   }
 
   /** 답글 초안은 그 GitHub 스레드의 쪽·줄로(파일 전체 스레드는 줄 0) */
@@ -245,7 +250,9 @@ export class PrSession extends ReviewSession {
     }
     // 뺀 수 — 화면에 보이는 남의 코멘트 가운데 넣지 않은 것. 스레드를 아직 안 읽었으면 읽어서 센다
     const all = t ?? (await this.threadsOf(c.record.id).catch(() => null));
-    const othersAll = all ? [...all.others.values()].reduce((a, b) => a + b, 0) : 0;
+    // 화면에 그린 md 파일의 스레드만 — md가 아닌 파일의 남의 코멘트는 사람이 고를 수 없었다
+    const shownThreads = all ? c.record.shown.flatMap((p) => all.byPath.get(p) ?? []) : [];
+    const othersAll = all ? shownThreads.reduce((n, th) => n + (all.others.get(th.id) ?? 0), 0) : 0;
     const warning = checkoutWarning(this.opts.root, this.pr, c.record.shown);
     return this.sendRound(rev, () => ({ extra, fields: { excluded: Math.max(0, othersAll - othersIn), ...(warning ? { warning } : {}) } }));
   }
@@ -278,6 +285,16 @@ export class PrSession extends ReviewSession {
 
   /** 보류 중 리뷰에 넣기(스펙 §6-3) — 넣기 직전 head를 다시 읽고, GitHub hunk로 줄을 맞춰 하나씩. 성공한 초안만 지운다. 줄이 바뀐 초안은 넣지 않는다 */
   async apiPush(rev: string): Promise<PushPayload> {
+    if (this.pushing) throw new HttpError(409, 'Adding to your pending review is already in progress — wait for it to finish.');
+    this.pushing = true;
+    try {
+      return await this.push(rev);
+    } finally {
+      this.pushing = false;
+    }
+  }
+
+  private async push(rev: string): Promise<PushPayload> {
     const c = this.checkRev(rev, 'This view is out of date — press Redraw, check your comments, and add them again.');
     const drafts = this.ownDrafts().sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     if (!drafts.length) throw new HttpError(400, 'Add a comment first.');
@@ -289,7 +306,9 @@ export class PrSession extends ReviewSession {
         throw new HttpError(409, `New commits were pushed to ${prLabel(pr)} after this view — press Redraw, check your comments, and add them again.`);
       }
       const items = planUpload(fresh, await prFileInfos(this.gh, pr));
-      results.push(...(await addItems(this.gh, await pendingReviewId(this.gh, pr), items)));
+      const { store } = this.opts;
+      const drop = (id: string): void => store.withLock('drafts', () => store.saveDrafts(store.drafts().filter((d) => d.id !== id)));
+      results.push(...(await addItems(this.gh, await pendingReviewId(this.gh, pr), items, drop)));
     }
     const added = new Set(results.filter((r) => !r.error).map((r) => r.draft));
     const { store } = this.opts;

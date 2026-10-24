@@ -41,6 +41,8 @@ export interface FakeGitHub {
   /** 로그인 안 함·gh 없음 흉내 */
   auth?: 'ok' | 'logged-out' | 'missing';
   calls: string[][];
+  /** 변경 요청 n번째(0부터)를 처리하기 전에 기다린다 — 넣는 도중의 상태를 시험할 때(E2E 상태 파일에는 실리지 않는다) */
+  beforeMutation?: (n: number) => Promise<void>;
 }
 
 export function fakeGitHub(over: Partial<FakeGitHub> & Pick<FakeGitHub, 'pr'>): FakeGitHub {
@@ -84,6 +86,7 @@ export function fakeRunner(gh: FakeGitHub): GhRunner {
       if (query.includes('reviews(states: PENDING')) return ok({ data: { repository: { pullRequest: { reviews: { nodes: gh.pendingReviewId ? [{ id: gh.pendingReviewId, viewerDidAuthor: true }] : [] } } } } });
       if (query.includes('headRefOid')) return ok({ data: { repository: { pullRequest: { headRefOid: gh.head ?? gh.pr.headRefOid } } } });
       const input = variables.input as Record<string, unknown>;
+      if (input && gh.beforeMutation) await gh.beforeMutation(gh.mutations.length);
       if (query.includes('addPullRequestReviewThreadReply(')) {
         gh.mutations.push({ name: 'addPullRequestReviewThreadReply', input });
         const t = gh.threads.find((x) => x.id === input.pullRequestReviewThreadId);

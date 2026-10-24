@@ -130,6 +130,14 @@ describe('prFiles', () => {
 });
 
 describe('cleanPrRefs · checkoutWarning', () => {
+  it('cleanPrRefs — 고른 PR 번호의 ref만(다른 worktree가 받은 PR은 둔다)', () => {
+    const { clone, view } = world();
+    fetchPr(clone.dir, view);
+    clone.git('update-ref', 'refs/markdown-diff-cat/pr/99/head', 'HEAD');
+    expect(cleanPrRefs(clone.dir, [7])).toEqual(['refs/markdown-diff-cat/pr/7/base', 'refs/markdown-diff-cat/pr/7/head']);
+    expect(clone.git('for-each-ref', '--format=%(refname)', 'refs/markdown-diff-cat/')).toBe('refs/markdown-diff-cat/pr/99/head');
+    expect(cleanPrRefs(clone.dir, [])).toEqual([]);
+  });
   it('cleanPrRefs — refs/markdown-diff-cat/ 아래만 지운다', () => {
     const { clone, view } = world();
     fetchPr(clone.dir, view);

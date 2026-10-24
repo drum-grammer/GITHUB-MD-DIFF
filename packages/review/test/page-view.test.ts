@@ -302,6 +302,24 @@ describe('PR 모드 페이지', () => {
     expect(document.querySelector('.mdc-confirm')).toBeNull();
   });
 
+  it('확인 상자 — 넣는 동안 Cancel은 꺼지고, 쉬는 동안 Escape로 닫는다', async () => {
+    let finish!: (v: unknown) => void;
+    const slow = new Promise((ok) => (finish = ok));
+    const { page } = mountPr(prView({ drafts: 2 }), { then: (ok: (v: unknown) => void) => slow.then(ok) });
+    await page.load();
+    await page.push();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(document.querySelector('.mdc-confirm')).toBeNull();
+    await page.push();
+    document.querySelector<HTMLButtonElement>('.mdc-confirm-add')!.click();
+    await vi.waitFor(() => expect(document.querySelector<HTMLButtonElement>('.mdc-confirm-cancel')!.disabled).toBe(true));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(document.querySelector('.mdc-confirm')).not.toBeNull();
+    finish({ added: 1, failed: [{ id: 'd2', path: 'docs/guide.md', lines: 'L9', error: 'nope' }], url: 'u' });
+    await vi.waitFor(() => expect(document.querySelector<HTMLButtonElement>('.mdc-confirm-cancel')!.disabled).toBe(false));
+    expect(document.querySelector('.mdc-confirm li')!.textContent).toBe('docs/guide.md · L9 · nope');
+  });
+
   it('PR 머리에는 늘 Redraw — PR을 다시 받아 그린다(새 커밋)', async () => {
     const { root, page, calls } = mountPr(prView({ drafts: 1 }));
     await page.load();

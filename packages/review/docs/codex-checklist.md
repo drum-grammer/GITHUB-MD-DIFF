@@ -28,6 +28,16 @@ Run this on macOS with the ChatGPT desktop app (Codex) before the annotations pu
 
 - [ ] Add one block comment in the page and press **Send to agent**. Say "done". Codex runs `MDC comments` and addresses it
 
+## Pull request mode (1.7.0+)
+
+Needs the GitHub CLI signed in. Pull request mode uses the network and writes refs to `.git`, so every `MDC` command needs approval to run outside the sandbox (record whether Codex asked). Use the public test repository's pull request #8 (drum-grammer/markdown-diff-cat-testbed) after checking that you have no pending review there.
+
+- [ ] Ask Codex to review pull request 8 visually. It runs `MDC review --pr 8` (record the approval prompt) and opens the link in the in-app browser
+- [ ] Existing threads sit under their blocks; the header shows **Redraw** and **Add to pending review**
+- [ ] Point at a block with a Codex annotation: the metadata carries the path, side and lines (as in worktree mode)
+- [ ] Add a comment in the page, press **Add to pending review** and **Add** yourself — Codex must not press them. Check the pending review on github.com, then delete it there
+- [ ] `MDC stop --clean`
+
 ## Results
 
 | Item | Result | Notes |
@@ -47,3 +57,6 @@ Run this on macOS with the ChatGPT desktop app (Codex) before the annotations pu
 | `127.0.0.1` instead of `localhost` | | |
 | Page comments → `comments` | | |
 | Skill shows once | | |
+| PR mode: approval prompts (network, `.git` refs) | | |
+| PR mode: threads, annotation metadata | | |
+| PR mode: pending review on GitHub (then deleted); Codex did not press Add | | |

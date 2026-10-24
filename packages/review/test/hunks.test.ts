@@ -43,6 +43,17 @@ describe('parsePatch · fitRange', () => {
   });
 });
 
+describe('planUpload — 이름 바꿈', () => {
+  it('git은 지움+추가로, GitHub는 이름 바꿈으로 본 파일 — 옛 경로의 옛 쪽 초안은 새 경로의 LEFT로', () => {
+    const files = new Map<string, PrFileInfo>([['docs/new.md', { path: 'docs/new.md', patch: '@@ -2,3 +2,3 @@', previous: 'docs/old.md' }]]);
+    expect(planUpload([draft({ id: 'd1', path: 'docs/old.md', side: 'old', start: 3, end: 3, body: 'why removed?' })], files)).toEqual([
+      { draft: 'd1', kind: 'line', path: 'docs/new.md', side: 'LEFT', start: 3, end: 3, body: 'why removed?' },
+    ]);
+    // 새 쪽 초안이 옛 경로를 가리키지는 않는다 — PR 밖 그대로
+    expect(planUpload([draft({ id: 'd2', path: 'docs/old.md', side: 'new' })], files)[0]).toMatchObject({ kind: 'error' });
+  });
+});
+
 describe('planUpload', () => {
   it('맞으면 글 그대로, 잘리면 원래 줄, 접힌 블록이면 인용 붙인 파일 스레드', () => {
     const items = planUpload(

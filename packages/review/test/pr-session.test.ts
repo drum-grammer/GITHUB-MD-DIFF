@@ -139,6 +139,8 @@ describe('PrSession', () => {
   it('에이전트에게 보내기 — 남의 스레드는 고른 것만, excluded 수, base → head, 체크아웃 경고', async () => {
     const { session, store, pr, T1, gh } = setup();
     gh.threads.push(fakeThread({ path: 'docs/guide.md', line: 9, comments: { nodes: [fakeComment('hubot', 'Not included')] } }));
+    // md가 아닌 파일의 스레드는 화면에 없다 — 뺀 수에 세지 않는다
+    gh.threads.push(fakeThread({ path: 'src/app.ts', line: 2, comments: { nodes: [fakeComment('hubot', 'code review'), fakeComment('octocat', 'agreed')] } }));
     const rev = session.view().rev;
     await session.apiThreads('docs/guide.md');
     session.addDraft({ rev, path: 'docs/guide.md', side: 'right', start: 13, end: 13, body: 'Mine.' });
@@ -250,6 +252,46 @@ describe('PrSession', () => {
     expect((await session.apiDrafts()).drafts[0].place).toEqual({ kind: 'error', error: 'docs/guide.md is not among the changed files of the pull request' });
     gh.auth = 'missing';
     expect((await session.apiDrafts()).drafts[0].place).toBeUndefined(); // GitHub를 못 읽으면 미리보기 없이 목록만
+  });
+
+  it('넣는 도중 두 번째 넣기는 409, 들어간 초안은 그때그때 지운다(중간에 끊겨도 다시 넣지 않게)', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((ok) => (release = ok));
+    let reached!: () => void;
+    const second = new Promise<void>((ok) => (reached = ok));
+    const { session, store } = setup((g) => {
+      g.beforeMutation = async (n) => {
+        if (n === 1) {
+          reached();
+          await gate;
+        }
+      };
+    });
+    const rev = session.view().rev;
+    const a = session.addDraft({ rev, path: 'docs/guide.md', side: 'right', start: 13, end: 13, body: 'one' });
+    const b = session.addDraft({ rev, path: 'docs/guide.md', side: 'right', start: 12, end: 12, body: 'two' });
+    const first = session.apiPush(rev);
+    await second;
+    expect(store.drafts().map((d) => d.id)).toEqual([b.id]);
+    await expect(session.apiPush(rev)).rejects.toMatchObject({ status: 409, message: 'Adding to your pending review is already in progress — wait for it to finish.' });
+    release();
+    expect(await first).toMatchObject({ added: 2, failed: [] });
+    expect(store.drafts()).toEqual([]);
+    void a;
+  });
+
+  it('스레드가 숨거나 GitHub를 못 읽으면 답글 초안은 따로 보인다(고치거나 지울 수 있게)', async () => {
+    const { session, T1, gh } = setup();
+    const rev = session.view().rev;
+    await session.apiThreads('docs/guide.md');
+    const reply = session.addDraft({ rev, path: 'docs/guide.md', side: 'right', start: 0, end: 0, body: 'Yes.', replyTo: T1.id });
+    gh.threads.find((t) => t.id === T1.id)!.isOutdated = true;
+    session.draw();
+    const shown = (await session.apiThreads('docs/guide.md')).threads.find((t) => t.id === reply.id);
+    expect(shown).toMatchObject({ side: 'right', start: 13, end: 13, comments: [expect.objectContaining({ id: reply.id, body: 'Yes.', canEdit: true, canDelete: true })] });
+    gh.auth = 'missing';
+    session.draw();
+    expect((await session.apiThreads('docs/guide.md')).threads.map((t) => t.id)).toContain(reply.id);
   });
 });
 

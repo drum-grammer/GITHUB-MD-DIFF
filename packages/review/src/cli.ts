@@ -385,9 +385,11 @@ async function stop(args: Args, io: Io): Promise<number> {
     store.removeServer();
   }
   if (args.flags.has('clean')) {
+    // 이 worktree가 리뷰한 PR — 렌더 판에 남아 있다. 같은 저장소의 다른 worktree가 받은 PR ref는 둔다
+    const prs = [...new Set(store.renderIds().flatMap((id) => store.loadRender(id)?.pr?.number ?? []))];
     rmSync(store.dir, { recursive: true, force: true });
     io.out(`Removed this worktree's review state: ${store.dir}`);
-    const refs = cleanPrRefs(store.root);
+    const refs = cleanPrRefs(store.root, prs);
     if (refs.length) io.out(`Removed ${refs.length} fetched pull request ${refs.length === 1 ? 'ref' : 'refs'} (refs/markdown-diff-cat/).`);
   }
   return 0;

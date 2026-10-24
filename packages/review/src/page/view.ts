@@ -213,15 +213,27 @@ export class ReviewPage {
     const cancel = button(doc, t('cancel'), 'mdf-btn mdc-confirm-cancel');
     const add = button(doc, t('reviewPushAdd'), 'mdf-btn mdf-btn-primary mdc-confirm-add');
     add.disabled = !list.some(addable);
-    cancel.addEventListener('click', () => overlay.remove());
+    // 넣는 동안은 닫지 않는다 — 닫으면 부분 실패를 못 본다
+    let busy = false;
+    const close = (): void => {
+      overlay.remove();
+      doc.removeEventListener('keydown', onKey);
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape' && !busy) close();
+    };
+    doc.addEventListener('keydown', onKey);
+    cancel.addEventListener('click', close);
     add.addEventListener('click', async () => {
       add.disabled = true;
+      cancel.disabled = true;
+      busy = true;
       error.hidden = true;
       try {
         const r = await this.deps.api<PushPayload>('POST', '/api/review', { rev: view.rev });
         if (!r.failed.length) {
           this.toast(t('reviewPushed', [r.added]), { text: t('reviewPushedLink'), href: r.url });
-          overlay.remove();
+          close();
           await this.load();
           return;
         }
@@ -237,13 +249,16 @@ export class ReviewPage {
         if (e instanceof ApiError && e.status === 409) {
           const redraw = button(doc, t('reviewRedraw'), 'mdf-btn mdc-confirm-redraw');
           redraw.addEventListener('click', () => {
-            overlay.remove();
+            close();
             void this.load('POST', '/api/redraw');
           });
           error.append(' ', redraw);
         }
         error.hidden = false;
         add.disabled = false;
+      } finally {
+        busy = false;
+        cancel.disabled = false;
       }
     });
     const actions = el(doc, 'div', 'mdc-confirm-actions');
